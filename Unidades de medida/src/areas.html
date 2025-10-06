@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora de Área de Rejilla Rectangular</title>
+  <style>
+    :root{
+      /* Bluish palette — Light */
+      --bg:#f1f6ff;         /* page background */
+      --panel:#ffffff;      /* cards/panels */
+      --ink:#0b1f3b;        /* primary text (navy) */
+      --muted:#5b7fa3;      /* secondary text / ruler lines */
+      --border:#d6e6ff;     /* soft borders */
+      --grid:#c3d8f4;       /* main grid lines (bluish) */
+      --unitgrid:#e8f0fd;   /* 1×1 unit grid lines (lighter) */
+      --border-strong:#1e3a8a; /* main rectangle outline (indigo) */
+      --accent:#3b82f6;       /* controls focus/accents */
+      --danger:#ef4444;
+      --ok:#0ea5e9;
+      --canvas-bg:#f7fbff;   /* canvas background tint */
+    }
+    @media (prefers-color-scheme: dark) {
+      :root{
+        /* Bluish palette — Dark */
+        --bg:#081427;
+        --panel:#0b1a33;
+        --ink:#dbeafe;         /* blue-100 */
+        --muted:#93b6e5;       /* soft blue */
+        --border:#153052;
+        --grid:#1f3c66;
+        --unitgrid:#142b4a;    /* lighter-than-grid in dark */
+        --border-strong:#93c5fd;  /* blue-300 */
+        --accent:#60a5fa;        /* blue-400 */
+        --danger:#f87171;
+        --ok:#38bdf8;
+        --canvas-bg:#0b1a33;
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    }
+    .wrap{max-width:960px;margin:0 auto;padding:24px}
+    h1{font-size:clamp(20px,3.2vw,28px);margin:0 0 12px}
+    p.lead{color:var(--muted);margin:0 0 20px}
+
+    .panel{
+      background:var(--panel); border:1px solid var(--border);
+      border-radius:14px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.05);
+    }
+    form .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;align-items:start}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:14px;color:var(--muted)}
+    .field input[type="number"], .field input[type="text"], .field select, .field input[type="range"]{
+      width:100%; padding:10px 12px; background:var(--panel); color:var(--ink);
+      border:1px solid var(--border); border-radius:10px; outline:none;
+    }
+    .field input[type="range"]{padding:0}
+    .field input:focus, .field select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 28%, transparent);
+    }
+    .error{min-height:18px;color:var(--danger);font-size:12px}
+
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    button.primary{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--accent);
+      background:var(--accent);color:#001018;cursor:pointer;font-weight:600;
+    }
+    button.primary[disabled]{opacity:.5;cursor:not-allowed}
+    .switch{display:flex;align-items:center;gap:8px}
+
+    .canvas-card{
+      margin-top:16px; background:var(--panel); border:1px solid var(--border);
+      border-radius:14px; padding:12px;
+    }
+    .viz-title{font-weight:600;margin:0 0 8px 2px;color:var(--ink)}
+    .canvas-frame{
+      border:1px dashed var(--border); border-radius:10px; padding:10px; background:var(--canvas-bg);
+    }
+    canvas{display:block;width:100%;height:auto}
+
+    .actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+    button.secondary{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--border);
+      background:transparent;color:var(--ink);cursor:pointer;
+    }
+
+    @media (max-width:720px){form .grid{grid-template-columns: repeat(6,1fr)}}
+    @media (max-width:460px){form .grid{grid-template-columns: repeat(4,1fr)}}
+    .span-3{grid-column: span 3} .span-4{grid-column: span 4} .span-6{grid-column: span 6} .span-12{grid-column: span 12}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Calculadora de Área de Rejilla Rectangular</h1>
+    <p class="lead">Introduce el ancho, alto y una rejilla n×m; obtén dos dibujos anotados y descárgalos como PNG.</p>
+
+    <section class="panel" aria-labelledby="inputs-heading">
+      <h2 id="inputs-heading" style="position:absolute;left:-9999px">Entradas</h2>
+      <form id="controls" novalidate>
+        <div class="grid">
+          <div class="field span-3">
+            <label for="width">Ancho (Unidades)</label>
+            <input id="width" name="width" type="number" placeholder="Ancho (Unidades)" inputmode="decimal" step="any" min="0.0000001" aria-label="Ancho en Unidades" aria-describedby="err-width" />
+            <div id="err-width" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="height">Alto (Unidades)</label>
+            <input id="height" name="height" type="number" placeholder="Alto (Unidades)" inputmode="decimal" step="any" min="0.0000001" aria-label="Alto en Unidades" aria-describedby="err-height" />
+            <div id="err-height" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="cols">Columnas (n)</label>
+            <input id="cols" name="cols" type="number" placeholder="Columnas (n)" inputmode="numeric" step="1" min="1" aria-label="Número de columnas n" aria-describedby="err-cols" />
+            <div id="err-cols" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="rows">Filas (m)</label>
+            <input id="rows" name="rows" type="number" placeholder="Filas (m)" inputmode="numeric" step="1" min="1" aria-label="Número de filas m" aria-describedby="err-rows" />
+            <div id="err-rows" class="error" role="alert" aria-live="polite"></div>
+          </div>
+
+          <div class="field span-4">
+            <label for="units">Etiqueta de unidades (opcional)</label>
+            <input id="units" name="units" type="text" placeholder="Unidades" aria-label="Etiqueta de unidades" />
+          </div>
+
+          <div class="field span-4">
+            <label for="rounding">Redondeo (solo visualización)</label>
+            <select id="rounding" aria-label="Redondeo para los números mostrados">
+              <option value="none">Ninguno</option>
+              <option value="1">1 decimal</option>
+              <option value="2">2 decimales</option>
+              <option value="3">3 decimales</option>
+            </select>
+          </div>
+
+          <div class="field span-4">
+            <label>Etiquetas y capas</label>
+            <div class="controls" style="gap:16px;flex-wrap:wrap">
+              <label class="switch">
+                <input id="showLabels" type="checkbox" aria-label="Mostrar etiquetas de celda (área por pieza)" />
+                <span>Mostrar etiquetas de celda</span>
+              </label>
+              <label class="switch">
+                <input id="showUnitGrid" type="checkbox" aria-label="Mostrar rejilla de unidades 1×1 debajo de la rejilla principal" />
+                <span>Mostrar rejilla 1×1</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field span-6">
+            <label for="gridIntensity">Intensidad Rejilla Principal (n×m)</label>
+            <input id="gridIntensity" type="range" min="0" max="100" step="1" value="50" aria-label="Intensidad de la rejilla principal" />
+          </div>
+          <div class="field span-6">
+            <label for="unitGridIntensity">Intensidad Rejilla Unitaria (1×1)</label>
+            <input id="unitGridIntensity" type="range" min="0" max="100" step="1" value="50" aria-label="Intensidad de la rejilla unitaria" />
+          </div>
+          <div class="span-12 controls">
+            <button id="update" class="primary" type="submit" disabled>Actualizar</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="canvas-card" aria-labelledby="viz1-heading">
+      <h2 id="viz1-heading" style="position:absolute;left:-9999px">Visualización del rectángulo completo</h2>
+      <div id="vizTitle1" class="viz-title" aria-live="polite"></div>
+      <div class="canvas-frame">
+        <canvas id="gridCanvas" aria-label="Visualización de la rejilla rectangular"></canvas>
+      </div>
+    </section>
+
+    <section class="canvas-card" aria-labelledby="viz2-heading">
+      <h2 id="viz2-heading" style="position:absolute;left:-9999px">Visualización de una celda individual</h2>
+      <div id="vizTitle2" class="viz-title" aria-live="polite"></div>
+      <div class="canvas-frame">
+        <canvas id="cellCanvas" aria-label="Visualización de una celda individual"></canvas>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="downloadImgs" class="secondary" type="button" disabled>Descargar imágenes (PNG)</button>
+    </section>
+  </main>
+
+  <script>
+    // ---------- DOM refs ----------
+    const els = {
+      width: document.getElementById('width'),
+      height: document.getElementById('height'),
+      cols: document.getElementById('cols'),
+      rows: document.getElementById('rows'),
+      units: document.getElementById('units'),
+      rounding: document.getElementById('rounding'),
+      showLabels: document.getElementById('showLabels'),
+      showUnitGrid: document.getElementById('showUnitGrid'),
+      update: document.getElementById('update'),
+      gridIntensity: document.getElementById('gridIntensity'),
+      unitGridIntensity: document.getElementById('unitGridIntensity'),
+
+      errWidth: document.getElementById('err-width'),
+      errHeight: document.getElementById('err-height'),
+      errCols: document.getElementById('err-cols'),
+      errRows: document.getElementById('err-rows'),
+
+      gridCanvas: document.getElementById('gridCanvas'),
+      cellCanvas: document.getElementById('cellCanvas'),
+
+      vizTitle1: document.getElementById('vizTitle1'),
+      vizTitle2: document.getElementById('vizTitle2'),
+
+      downloadImgs: document.getElementById('downloadImgs'),
+    };
+
+    // ---------- Storage ----------
+    const STORE_KEY = 'rectGridSettings.v6';
+    const defaults = {
+      width: 10, height: 6, n: 5, m: 3, units: 'Unidades',
+      rounding: 'none',
+      showLabels: false,
+      showUnitGrid: false,
+      gridIntensity: 50,
+      unitGridIntensity: 35
+    };
+
+    function loadSettings(){
+      try{
+        const raw = localStorage.getItem(STORE_KEY);
+        if(!raw) return {...defaults};
+        const obj = JSON.parse(raw);
+        return {...defaults, ...obj};
+      }catch{ return {...defaults}; }
+    }
+    function saveSettings(s){
+      try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch{}
+    }
+
+    // ---------- Validation ----------
+    function parsePositiveFloat(v){ const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; }
+    function parsePositiveInt(v){ const x = Number(v); return Number.isInteger(x) && x > 0 ? x : null; }
+
+    function validateAll(){
+      const w = parsePositiveFloat(els.width.value);
+      const h = parsePositiveFloat(els.height.value);
+      const n = parsePositiveInt(els.cols.value);
+      const m = parsePositiveInt(els.rows.value);
+
+      setError(els.width, els.errWidth, w ? '' : 'El ancho debe ser un número positivo.');
+      setError(els.height, els.errHeight, h ? '' : 'El alto debe ser un número positivo.');
+      setError(els.cols, els.errCols, n ? '' : 'n debe ser un número entero positivo.');
+      setError(els.rows, els.errRows, m ? '' : 'm debe ser un número entero positivo.');
+
+      const ok = !!(w && h && n && m);
+      els.update.disabled = !ok;
+      return ok;
+    }
+    function setError(input, errEl, msg){
+      if(msg){ input.setAttribute('aria-invalid','true'); errEl.textContent = msg; }
+      else{ input.removeAttribute('aria-invalid'); errEl.textContent = ''; }
+    }
+
+    // ---------- Formatting ----------
+    function squared(units){ return units + '\u00B2'; } // Units²
+    function formatNumber(x, rounding){
+      if(!Number.isFinite(x)) return String(x);
+      if(rounding === 'none'){
+        const y = Math.round(x * 1e12) / 1e12;
+        let s = y.toString();
+        if (s.includes('e') || s.includes('E')) return s;
+        if (!Number.isInteger(y)) s = y.toFixed(12).replace(/\.?0+$/,'');
+        return s;
+      }else{
+        const d = Number(rounding);
+        return x.toFixed(d);
+      }
+    }
+
+    // ---------- Core computations ----------
+    function computeAreas(width, height, n, m){
+      const cellW = width / n;
+      const cellH = height / m;
+      const totalArea = width * height;
+      const pieceArea = cellW * cellH;
+      return {cellW, cellH, totalArea, pieceArea};
+    }
+
+    // ---------- Canvas helpers ----------
+    function crispVLine(ctx, x, y1, y2){
+      const xx = Math.round(x) + 0.5;
+      ctx.beginPath(); ctx.moveTo(xx, y1); ctx.lineTo(xx, y2); ctx.stroke();
+    }
+    function crispHLine(ctx, x1, y, x2){
+      const yy = Math.round(y) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x1, yy); ctx.lineTo(x2, yy); ctx.stroke();
+    }
+    function drawArrowHead(ctx, x, y, angle, size, color){
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(-size, 0.6*size); ctx.lineTo(-size, -0.6*size);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    function drawDoubleArrow(ctx, x1, y1, x2, y2, color){
+      ctx.save();
+      ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      const ang = Math.atan2(y2 - y1, x2 - x1), size = 6;
+      drawArrowHead(ctx, x1, y1, ang + Math.PI, size, color);
+      drawArrowHead(ctx, x2, y2, ang, size, color);
+      ctx.restore();
+    }
+
+    // ---------- Color utils: mezclar hacia negro ----------
+    function hexToRgb(hex){
+      let h = hex.trim();
+      if (!h) return null;
+      if (h[0] === '#') h = h.slice(1);
+      if (h.length === 3) h = h.split('').map(ch=>ch+ch).join('');
+      if (h.length !== 6) return null;
+      const num = parseInt(h, 16);
+      return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+    }
+    function parseRgbString(c){
+      const m = c.trim().match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+      if (!m) return null;
+      return { r: +m[1], g: +m[2], b: +m[3] };
+    }
+    function parseColorToRgb(c){
+      return hexToRgb(c) || parseRgbString(c);
+    }
+    // p=0 conserva el color; p=1 => negro puro
+    function mixToBlack(color, p){
+      const rgb = parseColorToRgb(color);
+      if (!rgb) return '#000000';
+      const r = Math.round(rgb.r * (1 - p));
+      const g = Math.round(rgb.g * (1 - p));
+      const b = Math.round(rgb.b * (1 - p));
+      return `rgb(${r},${g},${b})`;
+    }
+
+    // ---------- Estilo de líneas según intensidad ----------
+    function getGridStyle(intensity, minWidth, maxWidth, minAlpha, maxAlpha) {
+      const p = intensity / 100; // 0..1
+      return {
+        width: minWidth + (maxWidth - minWidth) * p,
+        alpha: minAlpha + (maxAlpha - minAlpha) * p,
+        p
+      };
+    }
+
+    // Safeguard de líneas unitarias
+    const MAX_UNIT_LINES = 4000;
+
+    // ---------- Layout record (para recorte al exportar) ----------
+    let lastState = null;
+    let lastLayout = { grid: null, cell: null };
+
+    // ---------- Visualización 1: rectángulo completo ----------
+    function drawGrid(state){
+      const { width: W, height: H, n, m, rounding, showLabels, units, showUnitGrid, gridIntensity, unitGridIntensity } = state;
+      const { pieceArea } = state.results;
+
+      const canvas = els.gridCanvas;
+      const container = canvas.parentElement;
+      const cssMaxWidth = container.clientWidth;
+
+      const margin = { top: 76, right: 56, bottom: 28, left: 42 };
+      const cssW = cssMaxWidth;
+      const cssHMin = 240;
+      const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = 'auto';
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssHMin * dpr);
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      const cs = getComputedStyle(document.documentElement);
+      const bg = cs.getPropertyValue('--canvas-bg').trim();
+      const ink = cs.getPropertyValue('--ink').trim();
+      const unitGridColorBase = cs.getPropertyValue('--unitgrid').trim() || '#e8f0fd';
+      const gridColorBase = cs.getPropertyValue('--grid').trim();
+      const borderColor = cs.getPropertyValue('--border-strong').trim();
+      const mut = cs.getPropertyValue('--muted').trim();
+
+      let drawW = cssW - margin.left - margin.right;
+      let drawH = cssHMin - margin.top - margin.bottom;
+      const scale = Math.min(drawW / W, drawH / H);
+      const rectPxW = Math.max(1, W * scale);
+      const rectPxH = Math.max(1, H * scale);
+
+      const totalCssH = Math.ceil(rectPxH + margin.top + margin.bottom);
+      canvas.style.height = totalCssH + 'px';
+      canvas.height = Math.round(totalCssH * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      drawW = cssW - margin.left - margin.right;
+      drawH = totalCssH - margin.top - margin.bottom;
+
+      const offX = margin.left + (drawW - rectPxW) / 2;
+      const offY = margin.top + (drawH - rectPxH) / 2;
+
+      // Región de recorte horizontal para exportar: rectángulo + márgenes horizontales
+      const cropX = Math.max(0, offX - margin.left);
+      const cropW = Math.ceil(rectPxW + margin.left + margin.right);
+      const cropY = 0;
+      const cropH = totalCssH;
+
+      ctx.fillStyle = bg; ctx.fillRect(0,0,cssW,totalCssH);
+
+      const f = (x)=>formatNumber(x, rounding);
+      const title = `${f(W*H)} ${squared(units)} — ${n*m} piezas`;
+      ctx.save();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 16px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+      const titleY = offY - 48;
+      ctx.fillText(title, offX + rectPxW/2, titleY);
+      ctx.restore();
+
+      // Rejilla 1×1 (debajo)
+      if (showUnitGrid){
+        const style = getGridStyle(unitGridIntensity, 0.5, 2.0, 0.2, 1.0);
+        ctx.save();
+        ctx.strokeStyle = mixToBlack(unitGridColorBase, style.p);
+        ctx.lineWidth = style.width;
+        ctx.globalAlpha = style.alpha;
+
+        const vCount = Math.max(0, Math.floor(W));
+        const hCount = Math.max(0, Math.floor(H));
+        const total = vCount + hCount;
+        const step = total > MAX_UNIT_LINES ? Math.ceil(total / MAX_UNIT_LINES) : 1;
+
+        for (let i = 1; i < W; i += step){
+          const x = offX + i * scale;
+          crispVLine(ctx, x, offY, offY + rectPxH);
+        }
+        for (let j = 1; j < H; j += step){
+          const y = offY + j * scale;
+          crispHLine(ctx, offX, y, offX + rectPxW);
+        }
+        ctx.restore();
+      }
+
+      // Borde externo
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = borderColor;
+      ctx.strokeRect(offX, offY, rectPxW, rectPxH);
+      ctx.restore();
+
+      // Rejilla n×m (encima)
+      const mainGridStyle = getGridStyle(gridIntensity, 0.75, 3.0, 0.3, 1.0);
+      ctx.save();
+      ctx.strokeStyle = mixToBlack(gridColorBase, mainGridStyle.p);
+      ctx.lineWidth = mainGridStyle.width;
+      ctx.globalAlpha = mainGridStyle.alpha;
+
+      for(let i=1; i<n; i++){
+        const x = offX + i * (rectPxW / n);
+        crispVLine(ctx, x, offY, offY + rectPxH);
+      }
+      for(let j=1; j<m; j++){
+        const y = offY + j * (rectPxH / m);
+        crispHLine(ctx, offX, y, offX + rectPxW);
+      }
+      ctx.restore();
+
+      // Índices
+      const maxIndexCount = 60;
+      ctx.fillStyle = mut;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      if (n <= maxIndexCount){
+        const colCell = rectPxW / n;
+        const colFont = Math.max(10, Math.min(14, Math.floor(colCell * 0.35)));
+        ctx.font = `500 ${colFont}px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif`;
+        const y = offY - 8;
+        for(let c=0; c<n; c++){
+          const cx = offX + (c + 0.5) * colCell;
+          if (colCell >= 10) ctx.fillText(String(c+1), cx, y);
+        }
+      }
+      if (m <= maxIndexCount){
+        const rowCell = rectPxH / m;
+        const rowFont = Math.max(10, Math.min(14, Math.floor(rowCell * 0.35)));
+        ctx.font = `500 ${rowFont}px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const x = offX - 8;
+        for(let r=0; r<m; r++){
+          const cy = offY + (r + 0.5) * rowCell;
+          if (rowCell >= 10) ctx.fillText(String(r+1), x, cy);
+        }
+      }
+
+      // Reglas y etiquetas
+      const widthLabel = `${f(W)} ${units}`;
+      const heightLabel = `${f(H)} ${units}`;
+      const hrY = offY - 22;
+      drawDoubleArrow(ctx, offX, hrY, offX + rectPxW, hrY, mut);
+      ctx.save();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+      ctx.fillText(widthLabel, offX + rectPxW / 2, hrY - 3);
+      ctx.restore();
+
+      const vrX = offX + rectPxW + 22;
+      drawDoubleArrow(ctx, vrX, offY, vrX, offY + rectPxH, mut);
+      ctx.save();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      if (rectPxH > 120){
+        ctx.save();
+        ctx.translate(vrX + 14, offY + rectPxH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+        ctx.fillText(heightLabel, 0, 0);
+        ctx.restore();
+      }else{
+        ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+        ctx.fillText(heightLabel, vrX + 8, offY + rectPxH / 2);
+      }
+      ctx.restore();
+
+      if (showLabels){
+        const label = `${f(pieceArea)} ${squared(units)}`;
+        const cellPxW = rectPxW / n;
+        const cellPxH = rectPxH / m;
+        const base = Math.min(cellPxW, cellPxH);
+        const fontPx = Math.max(10, Math.min(20, Math.floor(base * 0.28)));
+        ctx.fillStyle = ink;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `500 ${fontPx}px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif`;
+        for(let r=0; r<m; r++){
+          for(let c=0; c<n; c++){
+            const cx = offX + (c + 0.5) * (rectPxW / n);
+            const cy = offY + (r + 0.5) * (rectPxH / m);
+            if (cellPxW < 22 || cellPxH < 16) continue;
+            ctx.fillText(label, cx, cy);
+          }
+        }
+      }
+      els.vizTitle1.textContent = title;
+
+      // Guardar layout (en px CSS; dpr separado)
+      lastLayout.grid = { cropX, cropY, cropW, cropH, dpr };
+    }
+
+    // ---------- Visualización 2: celda única ----------
+    function drawSingleCell(state){
+      const { cellW, cellH, pieceArea } = state.results;
+      const { rounding, units, n, m, showUnitGrid, unitGridIntensity } = state;
+
+      const canvas = els.cellCanvas;
+      const container = canvas.parentElement;
+      const cssMaxWidth = container.clientWidth;
+
+      const margin = { top: 42, right: 56, bottom: 28, left: 42 };
+      const cssW = cssMaxWidth;
+      const cssHMin = 200;
+
+      const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = 'auto';
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssHMin * dpr);
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      const cs = getComputedStyle(document.documentElement);
+      const bg = cs.getPropertyValue('--canvas-bg').trim();
+      const ink = cs.getPropertyValue('--ink').trim();
+      const unitGridColorBase = cs.getPropertyValue('--unitgrid').trim() || '#e8f0fd';
+      const borderColor = cs.getPropertyValue('--border-strong').trim();
+      const mut = cs.getPropertyValue('--muted').trim();
+
+      let drawW = cssW - margin.left - margin.right;
+      let drawH = cssHMin - margin.top - margin.bottom;
+      const scale = Math.min(drawW / cellW, drawH / cellH);
+      const rectPxW = Math.max(40, cellW * scale);
+      const rectPxH = Math.max(40, cellH * scale);
+
+      const totalCssH = Math.ceil(rectPxH + margin.top + margin.bottom);
+      canvas.style.height = totalCssH + 'px';
+      canvas.height = Math.round(totalCssH * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      drawW = cssW - margin.left - margin.right;
+      drawH = totalCssH - margin.top - margin.bottom;
+
+      const offX = margin.left + (drawW - rectPxW) / 2;
+      const offY = margin.top + (drawH - rectPxH) / 2;
+
+      // Región de recorte para exportar
+      const cropX = Math.max(0, offX - margin.left);
+      const cropW = Math.ceil(rectPxW + margin.left + margin.right);
+      const cropY = 0;
+      const cropH = totalCssH;
+
+      ctx.fillStyle = bg; ctx.fillRect(0,0,cssW,totalCssH);
+
+      if (showUnitGrid){
+        const style = getGridStyle(unitGridIntensity, 0.5, 2.0, 0.2, 1.0);
+        ctx.save();
+        ctx.strokeStyle = mixToBlack(unitGridColorBase, style.p);
+        ctx.lineWidth = style.width;
+        ctx.globalAlpha = style.alpha;
+
+        const vCount = Math.floor(cellW);
+        const hCount = Math.floor(cellH);
+        const total = vCount + hCount;
+        const step = total > MAX_UNIT_LINES ? Math.ceil(total / MAX_UNIT_LINES) : 1;
+
+        for (let u = 1; u < cellW; u += step){
+          const x = offX + u * scale;
+          crispVLine(ctx, x, offY, offY + rectPxH);
+        }
+        for (let v = 1; v < cellH; v += step){
+          const y = offY + v * scale;
+          crispHLine(ctx, offX, y, offX + rectPxW);
+        }
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = borderColor;
+      ctx.strokeRect(offX, offY, rectPxW, rectPxH);
+      ctx.restore();
+
+      const f = (x)=>formatNumber(x, rounding);
+      const wLabel = `${f(cellW)} ${units}`;
+      const hLabel = `${f(cellH)} ${units}`;
+      const hrY = offY - 22;
+      drawDoubleArrow(ctx, offX, hrY, offX + rectPxW, hrY, mut);
+      ctx.save();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+      ctx.fillText(wLabel, offX + rectPxW / 2, hrY - 3);
+      ctx.restore();
+
+      const vrX = offX + rectPxW + 22;
+      drawDoubleArrow(ctx, vrX, offY, vrX, offY + rectPxH, mut);
+      ctx.save();
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      if (rectPxH > 120){
+        ctx.save();
+        ctx.translate(vrX + 14, offY + rectPxH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+        ctx.fillText(hLabel, 0, 0);
+        ctx.restore();
+      }else{
+        ctx.font = '500 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif';
+        ctx.fillText(hLabel, vrX + 8, offY + rectPxH / 2);
+      }
+      ctx.restore();
+
+      const areaLabel = `${f(pieceArea)} ${squared(units)}`;
+      const base = Math.min(rectPxW, rectPxH);
+      const fontPx = Math.max(14, Math.min(24, Math.floor(base * 0.2)));
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `600 ${fontPx}px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif`;
+      ctx.fillText(areaLabel, offX + rectPxW/2, offY + rectPxH/2);
+
+      els.vizTitle2.textContent =
+        `${areaLabel} — 1 pieza de ${n*m} (${f(cellW)} × ${f(cellH)} ${units})`;
+
+      lastLayout.cell = { cropX, cropY, cropW, cropH, dpr };
+    }
+
+    // ---------- Descargar PNGs recortados ----------
+    function downloadPNGs(state){
+      const { width, height, n, m, units, results } = state;
+      const unitSafe = (units || 'Unidades').trim().replace(/[^\w\-]+/g,'-');
+      const fnum = (x)=>String(x).replace(/[^\w\.-]+/g,'_');
+
+      const mainName = `rectangulo_${fnum(width)}x${fnum(height)}_${n}x${m}_${unitSafe}.png`;
+      const cellName = `celda_${fnum(results.cellW)}x${fnum(results.cellH)}_${unitSafe}.png`;
+
+      const exportCropped = (sourceCanvas, layout, name) => {
+        if (!layout) {
+          const url = sourceCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+          return;
+        }
+        const { cropX, cropY, cropW, cropH, dpr } = layout;
+
+        const off = document.createElement('canvas');
+        off.width = Math.max(1, Math.round(cropW * dpr));
+        off.height = Math.max(1, Math.round(cropH * dpr));
+        const octx = off.getContext('2d');
+
+        octx.drawImage(
+          sourceCanvas,
+          Math.round(cropX * dpr), Math.round(cropY * dpr), Math.round(cropW * dpr), Math.round(cropH * dpr),
+          0, 0, off.width, off.height
+        );
+
+        const url = off.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      };
+
+      exportCropped(els.gridCanvas, lastLayout.grid, mainName);
+      setTimeout(()=> exportCropped(els.cellCanvas, lastLayout.cell, cellName), 150);
+    }
+
+    // ---------- Orquestación ----------
+    function recomputeAndRender(){
+      const width = parsePositiveFloat(els.width.value);
+      const height = parsePositiveFloat(els.height.value);
+      const n = parsePositiveInt(els.cols.value);
+      const m = parsePositiveInt(els.rows.value);
+      if(!(width && height && n && m)) return;
+
+      const units = (els.units.value || 'Unidades').trim();
+      const rounding = els.rounding.value || 'none';
+      const showLabels = !!els.showLabels.checked;
+      const showUnitGrid = !!els.showUnitGrid.checked;
+      const gridIntensity = Number(els.gridIntensity.value);
+      const unitGridIntensity = Number(els.unitGridIntensity.value);
+
+      const results = computeAreas(width, height, n, m);
+
+      lastState = { width, height, n, m, units, rounding, showLabels, showUnitGrid, gridIntensity, unitGridIntensity, results };
+      saveSettings({ width, height, n, m, units, rounding, showLabels, showUnitGrid, gridIntensity, unitGridIntensity });
+
+      drawGrid(lastState);
+      drawSingleCell(lastState);
+
+      els.downloadImgs.disabled = false;
+    }
+
+    function redrawWithNewDisplay(){
+      if(!lastState) return;
+      lastState.rounding = els.rounding.value || 'none';
+      lastState.showLabels = !!els.showLabels.checked;
+      lastState.showUnitGrid = !!els.showUnitGrid.checked;
+      lastState.gridIntensity = Number(els.gridIntensity.value);
+      lastState.unitGridIntensity = Number(els.unitGridIntensity.value);
+
+      saveSettings(lastState);
+
+      drawGrid(lastState);
+      drawSingleCell(lastState);
+    }
+
+    // ---------- Eventos ----------
+    function init(){
+      const s = loadSettings();
+      els.width.value = s.width;
+      els.height.value = s.height;
+      els.cols.value = s.n;
+      els.rows.value = s.m;
+      els.units.value = s.units;
+      els.rounding.value = s.rounding;
+      els.showLabels.checked = !!s.showLabels;
+      els.showUnitGrid.checked = !!s.showUnitGrid;
+      els.gridIntensity.value = s.gridIntensity;
+      els.unitGridIntensity.value = s.unitGridIntensity;
+
+      validateAll();
+      recomputeAndRender();
+
+      ['input','change'].forEach(ev=>{
+        els.width.addEventListener(ev, validateAll);
+        els.height.addEventListener(ev, validateAll);
+        els.cols.addEventListener(ev, validateAll);
+        els.rows.addEventListener(ev, validateAll);
+      });
+
+      document.getElementById('controls').addEventListener('submit', (e)=>{
+        e.preventDefault();
+        if (validateAll()) recomputeAndRender();
+      });
+
+      els.rounding.addEventListener('change', redrawWithNewDisplay);
+      els.showLabels.addEventListener('change', redrawWithNewDisplay);
+      els.showUnitGrid.addEventListener('change', redrawWithNewDisplay);
+
+      els.gridIntensity.addEventListener('input', redrawWithNewDisplay);
+      els.unitGridIntensity.addEventListener('input', redrawWithNewDisplay);
+
+      els.downloadImgs.addEventListener('click', ()=>{ if(lastState) downloadPNGs(lastState); });
+
+      let raf = null;
+      window.addEventListener('resize', ()=>{
+        if (!lastState) return;
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=>{
+          drawGrid(lastState);
+          drawSingleCell(lastState);
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

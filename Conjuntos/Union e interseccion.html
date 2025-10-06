@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visualizador de 6 listas</title>
+  <style>
+    :root{
+      --bg:#eef5ff;
+      --ink:#0b1f3b;
+      --muted:#5b7fa3;
+
+      --pill-purple:#e5b3ee;
+      --pill-teal:#bfece4;
+
+      --card:#ffffff;
+      --border:#d6e6ff;
+
+      --red:#e74a4a;
+      --blue:#4a7fe7;
+      --orange:#f0a640;
+      --green:#36a56a;
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color:var(--ink);
+      background:var(--bg);
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+      padding:1rem;
+    }
+
+    /* Panel de entradas */
+    .controls{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:1rem;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(220px,1fr));
+      gap:1rem;
+    }
+    .control{
+      display:flex;
+      flex-direction:column;
+      gap:.5rem;
+    }
+    label{
+      font-size:.9rem;
+      color:var(--muted);
+    }
+    textarea{
+      resize:vertical;
+      min-height:70px;
+      padding:.6rem .7rem;
+      border:1px solid var(--border);
+      border-radius:10px;
+      outline:none;
+      font-size:.95rem;
+    }
+    textarea:focus{
+      border-color:#9cc0ff;
+      box-shadow:0 0 0 3px rgba(92, 131, 255, .15);
+    }
+    .hint{
+      grid-column:1/-1;
+      font-size:.85rem;
+      color:var(--muted);
+    }
+
+    /* Vista */
+    .stage{
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+      align-items:center;
+    }
+
+    .top-row{
+      width:min(1100px, 100%);
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+      align-items:center;
+    }
+
+    .pill{
+      width:90%;
+      max-width:900px;
+      padding:1rem 2rem;
+      border-radius:28px;
+      font-weight:800;
+      font-size: clamp(22px, 5vw, 48px);
+      text-align:center;
+      letter-spacing:.5px;
+      line-height:1.15;
+    }
+    .pill.purple{ background:var(--pill-purple); }
+    .pill.teal{ background:var(--pill-teal); }
+
+    .grid-2x2{
+      width:min(1100px, 100%);
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:1rem;
+      margin-bottom: 2.5rem; /* espacio extra al final de las cards */
+    }
+    .card{
+      background:var(--card);
+      border:2px solid var(--border);
+      border-radius:14px;
+      padding:1rem;
+      min-height:140px;
+
+      /* “marco” interior como en la imagen */
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .card .inner{
+      width:calc(100% - 2rem);
+      height:calc(100% - 2rem);
+      border:1px solid var(--border);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:1rem;
+    }
+    .list-text{
+      font-weight:900;
+      font-size: clamp(22px, 5vw, 48px);
+      letter-spacing:.5px;
+      line-height:1.2;
+    }
+
+    /* Bordes por color */
+    .card.red{ border-color: var(--red); }
+    .card.blue{ border-color: var(--blue); }
+    .card.orange{ border-color: var(--orange); }
+    .card.green{ border-color: var(--green); }
+
+    /* Marcador de color en la esquina superior izquierda */
+    .badge{
+      position:absolute;
+      top:.5rem; left:.5rem;
+      width:16px; height:16px;
+      border-radius:3px;
+      box-shadow: inset 0 0 0 2px #fff;
+    }
+    .card.red .badge{ background:var(--red); }
+    .card.blue .badge{ background:var(--blue); }
+    .card.orange .badge{ background:var(--orange); }
+    .card.green .badge{ background:var(--green); }
+
+    /* Responsivo */
+    @media (max-width: 900px){
+      .controls{ grid-template-columns: 1fr; }
+      .grid-2x2{ grid-template-columns:1fr; }
+      .pill{ width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <section class="controls" aria-label="Entradas">
+    <div class="control">
+      <label for="inputTopA">Lista superior A (píldora morada)</label>
+      <textarea id="inputTopA" placeholder="Ej: 1, 2, A, B"></textarea>
+    </div>
+    <div class="control">
+      <label for="inputTopB">Lista superior B (píldora verde menta)</label>
+      <textarea id="inputTopB" placeholder="Ej: 2, 3, B, C"></textarea>
+    </div>
+    <div class="control">
+      <label for="inputBL1">Lista inferior 1 (borde rojo)</label>
+      <textarea id="inputBL1" placeholder="Ej: 1, 2, 3"></textarea>
+    </div>
+    <div class="control">
+      <label for="inputBL2">Lista inferior 2 (borde azul)</label>
+      <textarea id="inputBL2" placeholder="Ej: 1, 2, 3"></textarea>
+    </div>
+    <div class="control">
+      <label for="inputBL3">Lista inferior 3 (borde naranja)</label>
+      <textarea id="inputBL3" placeholder="Ej: 1, 2, 3"></textarea>
+    </div>
+    <div class="control">
+      <label for="inputBL4">Lista inferior 4 (borde verde)</label>
+      <textarea id="inputBL4" placeholder="Ej: 1, 2, 3"></textarea>
+    </div>
+    <p class="hint">Escribe elementos separados por comas y/o saltos de línea. Se mostrarán como “a, b, c”.</p>
+  </section>
+
+  <main class="stage" aria-label="Vista">
+    <div class="top-row">
+      <div class="pill purple" id="pillA">1 , 2, A, B</div>
+      <div class="pill teal" id="pillB">2, 3, B, C</div>
+    </div>
+
+    <section class="grid-2x2" aria-label="Cuadrícula 2x2">
+      <article class="card red">
+        <div class="badge" aria-hidden="true"></div>
+        <div class="inner">
+          <div class="list-text" id="card1">1, 2, 3</div>
+        </div>
+      </article>
+
+      <article class="card blue">
+        <div class="badge" aria-hidden="true"></div>
+        <div class="inner">
+          <div class="list-text" id="card2">1, 2, 3</div>
+        </div>
+      </article>
+
+      <article class="card orange">
+        <div class="badge" aria-hidden="true"></div>
+        <div class="inner">
+          <div class="list-text" id="card3">1, 2, 3</div>
+        </div>
+      </article>
+
+      <article class="card green">
+        <div class="badge" aria-hidden="true"></div>
+        <div class="inner">
+          <div class="list-text" id="card4">1, 2, 3</div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    // Utilidad: convierte un bloque de texto en una lista "a, b, c"
+    const normalizeListText = (raw) => {
+      if (!raw) return "";
+      // Split por coma o salto de línea
+      const parts = raw
+        .split(/,|\n/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+      return parts.join(", ");
+    };
+
+    // Mapeo inputs -> salidas
+    const bindings = [
+      { input: "inputTopA", out: "pillA" },
+      { input: "inputTopB", out: "pillB" },
+      { input: "inputBL1", out: "card1" },
+      { input: "inputBL2", out: "card2" },
+      { input: "inputBL3", out: "card3" },
+      { input: "inputBL4", out: "card4" },
+    ];
+
+    // Listener genérico (con pequeño debounce para evitar repintados excesivos)
+    const attach = (idIn, idOut) => {
+      const $in = document.getElementById(idIn);
+      const $out = document.getElementById(idOut);
+      let t;
+      const render = () => { $out.textContent = normalizeListText($in.value); };
+      const handler = () => { clearTimeout(t); t = setTimeout(render, 80); };
+      $in.addEventListener("input", handler);
+      // primer render por si hay valores iniciales
+      render();
+    };
+
+    bindings.forEach(({input, out}) => attach(input, out));
+  </script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Número en base 2–16 con potencias y coeficientes</title>
+    <style>
+      :root{
+        /* Paleta */
+        --bg:#f98b51;
+        --zero:#111;     /* dígito 0 = negro */
+        --one:#fff;      /* dígito > 0 = blanco */
+        --power:#4fd1c5; /* celdas de potencias = turquesa */
+        --text:#fff;
+        --muted:rgba(255,255,255,.85);
+        --shadow: 0 6px 18px rgba(0,0,0,.15) inset, 0 2px 10px rgba(0,0,0,.15);
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0; background:var(--bg); color:var(--text);
+        font: clamp(14px, 1.6vmin, 18px)/1.35 system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif;
+        display:grid; place-items:center;
+      }
+      .wrap{
+        width:min(1100px, 94vw);
+        display:grid; gap:4vmin;
+        justify-items:center; text-align:center;
+      }
+
+      /* Número y base */
+      .inputs{
+        display:flex; gap:1.25rem; align-items:baseline; flex-wrap:wrap; justify-content:center;
+      }
+      .inputs .field{
+        display:flex; align-items:center; gap:.5rem;
+        font-size:clamp(12px, 2.2vmin, 18px);
+      }
+      .inputs input[type="number"]{
+        -webkit-appearance:textfield; appearance:textfield; -moz-appearance:textfield;
+        text-align:center; width:10ch; max-width:36vw;
+        font-size: clamp(36px, 9vmin, 96px); font-weight:800;
+        background:transparent; color:var(--text);
+        border:none; outline:none; border-bottom:3px solid rgba(255,255,255,.7);
+        padding:.1rem .5rem .2rem;
+      }
+      .inputs input[type="number"]:focus{ border-bottom-color:#fff }
+
+      #base{
+        width:6ch; text-align:center;
+        font-size:clamp(18px, 3.2vmin, 28px);
+        font-weight:700; background:transparent; color:var(--text);
+        border:none; border-bottom:2px solid rgba(255,255,255,.7);
+        padding:.1rem .25rem .2rem;
+      }
+      #base:focus{ border-bottom-color:#fff }
+
+      .controls{
+        display:flex; gap:1rem; align-items:center; opacity:.95;
+        font-size:clamp(12px, 2.2vmin, 18px);
+      }
+      .controls input{ transform:scale(1.1) }
+
+      /* Tablero de casillas */
+      .board{
+        width:100%;
+        display:grid;
+        grid-template-rows: auto auto;
+        gap: clamp(14px, 2.4vmin, 24px);
+      }
+      .row{
+        display:grid;
+        grid-auto-flow:column;
+        grid-auto-columns: minmax(52px, 1fr);
+        gap: clamp(10px, 2.2vmin, 22px);
+        align-items:stretch;
+      }
+      .cell{
+        position:relative;
+        aspect-ratio:1/1;
+        border-radius:10px;
+        box-shadow: var(--shadow);
+        background:var(--zero);
+        display:flex;           /* centra contenido */
+        align-items:center;
+        justify-content:center;
+        padding:6%;
+        container-type:size;    /* habilita cqi/cqb para auto-escala del texto */
+      }
+      .cell.used{ background:var(--one); }
+      .cell.power{ background:var(--power); }
+      .cell:hover{ transform: translateY(-2px); transition: transform .08s ease-in-out; }
+
+      /* Texto en las celdas: contraste por tipo */
+      .cell:not(.used):not(.power) .val { color:#fff; } /* 0-cells: texto blanco sobre negro */
+      .cell.used .val { color:#000; }                   /* dígitos usados: texto negro sobre blanco */
+      .cell.power .val { color:#000; }                  /* potencias: negro sobre turquesa */
+
+      .val{
+        font-weight:800;
+        line-height:1;
+        text-align:center;
+        letter-spacing:.02em;
+        user-select:none;
+        white-space:nowrap;
+        max-width:100%;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        /* Fallback si no hay container queries */
+        font-size: clamp(12px, 4vmin, 40px);
+        opacity:1; /* visible por defecto */
+        transition:opacity .15s ease-out;
+      }
+      /* Auto-escala real basada en el tamaño de la celda */
+      @supports (font-size: 1cqi){
+        .val{
+          font-size: clamp(12px, 32cqi, 56px); /* ~32% del ancho de la celda */
+        }
+      }
+      /* Permitir ocultar desde el checkbox */
+      .wrap.hide-values .val{ opacity:0; }
+
+      .legend{ opacity:.9; letter-spacing:.04em; font-size:clamp(12px, 2.2vmin, 18px);}
+      .labels{
+        display:flex; gap:2rem; justify-content:center; opacity:.9;
+        font-size:clamp(12px, 2.2vmin, 18px);
+      }
+      .labels span{ white-space:nowrap }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" aria-label="Representación de número en base 2 a 16">
+      <div class="inputs">
+        <label class="field" for="num">
+          Número (decimal)
+          <input id="num" type="number" min="0" step="1" value="25" inputmode="numeric" aria-label="Número en decimal" />
+        </label>
+
+        <label class="field" for="base">
+          Base (2–16)
+          <input id="base" type="number" min="2" max="16" step="1" value="3" aria-label="Base entre 2 y 16" />
+        </label>
+      </div>
+
+      <div class="controls">
+        <label><input id="toggleValues" type="checkbox" checked /> Mostrar valores dentro de las casillas</label>
+      </div>
+
+      <div class="labels">
+        <span>Fila superior: coeficientes/dígitos</span>
+        <span>Fila inferior: potencias de la base</span>
+      </div>
+
+      <section class="board" aria-live="polite">
+        <div class="row digits" aria-label="Dígitos (coeficientes)"></div>
+        <div class="row powers" aria-label="Potencias de la base"></div>
+      </section>
+
+      <div class="legend">Negro = 0 • Blanco = coef &gt; 0 • Turquesa = potencia • Dígitos 10–15: A–F</div>
+    </main>
+
+    <script>
+      (function(){
+        const wrap   = document.querySelector('.wrap');
+        const inputN = document.getElementById('num');
+        const inputB = document.getElementById('base');
+        const rowDigits = document.querySelector('.row.digits');
+        const rowPowers = document.querySelector('.row.powers');
+        const toggleValues = document.getElementById('toggleValues');
+
+        const digitToSymbol = v => (v < 10 ? String(v) : 'ABCDEF'[v-10] || '?');
+
+        function decompose(n,b){
+          n = Math.floor(Math.max(0,n));
+          b = Math.floor(Math.min(16,Math.max(2,b)));
+          if(n===0) return {digits:[0], powers:[1], base:b};
+          const digits=[], powers=[];
+          let p=1, guard=0;
+          while(p<=n && guard<128){
+            digits.push(Math.floor(n/p)%b);
+            powers.push(p);
+            p*=b; guard++;
+          }
+          return {digits:digits.reverse(), powers:powers.reverse(), base:b};
+        }
+
+        function clear(el){ el.innerHTML=''; }
+
+        function makeCell(text, extraClass=''){
+          const d=document.createElement('div');
+          d.className='cell'+(extraClass?(' '+extraClass):'');
+          const s=document.createElement('span');
+          s.className='val';
+          s.textContent=String(text);
+          d.appendChild(s);
+          return d;
+        }
+
+        function render(){
+          // Normaliza entradas
+          let n = Number(inputN.value);
+          let b = Number(inputB.value);
+          if (!Number.isFinite(n) || n < 0) n = 0;
+          if (!Number.isFinite(b)) b = 2;
+          b = Math.min(16, Math.max(2, Math.floor(b)));
+          inputN.value = Math.floor(n);
+          inputB.value = b;
+
+          const { digits, powers, base } = decompose(n, b);
+
+          clear(rowDigits); clear(rowPowers);
+
+          for (let i = 0; i < digits.length; i++){
+            const d = digits[i];
+            const p = powers[i];
+            const pos = digits.length - 1 - i;
+
+            // Dígitos
+            const cls = d>0 ? 'used' : '';
+            const cellD = makeCell(digitToSymbol(d), cls);
+            cellD.title = `Dígito en b^${pos} = ${d}`;
+            cellD.setAttribute('aria-label', `Coeficiente ${d} en posición ${pos}`);
+            rowDigits.appendChild(cellD);
+
+            // Potencias
+            const cellP = makeCell(String(p), 'power');
+            cellP.title = `Potencia ${base}^${pos} = ${p}`;
+            cellP.setAttribute('aria-label', `Potencia ${base}^${pos} = ${p}`);
+            rowPowers.appendChild(cellP);
+          }
+        }
+
+        // Eventos
+        inputN.addEventListener('input', render);
+        inputN.addEventListener('blur', render);
+        inputN.addEventListener('keydown', e => {
+          if (e.key === 'ArrowUp')   { e.preventDefault(); inputN.value = (Number(inputN.value)||0)+1; render(); }
+          if (e.key === 'ArrowDown') { e.preventDefault(); inputN.value = Math.max(0,(Number(inputN.value)||0)-1); render(); }
+        });
+
+        inputB.addEventListener('input', render);
+        inputB.addEventListener('blur', render);
+        inputB.addEventListener('keydown', e => {
+          if (e.key === 'ArrowRight'){ e.preventDefault(); inputB.value = Math.min(16,(Number(inputB.value)||2)+1); render(); }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); inputB.value = Math.max(2,(Number(inputB.value)||2)-1); render(); }
+        });
+
+        // Mostrar/ocultar valores
+        toggleValues.addEventListener('change', e => {
+          wrap.classList.toggle('hide-values', !e.target.checked);
+        });
+
+        // Render inicial
+        wrap.classList.remove('hide-values'); // visibles por defecto
+        render();
+      })();
+    </script>
+  </body>
+</html>

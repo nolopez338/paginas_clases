@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprende Funciones Matemáticas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            color: #1e3a8a;
+        }
+        
+        .function-container {
+            position: relative;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        .transformation-box {
+            position: relative;
+            overflow: hidden;
+            display: flex; /* Added for better alignment of inner elements */
+            align-items: center; /* Center vertically */
+            justify-content: center; /* Center horizontally initially */
+        }
+        
+        .number-box {
+            min-width: 40px;
+            height: 40px;
+            padding: 0 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            position: absolute; /* Keep absolute for animation */
+            transition: all 1s ease;
+            z-index: 2; /* Ensure number boxes are above squareNotation */
+        }
+        
+        .operation-icon {
+            font-size: 2rem;
+            color: #1e3a8a;
+            margin: 0 10px;
+            z-index: 1;
+        }
+        
+        .slider {
+            -webkit-appearance: none;
+            height: 10px;
+            border-radius: 5px;
+            background: #d1d5db;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #22c55e;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #22c55e;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        
+        .function-select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid #3b82f6;
+            background-color: white;
+            color: #1e3a8a;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .result-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ef4444;
+            text-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+        }
+        
+        .math-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Corrected power notation styles */
+        .power-notation {
+            position: absolute; /* Make it absolutely positioned within transformation-box */
+            font-size: 1.5rem; /* Base font size */
+            font-weight: bold;
+            color: #3b82f6;
+            opacity: 0; /* Hidden by default */
+            transition: transform 1s ease, opacity 0.5s ease; /* Animate with inputBall */
+            z-index: 3; /* Ensure it's above inputBall */
+            transform: translate(0, 0); /* Initial state for transition */
+        }
+        
+        .power-notation.active {
+            opacity: 1; /* Show when active */
+        }
+        
+        .power-notation .exponent {
+            font-size: 0.8em; /* Smaller relative to parent */
+            vertical-align: super; /* Superscript alignment */
+            /* We will adjust its exact position with JS's transform, so these are less critical */
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen py-8 px-4">
+        <div class="max-w-5xl mx-auto">
+            <header class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 text-indigo-700">
+                    <span class="inline-block transform -rotate-3 text-pink-500">¡</span>
+                    Explorando Funciones Matemáticas
+                    <span class="inline-block transform rotate-3 text-pink-500">!</span>
+                </h1>
+                <p class="text-xl text-indigo-600 max-w-2xl mx-auto">
+                    Una función transforma un número de entrada en una salida siguiendo una regla matemática.
+                    ¡Vamos a ver cómo funciona!
+                </p>
+            </header>
+            
+            <div class="function-container relative mb-20">
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4">
+                    <div class="card bg-white rounded-2xl shadow-lg p-6 border-t-8 border-green-500">
+                        <div class="text-center mb-4">
+                            <div class="math-icon bg-green-100 inline-block p-3 rounded-full text-green-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-green-600">ENTRADA</h2>
+                            <p class="text-gray-600 mb-4">El número que vamos a transformar</p>
+                        </div>
+                        
+                        <div class="flex flex-col items-center">
+                            <div class="relative">
+                                <div class="text-5xl font-bold text-green-500 mb-6" id="inputDisplay">5</div>
+                            </div>
+                            <div id="inputBlocksContainer" class="flex flex-wrap justify-center gap-1 mb-4"></div>
+                            
+                            <input type="range" min="1" max="10" value="5" class="slider w-full mb-4" id="inputSlider">
+                            
+                            <div class="flex items-center">
+                                <button class="bg-green-500 text-white w-10 h-10 rounded-full font-bold text-xl" id="decreaseBtn">-</button>
+                                <input type="number" min="1" max="10" value="5" class="mx-3 w-16 text-center border-2 border-green-300 rounded-lg p-2 text-xl font-bold" id="inputNumber">
+                                <button class="bg-green-500 text-white w-10 h-10 rounded-full font-bold text-xl" id="increaseBtn">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card bg-white rounded-2xl shadow-lg p-6 border-t-8 border-purple-500">
+                        <div class="text-center mb-4">
+                            <div class="math-icon bg-purple-100 inline-block p-3 rounded-full text-purple-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-purple-600">TRANSFORMACIÓN</h2>
+                            <p class="text-gray-600 mb-2">La regla que aplicamos</p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <select id="functionSelect" class="function-select w-full text-center py-3">
+                                <option value="double">Multiplicar por 2</option>
+                                <option value="square">Elevar al cuadrado</option>
+                                <option value="add5">Sumar 5</option>
+                                <option value="triple">Multiplicar por 3</option>
+                            </select>
+                        </div>
+                        
+                        <div class="transformation-box bg-gray-100 rounded-xl h-40 relative">
+                            <div id="inputBall" class="number-box bg-green-500 text-white" style="left: 20px;">5</div>
+                            <div id="functionSymbol" class="operation-icon">×2</div>
+                            <div id="squareNotation" class="power-notation">
+                                <span class="exponent">2</span>
+                            </div>
+                            <div id="outputBall" class="number-box bg-red-500 text-white" style="right: 20px;">10</div>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <p id="functionExplanation" class="text-purple-700 font-semibold">
+                                Multiplicamos el número por 2
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card bg-white rounded-2xl shadow-lg p-6 border-t-8 border-red-500">
+                        <div class="text-center mb-4">
+                            <div class="math-icon bg-red-100 inline-block p-3 rounded-full text-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-red-600">SALIDA</h2>
+                        </div>
+                        
+                        <div class="flex flex-col items-center justify-center h-60">
+                            <div class="result-display" id="outputDisplay">10</div>
+                            <div id="outputBlocksContainer" class="flex flex-col justify-center items-center gap-1 mt-4"></div>
+                            <div class="mt-4 text-gray-600">
+                                <span class="font-bold">f(</span><span id="formulaInput">5</span><span class="font-bold">) = </span><span id="formulaOutput">10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6 border-l-8 border-indigo-500">
+                <h3 class="text-xl font-bold text-indigo-700 mb-2">¿Qué es una función matemática?</h3>
+                <p class="text-gray-700">
+                    Una función es como una máquina mágica que transforma números. Cuando introduces un número (entrada), 
+                    la función aplica una regla específica y produce un nuevo número (salida). 
+                    Cada entrada siempre dará la misma salida si usamos la misma regla.
+                </p>
+                <div class="mt-4 bg-indigo-50 p-4 rounded-xl">
+                    <p class="text-indigo-700 font-semibold">
+                        Por ejemplo, si la regla es "multiplicar por 2":
+                    </p>
+                    <ul class="mt-2 space-y-1 text-gray-700">
+                        <li>• Si la entrada es 3, la salida será 6</li>
+                        <li>• Si la entrada es 5, la salida será 10</li>
+                        <li>• Si la entrada es 7, la salida será 14</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const inputSlider = document.getElementById('inputSlider');
+        const inputNumber = document.getElementById('inputNumber');
+        const inputDisplay = document.getElementById('inputDisplay');
+        const decreaseBtn = document.getElementById('decreaseBtn');
+        const increaseBtn = document.getElementById('increaseBtn');
+        const functionSelect = document.getElementById('functionSelect');
+        const functionSymbol = document.getElementById('functionSymbol');
+        const functionExplanation = document.getElementById('functionExplanation');
+        const outputDisplay = document.getElementById('outputDisplay');
+        const inputBall = document.getElementById('inputBall');
+        const outputBall = document.getElementById('outputBall');
+        const formulaInput = document.getElementById('formulaInput');
+        const formulaOutput = document.getElementById('formulaOutput');
+        const squareNotation = document.getElementById('squareNotation');
+        const inputBlocksContainer = document.getElementById('inputBlocksContainer');
+        const outputBlocksContainer = document.getElementById('outputBlocksContainer');
+        const transformationBox = document.querySelector('.transformation-box'); // Get the transformation box
+
+        // Functions
+
+        // Function to render output blocks with specific formats
+        function renderOutputBlocks(container, value, type, colorClass, inputOriginalValue = null) {
+            container.innerHTML = ''; // Clear existing blocks
+
+            const createBlock = () => {
+                const block = document.createElement('div');
+                block.className = `w-4 h-4 rounded-sm ${colorClass} mx-0.5 my-0.5`; 
+                return block;
+            };
+
+            if (type === 'rows') { // Multiply by 2 or 3
+                const numRows = functionSelect.value === 'double' ? 2 : 3;
+                const blocksPerRow = value / numRows; 
+
+                if (!Number.isInteger(blocksPerRow)) {
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-center flex-wrap';
+                    for (let i = 0; i < value; i++) {
+                        row.appendChild(createBlock());
+                    }
+                    container.appendChild(row);
+                    return;
+                }
+
+                for (let r = 0; r < numRows; r++) {
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-center flex-wrap';
+                    for (let i = 0; i < blocksPerRow; i++) {
+                        row.appendChild(createBlock());
+                    }
+                    container.appendChild(row);
+                }
+            } else if (type === 'square') { // Square
+                const gridSize = Math.sqrt(value);
+                if (Number.isInteger(gridSize)) {
+                    for (let r = 0; r < gridSize; r++) {
+                        const row = document.createElement('div');
+                        row.className = 'flex justify-center';
+                        for (let c = 0; c < gridSize; c++) {
+                            row.appendChild(createBlock());
+                        }
+                        container.appendChild(row);
+                    }
+                } else {
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-center flex-wrap';
+                    for (let i = 0; i < value; i++) {
+                        row.appendChild(createBlock());
+                    }
+                    container.appendChild(row);
+                }
+            } else if (type === 'add5') { // Add 5
+                const row5 = document.createElement('div');
+                row5.className = 'flex justify-center flex-wrap mb-1';
+                for (let i = 0; i < 5; i++) {
+                    row5.appendChild(createBlock());
+                }
+                container.appendChild(row5);
+
+                const rowN = document.createElement('div');
+                rowN.className = 'flex justify-center flex-wrap';
+                for (let i = 0; i < inputOriginalValue; i++) {
+                    rowN.appendChild(createBlock());
+                }
+                container.appendChild(rowN);
+            } else { // Default format (single row)
+                const row = document.createElement('div');
+                row.className = 'flex justify-center flex-wrap';
+                for (let i = 0; i < value; i++) {
+                    row.appendChild(createBlock());
+                }
+                container.appendChild(row);
+            }
+        }
+
+        function updateInputValue(value) {
+            value = Math.min(10, Math.max(1, parseInt(value)));
+            inputSlider.value = value;
+            inputNumber.value = value;
+            inputDisplay.textContent = value;
+            inputBall.textContent = value;
+            formulaInput.textContent = value;
+            renderOutputBlocks(inputBlocksContainer, value, 'default', 'bg-green-400');
+            updateOutput();
+        }
+        
+        function updateOutput() {
+            const input = parseInt(inputNumber.value);
+            let output;
+            let symbol;
+            let explanation;
+            let outputBlockType = 'default';
+            let inputForAdd5 = input;
+            
+            // Hide square notation and show function symbol by default
+            squareNotation.classList.remove('active');
+            functionSymbol.style.display = 'block';
+            
+            switch(functionSelect.value) {
+                case 'double':
+                    output = input * 2;
+                    symbol = '×2';
+                    explanation = 'Multiplicamos el número por 2';
+                    outputBlockType = 'rows';
+                    break;
+                case 'square':
+                    output = input * input;
+                    symbol = ''; // No symbol here, exponent will take its place
+                    explanation = 'Elevamos el número al cuadrado';
+                    outputBlockType = 'square';
+                    
+                    // Show square notation and hide function symbol
+                    functionSymbol.style.display = 'none';
+                    squareNotation.classList.add('active'); // Add active class to show and apply initial transform
+                    break;
+                case 'add5':
+                    output = input + 5;
+                    symbol = '+5';
+                    explanation = 'Sumamos 5 al número';
+                    outputBlockType = 'add5';
+                    break;
+                case 'triple':
+                    output = input * 3;
+                    symbol = '×3';
+                    explanation = 'Multiplicamos el número por 3';
+                    outputBlockType = 'rows';
+                    break;
+            }
+            
+            functionSymbol.textContent = symbol;
+            functionExplanation.textContent = explanation;
+            outputDisplay.textContent = output;
+            outputBall.textContent = output;
+            formulaOutput.textContent = output;
+
+            renderOutputBlocks(outputBlocksContainer, output, outputBlockType, 'bg-red-400', inputForAdd5);
+            
+            // Animate the transformation
+            animateTransformation();
+        }
+        
+        function animateTransformation() {
+            // Reset positions
+            inputBall.style.left = '20px';
+            outputBall.style.right = '20px';
+            
+            // Initial position for squareNotation (left of inputBall)
+            const initialInputBallLeft = 20; // This should match inputBall's initial left style
+            const initialInputBallTop = (transformationBox.offsetHeight / 2) - (inputBall.offsetHeight / 2); // Center vertically
+            
+            // Set initial position of squareNotation next to inputBall
+            squareNotation.style.transform = `translate(${initialInputBallLeft + inputBall.offsetWidth - 100}px, ${initialInputBallTop - 100}px)`;
+
+
+            // Animate input ball moving to center
+            setTimeout(() => {
+                inputBall.style.left = 'calc(50% - 70px)'; // Move to center-left
+                
+                if (functionSelect.value === 'square') {
+                    // Position squareNotation relative to inputBall's new position
+                    // Get current computed style for inputBall's left after its animation starts
+                    const inputBallComputedLeft = parseFloat(window.getComputedStyle(inputBall).left);
+                    const inputBallComputedTop = parseFloat(window.getComputedStyle(inputBall).top);
+
+                    // Calculate the target position for the exponent
+                    // X: inputBall's left + inputBall's width - a small overlap (e.g., 10px) to put it on the top right
+                    // Y: inputBall's top - half of exponent's height - a small offset (e.g., 5px) to put it above
+                    const targetLeft = inputBallComputedLeft + inputBall.offsetWidth - (squareNotation.offsetWidth * 0.4); // Adjust 0.4 for overlap
+                    const targetTop = inputBallComputedTop - (squareNotation.offsetHeight * 0.7); // Adjust 0.7 for vertical alignment
+
+                    // Apply the transform to squareNotation
+                    squareNotation.style.transform = `translate(${targetLeft - 120}px, ${targetTop - 45}px)`;
+                }
+
+            }, 100);
+            
+            // Animate output ball moving from center
+            setTimeout(() => {
+                outputBall.style.right = '20px'; // Move to right
+            }, 1000);
+        }
+        
+        // Event Listeners
+        inputSlider.addEventListener('input', () => {
+            updateInputValue(inputSlider.value);
+        });
+        
+        inputNumber.addEventListener('change', () => {
+            updateInputValue(inputNumber.value);
+        });
+        
+        decreaseBtn.addEventListener('click', () => {
+            updateInputValue(parseInt(inputNumber.value) - 1);
+        });
+        
+        increaseBtn.addEventListener('click', () => {
+            updateInputValue(parseInt(inputNumber.value) + 1);
+        });
+        
+        functionSelect.addEventListener('change', updateOutput);
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            updateOutput();
+            renderOutputBlocks(inputBlocksContainer, parseInt(inputNumber.value), 'default', 'bg-green-400'); // Initialize input blocks
+        });
+    </script>
+</body>
+</html>

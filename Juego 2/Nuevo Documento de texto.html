@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapa 2D Constructor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    textarea {
+      width: 400px;
+      height: 150px;
+      font-family: monospace;
+      margin-bottom: 10px;
+    }
+    button {
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #mapa {
+      display: grid;
+      gap: 2px;
+    }
+    .tile {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 6px;
+    }
+    /* Colores para cada tipo */
+    .pasto   { background: #7cfc00; }
+    .barrera { background: #444; color: white; }
+    .oro     { background: gold; }
+    .espinas { background: #a0522d; color: white; }
+    .fuego   { background: red; color: white; }
+  </style>
+</head>
+<body>
+  <h2>Constructor de Mapas 2D</h2>
+  <p>Introduce la matriz (cada fila separada por saltos de línea, números separados por comas):</p>
+  <textarea id="inputMatriz">0,0,0,0,0
+0,1,1,0,0
+0,2,0,3,0
+0,0,4,0,0
+0,0,0,0,0</textarea>
+  <br>
+  <button onclick="construirMapa()">Construir Mapa</button>
+  <div id="mapa"></div>
+
+  <script>
+    function construirMapa() {
+      const input = document.getElementById("inputMatriz").value.trim();
+      const filas = input.split("\n").map(row => row.split(",").map(Number));
+
+      const mapa = document.getElementById("mapa");
+      mapa.innerHTML = "";
+      mapa.style.gridTemplateColumns = `repeat(${filas[0].length}, 40px)`;
+
+      for (let r = 0; r < filas.length; r++) {
+        for (let c = 0; c < filas[r].length; c++) {
+          const valor = filas[r][c];
+          const tile = document.createElement("div");
+          tile.classList.add("tile");
+
+          if (valor === 0) tile.classList.add("pasto");
+          else if (valor === 1) { tile.classList.add("barrera"); tile.textContent = "⬛"; }
+          else if (valor === 2) { tile.classList.add("oro"); tile.textContent = "💰"; }
+          else if (valor === 3) { tile.classList.add("espinas"); tile.textContent = "🌵"; }
+          else if (valor === 4) { tile.classList.add("fuego"); tile.textContent = "🔥"; }
+
+          mapa.appendChild(tile);
+        }
+      }
+    }
+
+    // Construir mapa inicial
+    construirMapa();
+  </script>
+</body>
+</html>

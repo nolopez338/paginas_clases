@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Four Groups of Squares</title>
+<style>
+  :root{
+    --bg:#eef3ff;
+    --panel:#ffffff;
+    --ink:#0b1f3b;
+    --muted:#5b7fa3;
+    --border:#cbdcf8;
+
+    --red:#dc2626;
+    --blue:#2563eb;
+    --yellow:#d97706;
+    --green:#15803d;
+
+    --tile-color:#d8cfea;   /* color picker controls this */
+    --tile-border:rgba(90,70,120,.35);
+
+    --cell-size:38px;       /* slider controls this */
+    --cell-gap:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font:15px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    display:grid;
+    grid-template-rows:auto 1fr;
+  }
+
+  /* Top bar */
+  .controls{
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    padding:14px 16px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 16px;
+    align-items:center;
+  }
+  .controls h1{
+    margin:0 8px 0 0;
+    font-size:16px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .controls input[type="text"]{
+    flex:1 1 320px;
+    min-width:260px;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font:inherit;
+  }
+  .btn{
+    padding:10px 14px;
+    border:0;
+    border-radius:10px;
+    background:#0f172a;
+    color:#fff;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .row{ display:flex; align-items:center; gap:10px; }
+  .hint{color:var(--muted); font-size:13px; margin-left:6px; white-space:nowrap}
+  .label{color:var(--muted); font-size:13px; white-space:nowrap}
+
+  /* 2x2 board */
+  .stage{ padding:16px; }
+  .board{
+    max-width:1100px;
+    width:100%;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    gap:10px;
+    background:transparent;
+  }
+  .quad{
+    background:var(--panel);
+    border-radius:10px;
+    position:relative;
+    display:grid;
+    place-items:center;
+    border:3px solid transparent;
+    box-shadow:0 1px 0 rgba(10,20,40,.03), 0 6px 24px rgba(10,20,40,.06) inset;
+    overflow:hidden;
+  }
+  .quad .badge{
+    position:absolute;
+    top:10px; left:10px;
+    width:26px; height:26px;
+    border-radius:3px;
+    display:grid; place-items:center;
+    color:#fff; font-weight:900; font-size:14px;
+    filter:drop-shadow(0 2px 0 rgba(0,0,0,.12));
+    line-height:1;
+  }
+  .quad .wrap{
+    padding:22px;
+    width:min(520px, 95%);
+    display:grid;
+    justify-items:center;
+  }
+
+  /* centered count overlay */
+  .count{
+    position:absolute;
+    inset:0;
+    display:none;           /* toggled via .show-counts on <body> */
+    align-items:center;
+    justify-content:center;
+    font-weight:900;
+    font-size:clamp(28px, 6vw, 72px);
+    color:rgba(15,23,42,.9);
+    text-shadow:
+      0 2px 6px rgba(0,0,0,.16),
+      0 1px 0 rgba(255,255,255,.25);
+    pointer-events:none;
+    mix-blend-mode:normal;
+  }
+  body.show-counts .count{ display:flex; }
+
+  /* grid of squares — now CSS Grid so we can control columns */
+  .grid{
+    display:grid;
+    gap:var(--cell-gap);
+    justify-content:center; /* center rows of varying column counts */
+  }
+  .cell{
+    width:var(--cell-size);
+    height:var(--cell-size);
+    background:
+      linear-gradient(0deg, rgba(255,255,255,.35), rgba(255,255,255,.35)),
+      var(--tile-color);
+    border:1px solid var(--tile-border);
+    border-radius:4px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
+  }
+
+  /* color theming for each quadrant */
+  .red   { border-color:var(--red);    }
+  .blue  { border-color:var(--blue);   }
+  .yellow{ border-color:var(--yellow); }
+  .green { border-color:var(--green);  }
+  .red   .badge{ background:var(--red); }
+  .blue  .badge{ background:var(--blue); }
+  .yellow .badge{ background:var(--yellow); }
+  .green .badge{ background:var(--green); }
+
+  /* errors */
+  .error{
+    color:#b91c1c;
+    background:#fee2e2;
+    border:1px solid #fecaca;
+    padding:8px 10px;
+    border-radius:8px;
+    margin-left:8px;
+  }
+
+  @media (max-width:900px){
+    .board{ grid-template-columns:1fr; grid-template-rows:auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <h1>Squares per group:</h1>
+    <input id="counts" type="text" placeholder="e.g., 6,7,9,6 or [6,7,9,6]" />
+
+    <span class="label">Rows per group</span>
+    <input id="rows" type="text" placeholder="e.g., 2,3,3,2 or [2,3,3,2]" />
+
+    <button id="renderBtn" class="btn">Render</button>
+    <button id="dlBtn" class="btn">Download PNG</button>
+    <span class="hint">Order: Red, Blue, Yellow, Green</span>
+    <span id="err" class="error" style="display:none"></span>
+
+    <div class="row">
+      <span class="label">Squares color</span>
+      <input id="tileColor" type="color" value="#d8cfea" />
+    </div>
+
+    <div class="row" style="gap:8px">
+      <span class="label">Square size</span>
+      <input id="sizeSlider" type="range" min="20" max="100" step="2" value="38" />
+      <span id="sizeVal" class="hint">38 px</span>
+    </div>
+
+    <div class="row" style="margin-left:8px">
+      <label class="label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="toggleCounts" type="checkbox" />
+        Show counts
+      </label>
+    </div>
+  </div>
+
+  <div class="stage">
+    <main class="board" id="board">
+      <section class="quad red">
+        <div class="badge" title="Red">▲</div>
+        <div class="count" id="count-red">0</div>
+        <div class="wrap"><div class="grid" id="grid-red"></div></div>
+      </section>
+      <section class="quad blue">
+        <div class="badge" title="Blue">◆</div>
+        <div class="count" id="count-blue">0</div>
+        <div class="wrap"><div class="grid" id="grid-blue"></div></div>
+      </section>
+      <section class="quad yellow">
+        <div class="badge" title="Yellow">●</div>
+        <div class="count" id="count-yellow">0</div>
+        <div class="wrap"><div class="grid" id="grid-yellow"></div></div>
+      </section>
+      <section class="quad green">
+        <div class="badge" title="Green">■</div>
+        <div class="count" id="count-green">0</div>
+        <div class="wrap"><div class="grid" id="grid-green"></div></div>
+      </section>
+    </main>
+  </div>
+
+<!-- html2canvas for DOM-to-PNG -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+  let lastCounts = [0,0,0,0];
+  let lastRows   = [1,1,1,1];
+
+  // Parse "a,b,c,d" or "[a,b,c,d]"
+  function parseList4(s, {allowZero=false} = {}){
+    if (!s) return null;
+    try{
+      const cleaned = s.trim().replace(/^\[|\]$/g,'');
+      const parts = cleaned.split(/[,; ]+/).filter(Boolean);
+      if (parts.length !== 4) return null;
+      const nums = parts.map(p => Number(p));
+      const minAllowed = allowZero ? 0 : 1;
+      if (nums.some(n => !Number.isFinite(n) || n < minAllowed)) return null;
+      return nums.map(n => Math.floor(n));
+    }catch{ return null; }
+  }
+
+  function fillGrid(el, n){
+    el.innerHTML = "";
+    const max = Math.min(n, 400); // cap to protect the DOM
+    const frag = document.createDocumentFragment();
+    for (let i=0; i<max; i++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      frag.appendChild(cell);
+    }
+    el.appendChild(frag);
+  }
+
+  // Set grid layout: choose columns based on desired rows
+  function applyGridLayout(el, count, rows){
+    const safeRows = Math.max(1, rows|0);
+    const cols = Math.max(1, Math.ceil(count / safeRows));
+    el.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+    // Optional: set fixed row height (the cells already have fixed height)
+    el.style.gridAutoRows = `var(--cell-size)`;
+  }
+
+  function setCountsOverlay([r,b,y,g]){
+    document.getElementById('count-red').textContent    = r;
+    document.getElementById('count-blue').textContent   = b;
+    document.getElementById('count-yellow').textContent = y;
+    document.getElementById('count-green').textContent  = g;
+  }
+
+  function renderFromInput(){
+    const err = document.getElementById('err');
+    err.style.display = 'none';
+
+    const countsVal = document.getElementById('counts').value;
+    const rowsVal   = document.getElementById('rows').value;
+
+    const nums = parseList4(countsVal, {allowZero:true});
+    const rows = parseList4(rowsVal,   {allowZero:false});
+
+    if (!nums){
+      err.textContent = "Enter exactly 4 non-negative integers for counts (e.g., 6,7,9,6).";
+      err.style.display = 'inline-block';
+      return;
+    }
+    if (!rows){
+      err.textContent = "Enter exactly 4 positive integers for rows (e.g., 2,3,3,2).";
+      err.style.display = 'inline-block';
+      return;
+    }
+
+    lastCounts = nums.slice();
+    lastRows   = rows.slice();
+
+    const [r,b,y,g] = nums;
+    const [rr,rb,ry,rg] = rows;
+
+    const gr = document.getElementById('grid-red');
+    const gb = document.getElementById('grid-blue');
+    const gy = document.getElementById('grid-yellow');
+    const gg = document.getElementById('grid-green');
+
+    fillGrid(gr, r); applyGridLayout(gr, r, rr);
+    fillGrid(gb, b); applyGridLayout(gb, b, rb);
+    fillGrid(gy, y); applyGridLayout(gy, y, ry);
+    fillGrid(gg, g); applyGridLayout(gg, g, rg);
+
+    setCountsOverlay(nums);
+  }
+
+  // Color picker
+  document.getElementById('tileColor').addEventListener('input', (e)=>{
+    document.documentElement.style.setProperty('--tile-color', e.target.value);
+  });
+
+  // Size slider
+  const sizeSlider = document.getElementById('sizeSlider');
+  const sizeVal = document.getElementById('sizeVal');
+  function updateSize(v){
+    document.documentElement.style.setProperty('--cell-size', v + 'px');
+    sizeVal.textContent = v + ' px';
+  }
+  sizeSlider.addEventListener('input', (e)=> updateSize(e.target.value));
+
+  // Toggle counts
+  document.getElementById('toggleCounts').addEventListener('change', (e)=>{
+    document.body.classList.toggle('show-counts', e.target.checked);
+    setCountsOverlay(lastCounts);
+  });
+
+  // Download PNG of the board
+  async function downloadPNG(){
+    const board = document.getElementById('board');
+    await new Promise(r => requestAnimationFrame(r));
+    const scale = Math.min(3, window.devicePixelRatio || 1) * 1.25;
+    const canvas = await html2canvas(board, {
+      backgroundColor: null,
+      scale,
+      useCORS: true
+    });
+    const link = document.createElement('a');
+    link.download = 'four-groups.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  document.getElementById('dlBtn').addEventListener('click', downloadPNG);
+  document.getElementById('renderBtn').addEventListener('click', renderFromInput);
+
+  document.getElementById('counts').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ renderFromInput(); }
+  });
+  document.getElementById('rows').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ renderFromInput(); }
+  });
+
+  // Defaults
+  document.getElementById('counts').value = "6,7,9,6";
+  document.getElementById('rows').value   = "2,3,3,2";
+  updateSize(sizeSlider.value);
+  renderFromInput();
+</script>
+</body>
+</html>

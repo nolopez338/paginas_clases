@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Input → Transformation → Output</title>
+  <style>
+    :root{
+      --bg: #0f172a;
+      --text: #e5e7eb;
+      --accent: #7c3aed;
+      --green: #10b981;
+      --red:   #ef4444;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 18px;
+    }
+    header h1{ margin: 0; font-size: clamp(18px, 3vw, 28px); }
+
+    .controls{
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .inputs{
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 10px;
+    }
+    .field{
+      display: grid;
+      gap: 6px;
+    }
+    .field label{
+      font-size: 14px;
+      opacity: .9;
+    }
+    .field input{
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #111827;
+      color: var(--text);
+      font-size: 15px;
+    }
+    .field input:focus{
+      outline: none;
+      border-color: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 5px rgba(255,255,255,0.08);
+    }
+    #err{
+      display:none;
+      color:#f87171;
+      font-size: 14px;
+    }
+
+    .transform-wrap{ padding: 0; }
+    .transform-row{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 6px 0;
+    }
+
+    .io-box{
+      height: clamp(48px, 8vw, 76px);
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: clamp(24px, 5vw, 40px);
+      line-height: 1;
+      user-select: none;
+      padding: 8px 16px;
+      text-align: center;
+      min-width: fit-content;
+      white-space: nowrap;
+    }
+    .io-green{ background: var(--green); }
+    .io-red{   background: var(--red); }
+
+    .arrow-wrap{
+      display: flex;
+      align-items: center;
+      width: clamp(24px, 8vw, 120px);
+      min-width: 20px;
+    }
+    .arrow-wrap svg{
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    /* Twice as thick arrow shaft */
+    .arrow-wrap svg rect {
+      height: 32px; /* doubled from 16px */
+      y: 14px; /* recenter vertically */
+    }
+
+    @media (max-width: 640px){
+      .inputs{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>Input → Transformation → Output</h1>
+    </header>
+
+    <section class="controls" aria-label="Controls">
+      <div class="inputs">
+        <div class="field">
+          <label for="xInput">Input value (x)</label>
+          <input id="xInput" type="number" inputmode="decimal" value="3" step="any" />
+        </div>
+        <div class="field">
+          <label for="fnInput">Transformation f(x)</label>
+          <input id="fnInput" type="text" value="2*x + 1" placeholder="e.g., x+1, 2*x, x^2+3, sqrt(x), sin(x)+x/2" />
+        </div>
+      </div>
+      <div id="err" role="alert"></div>
+    </section>
+
+    <section class="transform-wrap" aria-label="Visualization">
+      <div class="transform-row">
+        <div class="io-box io-green" aria-label="Input value">
+          <span id="inVal">3</span>
+        </div>
+
+        <div class="arrow-wrap" aria-hidden="true">
+          <svg viewBox="0 0 300 60" preserveAspectRatio="xMidYMid meet">
+            <rect x="0" y="14" width="240" height="32" rx="5" ry="5" fill="#7c3aed"/>
+            <polygon points="240,10 300,30 240,50" fill="#7c3aed"/>
+          </svg>
+        </div>
+
+        <div class="io-box io-red" aria-label="Output value">
+          <span id="outVal">7</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function fmt(n){
+      if (!Number.isFinite(n)) return '—';
+      const a = Math.abs(n);
+      if (a !== 0 && (a < 1e-3 || a >= 1e6)) return n.toExponential(2);
+      return Number(n.toFixed(6)).toString();
+    }
+
+    function buildFn(exprRaw){
+      const funcs = [
+        'sin','cos','tan','asin','acos','atan',
+        'sinh','cosh','tanh',
+        'abs','sqrt','log','ln','exp',
+        'min','max','floor','ceil','round','pow'
+      ];
+      let expr = String(exprRaw || '').trim();
+      if (!expr) throw new Error('Empty expression.');
+      expr = expr.replace(/\^/g, '**');
+      expr = expr.replace(/\bln\b/gi, 'Math.log');
+      const reFuncs = new RegExp('\\b(' + funcs.filter(f=>f!=='ln').join('|') + ')\\b','gi');
+      expr = expr.replace(reFuncs, (m) => 'Math.' + m.toLowerCase());
+      expr = expr.replace(/\bpi\b/gi, 'Math.PI').replace(/\be\b/g, 'Math.E');
+      const allowed = /^[0-9+\-*/().,\s*xMathEPIlgoasncdhqrtm]*\**$/i;
+      if (!allowed.test(expr)) {
+        throw new Error('Only numbers, x, + - * / ( ) , ., ^/** and Math functions are allowed.');
+      }
+      let check = expr.toLowerCase();
+      check = check.replace(/math\.[a-z]+/g, '');
+      check = check.replace(/\bx\b/g, '');
+      check = check.replace(/[0-9+\-*/().,\s*]/g, '');
+      if (/[a-z_]/.test(check)) {
+        throw new Error('Unknown token(s) in expression.');
+      }
+      return new Function('Math','x', `return (${expr});`);
+    }
+
+    function compute(){
+      const xEl = document.getElementById('xInput');
+      const fEl = document.getElementById('fnInput');
+      const inValEl = document.getElementById('inVal');
+      const outValEl = document.getElementById('outVal');
+      const errEl = document.getElementById('err');
+
+      const x = Number(xEl.value);
+      inValEl.textContent = Number.isFinite(x) ? fmt(x) : '—';
+
+      try{
+        const fn = buildFn(fEl.value);
+        const y = fn(Math, x);
+        if (!Number.isFinite(y)) throw new Error('Result is not a finite number.');
+        outValEl.textContent = fmt(y);
+        errEl.style.display = 'none';
+        errEl.textContent = '';
+      }catch(e){
+        outValEl.textContent = '—';
+        errEl.textContent = e.message || 'Invalid expression.';
+        errEl.style.display = 'block';
+      }
+    }
+
+    document.getElementById('xInput').addEventListener('input', compute);
+    document.getElementById('fnInput').addEventListener('input', compute);
+    compute();
+  </script>
+</body>
+</html>

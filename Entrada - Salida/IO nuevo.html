@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transformador de Números - Entrada/Salida</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Montserrat', Arial, sans-serif;
+      background: #f6f8fa;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #2d3748;
+      margin-top: 32px;
+      margin-bottom: 8px;
+      font-size: 2.2rem;
+      letter-spacing: 1px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 32px 24px 24px 24px;
+      margin: 24px 0;
+      max-width: 480px;
+      width: 95vw;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .controls label {
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 4px;
+    }
+    .controls input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #b5b5b5;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+    .controls select, .controls .op-btns {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .controls select {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #b5b5b5;
+      font-size: 1.1rem;
+    }
+    .controls .op-btns button, .controls #downloadBtn {
+      flex: 1;
+      padding: 8px 0;
+      border-radius: 8px;
+      border: none;
+      background: #e2e8f0;
+      color: #2d3748;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .controls .op-btns button.active {
+      background: #38b2ac;
+      color: #fff;
+    }
+    #downloadBtn {
+      background: #4A90E2;
+      color: #fff;
+      margin-top: 10px;
+    }
+    #downloadBtn:hover {
+      background: #357ABD;
+    }
+
+    .zones {
+      display: flex;
+      flex-direction: column; /* Alineación vertical */
+      align-items: center; /* Centrar horizontalmente los elementos */
+      justify-content: center;
+      gap: 24px; /* Espacio entre los elementos apilados */
+      margin-top: 18px;
+    }
+    /* Contenedor para la zona de cuadrados (sin label) */
+    .zone-container {
+      display: flex;
+      flex-direction: column; /* Apila el label y la zona de cuadrados */
+      align-items: center; /* Centra el contenido horizontalmente */
+      flex: 1 1 180px; /* Mantener la capacidad de crecer/encoger */
+      min-width: 140px;
+      max-width: 220px;
+    }
+
+    .zone {
+      background: #e6ffed;
+      border-radius: 14px;
+      padding: 16px 8px 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(56,178,89,0.08);
+      position: relative;
+      width: 100%; /* Para que la zona ocupe el ancho del zone-container */
+    }
+    .zone.salida {
+      background: #ffe6e6;
+      box-shadow: 0 2px 8px rgba(255,56,56,0.08);
+    }
+    /* Eliminado .zone-label */
+    .squares {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      min-height: 60px;
+      gap: 6px;
+    }
+    .square {
+      background: #38a169;
+      border-radius: 6px;
+      margin: 2px;
+      transition: background 0.2s, width 0.2s, height 0.2s;
+      display: inline-block;
+      box-shadow: 0 1px 4px rgba(56,161,105,0.10);
+    }
+    .zone.salida .square {
+      background: #e53e3e;
+      box-shadow: 0 1px 4px rgba(229,62,62,0.10);
+    }
+    /* Contenedor para la flecha (sin label de transformación) */
+    .arrow-container {
+      display: flex;
+      flex-direction: column; /* Apila el label y la flecha */
+      align-items: center;
+      justify-content: center;
+      width: 80px; /* Ancho para el espacio entre las zonas */
+    }
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%; /* La flecha ocupa el ancho del contenedor */
+      height: 40px; /* Altura para la flecha */
+    }
+    .arrow svg {
+      width: 48px; /* Ajustar el tamaño del SVG */
+      height: 24px;
+      transform: rotate(90deg); /* La flecha apunta hacia abajo */
+    }
+    /* Eliminado .arrow-label */
+    @media (max-width: 700px) {
+      .container {
+        padding: 18px 4vw 18px 4vw;
+      }
+      .zones {
+        flex-direction: column;
+        align-items: center; /* Centrar los elementos en columna */
+        gap: 12px;
+      }
+      .zone-container {
+        flex: none;
+        width: 90%; /* Ocupar más ancho en pantallas pequeñas */
+        max-width: none;
+      }
+      .arrow-container {
+        flex-direction: column; /* Mantener la columna en móvil también */
+        align-items: center;
+        width: 90%;
+        justify-content: center;
+      }
+      .arrow svg {
+        transform: rotate(90deg); /* La flecha apunta hacia abajo en móviles */
+        margin: 0; /* No hay margen lateral si está en columna */
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <h1>Transformador de Números</h1>
+  <div class="container">
+    <div class="controls">
+      <label for="inputNum">Número de entrada (1-20):</label>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="number" id="inputNum" min="1" max="20" value="5" style="flex:1;">
+        <input type="range" id="inputNumSlider" min="1" max="20" value="5" style="flex:2;">
+      </div>
+      <label>Operación:</label>
+      <div class="op-btns">
+        <button id="op-mult" class="active" data-op="multiplicar">× Multiplicar</button>
+        <button id="op-sum" data-op="sumar">+ Sumar</button>
+        <button id="op-exp" data-op="exponenciar">^ Exponenciar</button>
+      </div>
+      <div id="op-param-container">
+        <label for="opParam" id="opParamLabel">Multiplicar por:</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="number" id="opParam" min="1" max="20" value="2" style="flex:1;">
+          <input type="range" id="opParamSlider" min="1" max="20" value="2" style="flex:2;">
+        </div>
+      </div>
+      <button id="downloadBtn">Descargar Imágenes PNG</button>
+    </div>
+    <div class="zones">
+      <div class="zone-container">
+        <div class="zone entrada">
+          <div class="squares" id="entradaSquares"></div>
+        </div>
+      </div>
+
+      <div class="arrow-container">
+        <div class="arrow">
+          <svg viewBox="0 0 40 40">
+            <defs>
+              <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+                <polygon points="0 0, 6 3, 0 6" fill="#38a169"/>
+              </marker>
+            </defs>
+            <line x1="5" y1="20" x2="35" y2="20" stroke="#38a169" stroke-width="4" marker-end="url(#arrowhead)"/>
+          </svg>
+        </div>
+        </div>
+
+      <div class="zone-container">
+        <div class="zone salida">
+          <div class="squares" id="salidaSquares"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Elementos
+    const inputNum = document.getElementById('inputNum');
+    const inputNumSlider = document.getElementById('inputNumSlider');
+    const opBtns = document.querySelectorAll('.op-btns button');
+    const opParamContainer = document.getElementById('op-param-container');
+    const opParam = document.getElementById('opParam');
+    const opParamSlider = document.getElementById('opParamSlider');
+    const opParamLabel = document.getElementById('opParamLabel');
+    const entradaSquares = document.getElementById('entradaSquares');
+    const salidaSquares = document.getElementById('salidaSquares');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Estado
+    let currentOp = 'multiplicar';
+    let inputValue = 5;
+    let opValue = 2;
+
+    // Configuración de operaciones
+    const opConfig = {
+      multiplicar: {
+        label: 'Multiplicar por:',
+        min: 1,
+        max: 20,
+        default: 2
+      },
+      sumar: {
+        label: 'Sumar:',
+        min: 0,
+        max: 20,
+        default: 1
+      },
+      exponenciar: {
+        label: 'Exponente:',
+        min: 1,
+        max: 6,
+        default: 2
+      }
+    };
+
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    function updateOpParam() {
+      const conf = opConfig[currentOp];
+      opParamLabel.textContent = conf.label;
+      opParam.min = conf.min;
+      opParam.max = conf.max;
+      opParam.value = conf.default;
+      opParamSlider.min = conf.min;
+      opParamSlider.max = conf.max;
+      opParamSlider.value = conf.default;
+      opValue = conf.default;
+    }
+
+    function getOutputValue() {
+      switch (currentOp) {
+        case 'multiplicar':
+          return clamp(inputValue * opValue, 0, 100);
+        case 'sumar':
+          return clamp(inputValue + opValue, 0, 100);
+        case 'exponenciar':
+          return clamp(Math.pow(inputValue, opValue), 0, 100);
+        default:
+          return inputValue;
+      }
+    }
+
+    function renderSquares(container, count, colorClass) {
+      container.innerHTML = '';
+      if (count < 1) return;
+      // Ajuste de tamaño dinámico
+      let size = 48;
+      if (count > 12) size = 32;
+      if (count > 24) size = 22;
+      if (count > 40) size = 14;
+      if (count > 70) size = 8;
+      for (let i = 0; i < count; i++) {
+        const sq = document.createElement('div');
+        sq.className = 'square ' + colorClass;
+        sq.style.width = size + 'px';
+        sq.style.height = size + 'px';
+        container.appendChild(sq);
+      }
+    }
+
+    function updateView() {
+      renderSquares(document.querySelector('.zone.entrada .squares'), inputValue, 'entrada');
+      renderSquares(document.querySelector('.zone.salida .squares'), getOutputValue(), 'salida');
+    }
+
+    // Función para descargar una imagen
+    function downloadImage(element, filename) {
+        html2canvas(element, { useCORS: true }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+
+    // Eventos
+    function syncInputNum(val) {
+      inputValue = clamp(parseInt(val) || 1, 1, 20);
+      inputNum.value = inputValue;
+      inputNumSlider.value = inputValue;
+      updateView();
+    }
+    inputNum.addEventListener('input', e => {
+      syncInputNum(e.target.value);
+    });
+    inputNumSlider.addEventListener('input', e => {
+      syncInputNum(e.target.value);
+    });
+    function syncOpParam(val) {
+      const conf = opConfig[currentOp];
+      opValue = clamp(parseInt(val) || conf.default, conf.min, conf.max);
+      opParam.value = opValue;
+      opParamSlider.value = opValue;
+      updateView();
+    }
+    opParam.addEventListener('input', e => {
+      syncOpParam(e.target.value);
+    });
+    opParamSlider.addEventListener('input', e => {
+      syncOpParam(e.target.value);
+    });
+    opBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        opBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentOp = btn.dataset.op;
+        updateOpParam();
+        updateView();
+      });
+    });
+
+    // Evento para el botón de descarga
+    downloadBtn.addEventListener('click', () => {
+        const entradaZoneContainer = document.querySelector('.zone-container:nth-child(1)');
+        const salidaZoneContainer = document.querySelector('.zone-container:nth-child(3)');
+
+        const outputValue = getOutputValue(); // Get the current output value
+
+        downloadImage(entradaZoneContainer, `Entrada (${inputValue}/${outputValue}).png`);
+        downloadImage(salidaZoneContainer, `Salida (${inputValue}/${outputValue}).png`);
+    });
+
+    // Inicialización
+    updateOpParam();
+    updateView();
+  </script>
+</body>
+</html>

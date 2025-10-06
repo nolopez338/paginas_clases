@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGB Pixel Grid</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f4f6fa;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: #1976d2;
+      text-align: center;
+      margin-bottom: 30px;
+      text-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+      letter-spacing: -1px;
+    }
+    .title span {
+      background: linear-gradient(45deg, #1976d2, #42a5f5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .container {
+      display: flex;
+      gap: 48px;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 40px 32px;
+      margin-bottom: 30px;
+    }
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+    .pixels {
+      align-items: center;
+      justify-items: center;
+    }
+    .pixel {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px; /* Default to square */
+      overflow: hidden; /* To contain subpixels */
+      display: flex;
+      flex-direction: column; /* Stack subpixels vertically */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      border: 2px solid #e0e0e0;
+    }
+    .subpixel {
+      width: 100%; /* Occupy full width of the pixel */
+      height: 33.33%; /* 1/3 of the pixel height */
+      background: #111; /* Default dark */
+    }
+    .pixel.circle {
+      border-radius: 50%;
+    }
+
+    /* Styles for the new Combined Color Grid */
+    .combined-grid {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 40px 32px;
+      margin-top: 30px; /* Space from the top grid */
+      display: grid; /* Make it a grid */
+      gap: 18px; /* Same gap as the other grids */
+    }
+
+    .combined-pixel {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      border: 2px solid #e0e0e0;
+      background-color: rgb(0,0,0); /* Default black */
+      transition: background-color 0.1s ease-out; /* Smooth color transitions */
+    }
+    .combined-pixel.circle {
+      border-radius: 50%;
+    }
+
+
+    .input-group {
+      display: flex;
+      flex-direction: column; /* Stack mini inputs vertically */
+      gap: 2px; /* Small gap between mini inputs */
+      width: 48px; /* Match pixel width */
+      height: 48px;
+      align-items: center; /* Center horizontally */
+      justify-content: center; /* Center vertically */
+      border-radius: 12px;
+      border: 1.5px solid #bdbdbd; /* Match input-box border */
+      background: #f9f9f9; /* Match input-box background */
+      transition: border 0.2s, background 0.2s;
+    }
+    .input-group:focus-within { /* When any child input is focused */
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .mini-input {
+      width: 22px; /* Adjusted for 3 digits like '255' */
+      height: 24px;
+      font-size: 0.7rem;
+      text-align: center;
+      border: none; /* Remove individual border */
+      background: transparent; /* Make background transparent */
+      outline: none;
+      padding: 0;
+      -moz-appearance: textfield; /* Hide arrows for Firefox */
+    }
+    .mini-input::-webkit-outer-spin-button,
+    .mini-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .flash-green {
+      animation: flashGreenEffect 0.6s ease-out;
+    }
+    .flash-red {
+      animation: flashRedEffect 0.6s ease-out;
+    }
+    @keyframes flashGreenEffect {
+      0% {
+        background: #4caf50;
+        color: white;
+        transform: scale(1);
+      }
+      50% {
+        background: #4caf50;
+        color: white;
+        transform: scale(1.05);
+      }
+      100% {
+        background: #f9f9f9;
+        color: black; /* This applies to input-group, but its children are transparent */
+        transform: scale(1);
+      }
+    }
+    @keyframes flashRedEffect {
+      0% {
+        background: #f44336;
+        color: white;
+        transform: scale(1);
+      }
+      50% {
+        background: #f44336;
+        color: white;
+        transform: scale(1.05);
+      }
+      100% {
+        background: #f9f9f9;
+        color: black;
+        transform: scale(1);
+      }
+    }
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      padding: 20px 24px;
+      flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
+      justify-content: center; /* Center items when wrapped */
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-label {
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
+    .grid-size-input {
+      width: 60px;
+      height: 36px;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .grid-size-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .refresh-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover {
+      background: #1565c0;
+    }
+    .refresh-btn:active {
+      background: #0d47a1;
+    }
+    .upload-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover {
+      background: #45a049;
+    }
+    .upload-btn:active {
+      background: #3d8b40;
+    }
+    .numbers-input {
+      width: 300px;
+      height: 36px;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+      font-family: 'Roboto', sans-serif;
+    }
+    .numbers-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .apply-btn {
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .apply-btn:hover {
+      background: #f57c00;
+    }
+    .apply-btn:active {
+      background: #ef6c00;
+    }
+    .adjust-input {
+      width: 80px;
+      height: 36px;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .adjust-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .add-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .add-btn:hover {
+      background: #45a049;
+    }
+    .add-btn:active {
+      background: #3d8b40;
+    }
+    .subtract-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .subtract-btn:hover {
+      background: #da190b;
+    }
+    .subtract-btn:active {
+      background: #c62828;
+    }
+    .shape-btn {
+      background: #9c27b0;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      min-width: 60px;
+    }
+    .shape-btn:hover {
+      background: #7b1fa2;
+    }
+    .shape-btn:active {
+      background: #6a1b9a;
+    }
+    .file-input {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+        padding: 24px 8px;
+      }
+      .controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 20px;
+      }
+      .numbers-input {
+        width: 250px;
+      }
+      .adjust-input {
+        width: 60px;
+      }
+      .title {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+      }
+      .combined-grid {
+        padding: 24px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="title"><span>RGB Pixel Grid</span></h1>
+  <div class="container">
+    <div class="grid pixels" id="pixelGrid">
+      </div>
+    <div class="grid inputs" id="inputGrid">
+      </div>
+  </div>
+  
+  <h2 class="title" style="font-size: 2rem; margin-top: 50px;"><span>Combined Color Output</span></h2>
+  <div class="combined-grid" id="combinedGrid">
+    </div>
+
+  <div class="controls" style="margin-top: 50px;">
+    <div class="control-group" style="flex-direction: column; align-items: flex-start;">
+      <label class="control-label" for="numbersInput">Lista de Números (RGB, separados por comas, 0-100):</label>
+      <input type="text" id="numbersInput" class="numbers-input" placeholder="">
+    </div>
+    <button class="apply-btn" id="applyBtn">Aplicar Números</button>
+    <button class="upload-btn" id="uploadBtn">Cargar Archivo</button>
+    <input type="file" id="fileInput" class="file-input" accept=".txt">
+  </div>
+
+  <div class="controls" style="margin-top: 20px;">
+    <div class="control-group">
+      <label class="control-label" for="adjustInput">Ajustar todos los valores:</label>
+      <input type="number" id="adjustInput" class="adjust-input" placeholder="10" min="-100" max="100" value="10">
+    </div>
+    <button class="add-btn" id="addBtn">+ Sumar</button>
+    <button class="subtract-btn" id="subtractBtn">- Restar</button>
+  </div>
+
+  <div class="controls" style="margin-top: 20px;">
+    <div class="control-group">
+      <label class="control-label" for="gridSizeInput">Tamaño de Cuadrícula:</label>
+      <input type="number" id="gridSizeInput" class="grid-size-input" min="1" max="10" value="4">
+    </div>
+    <button class="refresh-btn" id="refreshBtn">Actualizar Cuadrícula</button>
+    <button class="shape-btn" id="shapeBtn" title="Cambiar entre cuadrados y círculos" style="background: #ff9800;">⬜ ↔ ⭕</button>
+  </div>
+
+  <script>
+    const pixelGrid = document.getElementById('pixelGrid');
+    const inputGrid = document.getElementById('inputGrid');
+    const combinedGrid = document.getElementById('combinedGrid'); // New: Reference to the combined grid
+    const gridSizeInput = document.getElementById('gridSizeInput');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const numbersInput = document.getElementById('numbersInput');
+    const applyBtn = document.getElementById('applyBtn');
+    const adjustInput = document.getElementById('adjustInput');
+    const addBtn = document.getElementById('addBtn');
+    const subtractBtn = document.getElementById('subtractBtn');
+    const shapeBtn = document.getElementById('shapeBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
+    
+    let currentSize = 1;
+    let currentShape = 'square'; // 'circle' or 'square'
+    let pixels = []; // Stores references to the main pixel divs (subpixels R,G,B)
+    let inputGroups = []; // Stores references to the input group divs (mini inputs R,G,B)
+    let combinedPixels = []; // New: Stores references to the combined color pixels
+
+    function generateGrid(size) {
+      // Store current RGB values before clearing
+      const currentValues = [];
+      const oldSize = Math.sqrt(inputGroups.length);
+      
+      if (inputGroups.length > 0) {
+        const values2D = [];
+        for (let row = 0; row < oldSize; row++) {
+          values2D[row] = [];
+          for (let col = 0; col < oldSize; col++) {
+            const index = row * oldSize + col;
+            const inputGroup = inputGroups[index];
+            const r = parseInt(inputGroup.children[0].value, 10) || 0;
+            const g = parseInt(inputGroup.children[1].value, 10) || 0;
+            const b = parseInt(inputGroup.children[2].value, 10) || 0;
+            values2D[row][col] = { r, g, b };
+          }
+        }
+        
+        for (let row = 0; row < oldSize; row++) {
+          for (let col = 0; col < oldSize; col++) {
+            currentValues.push(values2D[row][col]);
+          }
+        }
+      }
+
+      // Clear existing grids
+      pixelGrid.innerHTML = '';
+      inputGrid.innerHTML = '';
+      combinedGrid.innerHTML = ''; // New: Clear combined grid
+      pixels = [];
+      inputGroups = [];
+      combinedPixels = []; // New: Reset combined pixels array
+
+      // Update grid CSS
+      pixelGrid.style.gridTemplateColumns = `repeat(${size}, 48px)`;
+      pixelGrid.style.gridTemplateRows = `repeat(${size}, 48px)`;
+      inputGrid.style.gridTemplateColumns = `repeat(${size}, 48px)`;
+      inputGrid.style.gridTemplateRows = `repeat(${size}, 48px)`;
+      combinedGrid.style.gridTemplateColumns = `repeat(${size}, 48px)`; // New: Set columns for combined grid
+      combinedGrid.style.gridTemplateRows = `repeat(${size}, 48px)`;   // New: Set rows for combined grid
+
+
+      // Generate pixels and input groups
+      for (let i = 0; i < size * size; i++) {
+        // Create pixel element (with subpixels)
+        const pixel = document.createElement('div');
+        pixel.className = 'pixel';
+        if (currentShape === 'circle') {
+          pixel.classList.add('circle');
+        }
+        
+        const subpixelR = document.createElement('div');
+        subpixelR.className = 'subpixel';
+        
+        const subpixelG = document.createElement('div');
+        subpixelG.className = 'subpixel';
+
+        const subpixelB = document.createElement('div');
+        subpixelB.className = 'subpixel';
+        
+        pixel.appendChild(subpixelR);
+        pixel.appendChild(subpixelG);
+        pixel.appendChild(subpixelB);
+        pixelGrid.appendChild(pixel);
+        pixels.push(pixel);
+
+        // Create combined color pixel
+        const combinedPixel = document.createElement('div'); // New element
+        combinedPixel.className = 'combined-pixel';
+        if (currentShape === 'circle') {
+          combinedPixel.classList.add('circle');
+        }
+        combinedGrid.appendChild(combinedPixel);
+        combinedPixels.push(combinedPixel); // Store reference
+
+        // Create input group
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'input-group';
+        
+        const inputR = document.createElement('input');
+        inputR.type = 'number';
+        inputR.className = 'mini-input';
+        inputR.min = 0;
+        inputR.max = 100;
+        inputR.dataset.color = 'r';
+
+        const inputG = document.createElement('input');
+        inputG.type = 'number';
+        inputG.className = 'mini-input';
+        inputG.min = 0;
+        inputG.max = 100;
+        inputG.dataset.color = 'g';
+
+        const inputB = document.createElement('input');
+        inputB.type = 'number';
+        inputB.className = 'mini-input';
+        inputB.min = 0;
+        inputB.max = 100;
+        inputB.dataset.color = 'b';
+
+        // Set initial values
+        let rVal = 0, gVal = 0, bVal = 0;
+        if (i < currentValues.length) {
+          rVal = currentValues[i].r;
+          gVal = currentValues[i].g;
+          bVal = currentValues[i].b;
+        }
+        inputR.value = rVal;
+        inputG.value = gVal;
+        inputB.value = bVal;
+
+        // Function to update pixel colors
+        const updatePixelColors = () => {
+          let currentR = parseInt(inputR.value, 10) || 0;
+          let currentG = parseInt(inputG.value, 10) || 0;
+          let currentB = parseInt(inputB.value, 10) || 0;
+
+          // Clamp values 0-100
+          currentR = Math.max(0, Math.min(100, currentR));
+          currentG = Math.max(0, Math.min(100, currentG));
+          currentB = Math.max(0, Math.min(100, currentB));
+
+          inputR.value = currentR;
+          inputG.value = currentG;
+          inputB.value = currentB;
+
+          // Scale 0-100 to 0-255 for individual subpixel display
+          subpixelR.style.backgroundColor = `rgb(${currentR * 2.55}, 0, 0)`;
+          subpixelG.style.backgroundColor = `rgb(0, ${currentG * 2.55}, 0)`;
+          subpixelB.style.backgroundColor = `rgb(0, 0, ${currentB * 2.55})`;
+
+          // Update combined pixel color (scale 0-100 to 0-255 for combined RGB)
+          combinedPixel.style.backgroundColor = `rgb(${currentR * 2.55}, ${currentG * 2.55}, ${currentB * 2.55})`;
+        };
+
+        // Add event listeners for each mini input
+        inputR.addEventListener('input', updatePixelColors);
+        inputG.addEventListener('input', updatePixelColors);
+        inputB.addEventListener('input', updatePixelColors);
+        
+        // Initial update for the pixel colors
+        updatePixelColors();
+
+        inputGroup.appendChild(inputR);
+        inputGroup.appendChild(inputG);
+        inputGroup.appendChild(inputB);
+        inputGrid.appendChild(inputGroup);
+        inputGroups.push(inputGroup);
+      }
+
+      // Update placeholder with correct number of values
+      updateNumbersPlaceholder();
+    }
+
+    function loadNumbersFromFile(numbers) {
+      const totalPixels = currentSize * currentSize;
+      
+      for (let i = 0; i < totalPixels; i++) {
+        const inputGroup = inputGroups[i];
+        const inputR = inputGroup.children[0];
+        const inputG = inputGroup.children[1];
+        const inputB = inputGroup.children[2];
+        const pixel = pixels[i];
+        const combinedPixel = combinedPixels[i]; // Get combined pixel
+
+        const subpixelR = pixel.children[0];
+        const subpixelG = pixel.children[1];
+        const subpixelB = pixel.children[2];
+
+        // Each pixel needs 3 values (R, G, B)
+        const startIndex = i * 3;
+        
+        let rVal = parseInt(numbers[startIndex], 10) || 0;
+        let gVal = parseInt(numbers[startIndex + 1], 10) || 0;
+        let bVal = parseInt(numbers[startIndex + 2], 10) || 0;
+
+        // Clamp values 0-100
+        rVal = Math.max(0, Math.min(100, rVal));
+        gVal = Math.max(0, Math.min(100, gVal));
+        bVal = Math.max(0, Math.min(100, bVal));
+
+        inputR.value = rVal;
+        inputG.value = gVal;
+        inputB.value = bVal;
+
+        // Update subpixel colors (scale 0-100 to 0-255)
+        subpixelR.style.backgroundColor = `rgb(${rVal * 2.55}, 0, 0)`;
+        subpixelG.style.backgroundColor = `rgb(0, ${gVal * 2.55}, 0)`;
+        subpixelB.style.backgroundColor = `rgb(0, 0, ${bVal * 2.55})`;
+
+        // Update combined pixel color (scale 0-100 to 0-255)
+        combinedPixel.style.backgroundColor = `rgb(${rVal * 2.55}, ${gVal * 2.55}, ${bVal * 2.55})`;
+      }
+    }
+
+    function loadNumbersFromInput(inputText) {
+      const numbers = inputText.split(',').map(num => num.trim()).filter(num => num !== ''); // Filter out empty strings
+      loadNumbersFromFile(numbers);
+      return numbers.length;
+    }
+
+    function adjustAllValues(amount) {
+      for (let i = 0; i < inputGroups.length; i++) {
+        const inputGroup = inputGroups[i];
+        const inputR = inputGroup.children[0];
+        const inputG = inputGroup.children[1];
+        const inputB = inputGroup.children[2];
+        const pixel = pixels[i];
+        const combinedPixel = combinedPixels[i]; // Get combined pixel
+
+        const subpixelR = pixel.children[0];
+        const subpixelG = pixel.children[1];
+        const subpixelB = pixel.children[2];
+
+        let currentR = parseInt(inputR.value, 10) || 0;
+        let currentG = parseInt(inputG.value, 10) || 0;
+        let currentB = parseInt(inputB.value, 10) || 0;
+        
+        let newR = currentR + amount;
+        let newG = currentG + amount;
+        let newB = currentB + amount;
+        
+        // Clamp to valid range (0-100)
+        newR = Math.max(0, Math.min(100, newR));
+        newG = Math.max(0, Math.min(100, newG));
+        newB = Math.max(0, Math.min(100, newB));
+        
+        inputR.value = newR;
+        inputG.value = newG;
+        inputB.value = newB;
+        
+        // Update subpixel colors (scale 0-100 to 0-255)
+        subpixelR.style.backgroundColor = `rgb(${newR * 2.55}, 0, 0)`;
+        subpixelG.style.backgroundColor = `rgb(0, ${newG * 2.55}, 0)`;
+        subpixelB.style.backgroundColor = `rgb(0, 0, ${newB * 2.55})`;
+
+        // Update combined pixel color (scale 0-100 to 0-255)
+        combinedPixel.style.backgroundColor = `rgb(${newR * 2.55}, ${newG * 2.55}, ${newB * 2.55})`;
+      }
+    }
+
+    function updateNumbersPlaceholder() {
+      const totalPixels = currentSize * currentSize;
+      const maxPixelsForExample = Math.min(totalPixels, 4); // Show example for up to 4 pixels (12 numbers)
+      
+      let exampleValues = [];
+      for (let i = 0; i < maxPixelsForExample; i++) {
+        // Create an example with varying RGB values between 0 and 100
+        exampleValues.push(Math.round(Math.random() * 100)); // R
+        exampleValues.push(Math.round(Math.random() * 100)); // G
+        exampleValues.push(Math.round(Math.random() * 100)); // B
+      }
+      
+      numbersInput.placeholder = exampleValues.join(', ');
+    }
+
+    function toggleShape() {
+      currentShape = currentShape === 'circle' ? 'square' : 'circle';
+      
+      pixels.forEach(pixel => {
+        if (currentShape === 'circle') {
+          pixel.classList.add('circle');
+        } else {
+          pixel.classList.remove('circle');
+        }
+      });
+
+      combinedPixels.forEach(combinedPixel => { // Apply shape to combined pixels too
+        if (currentShape === 'circle') {
+          combinedPixel.classList.add('circle');
+        } else {
+          combinedPixel.classList.remove('circle');
+        }
+      });
+      
+      if (currentShape === 'square') {
+        shapeBtn.style.background = '#ff9800';
+        shapeBtn.style.color = 'white';
+      } else {
+        shapeBtn.style.background = '#9c27b0';
+        shapeBtn.style.color = 'white';
+      }
+    }
+
+    function flashInputs(color = 'green') {
+      const flashClass = color === 'red' ? 'flash-red' : 'flash-green';
+      
+      inputGroups.forEach(group => {
+        group.classList.add(flashClass);
+      });
+      
+      setTimeout(() => {
+        inputGroups.forEach(group => {
+          group.classList.remove(flashClass);
+        });
+      }, 600);
+    }
+
+    // Initialize grid
+    generateGrid(currentSize);
+
+    // Event listeners
+    refreshBtn.addEventListener('click', () => {
+      const newSize = parseInt(gridSizeInput.value, 10);
+      if (newSize >= 1 && newSize <= 10) {
+        currentSize = newSize;
+        generateGrid(currentSize);
+      } else {
+        alert('Por favor ingrese un tamaño de cuadrícula entre 1 y 10');
+        gridSizeInput.value = currentSize;
+      }
+    });
+
+    gridSizeInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        refreshBtn.click();
+      }
+    });
+
+    gridSizeInput.addEventListener('input', () => {
+      const newSize = parseInt(gridSizeInput.value, 10);
+      if (newSize >= 1 && newSize <= 10) {
+        currentSize = newSize;
+        updateNumbersPlaceholder();
+      }
+    });
+
+    numbersInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        applyBtn.click();
+      }
+    });
+
+    applyBtn.addEventListener('click', () => {
+      const inputText = numbersInput.value.trim();
+      if (inputText) {
+        loadNumbersFromInput(inputText);
+        flashInputs('green');
+      } else {
+        alert('Por favor ingrese números RGB (ej. 50,0,100, 0,80,20) separados por comas en el campo de texto. Rango 0-100.');
+      }
+    });
+
+    addBtn.addEventListener('click', () => {
+      const amount = parseInt(adjustInput.value, 10);
+      if (isNaN(amount)) {
+        alert('Por favor ingrese un número válido para ajustar.');
+        return;
+      }
+      adjustAllValues(amount);
+      flashInputs('green');
+    });
+
+    subtractBtn.addEventListener('click', () => {
+      const amount = parseInt(adjustInput.value, 10);
+      if (isNaN(amount)) {
+        alert('Por favor ingrese un número válido para ajustar.');
+        return;
+      }
+      adjustAllValues(-amount);
+      flashInputs('red');
+    });
+
+    shapeBtn.addEventListener('click', toggleShape);
+
+    uploadBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const content = event.target.result;
+            const numbers = content.split(',').map(num => num.trim()).filter(num => num !== '');
+            if (numbers.length % 3 !== 0) {
+                alert('El archivo debe contener un número de valores RGB que sea múltiplo de 3 (R, G, B para cada píxel).');
+                return;
+            }
+            loadNumbersFromFile(numbers);
+            alert(`¡Se cargaron exitosamente ${numbers.length / 3} píxeles del archivo!`);
+          } catch (error) {
+            alert('Error al leer el archivo. Por favor asegúrese de que contenga números RGB separados por comas (ej. 50,0,100, 0,80,20). Rango 0-100.');
+          }
+        };
+        reader.readAsText(file);
+      }
+      fileInput.value = ''; // Reset file input
+    });
+  </script>
+  <div style="width:100%; display:flex; justify-content:center; margin: 32px 0 0 0;">
+    <a href="../index.html" style="background:#1976d2; color:white; border:none; border-radius:12px; padding:16px 36px; font-size:1.1rem; font-weight:500; text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,0.10); transition:background 0.2s, transform 0.2s; display:inline-block; text-align:center; margin-top:16px;">← Volver al Menú Principal</a>
+  </div>
+</body>
+</html>

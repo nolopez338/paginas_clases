@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rectangle Grid Area Calculator</title>
+  <style>
+    :root{
+      /* Light theme neutrals */
+      --bg: #f8fafc;         /* slate-50 */
+      --panel: #ffffff;      /* white */
+      --ink: #0f172a;        /* slate-900 */
+      --muted: #64748b;      /* slate-500 */
+      --border: #e2e8f0;     /* slate-200 */
+      --grid: #cbd5e1;       /* slate-300 */
+      --border-strong:#334155;/* slate-700 */
+      --accent:#0ea5e9;      /* sky-500 */
+      --danger:#ef4444;      /* red-500 */
+      --ok:#059669;          /* emerald-600 */
+      --canvas-bg:#ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root{
+        --bg:#0b1220;          /* deep slate */
+        --panel:#0f172a;       /* slate-900 */
+        --ink:#e5e7eb;         /* slate-200 */
+        --muted:#94a3b8;       /* slate-400 */
+        --border:#1f2937;      /* gray-800 */
+        --grid:#334155;        /* slate-700 */
+        --border-strong:#cbd5e1; /* slate-300 */
+        --accent:#22d3ee;      /* cyan-400 */
+        --danger:#f87171;      /* red-400 */
+        --ok:#34d399;          /* emerald-400 */
+        --canvas-bg:#0f172a;
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    }
+    .wrap{max-width:960px;margin:0 auto;padding:24px}
+    h1{font-size:clamp(20px,3.2vw,28px);margin:0 0 12px}
+    p.lead{color:var(--muted);margin:0 0 20px}
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    }
+
+    form .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap:12px;
+      align-items: start;
+    }
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:14px;color:var(--muted)}
+    .field input[type="number"],
+    .field input[type="text"],
+    .field select{
+      width:100%;
+      padding:10px 12px;
+      background:var(--panel);
+      color:var(--ink);
+      border:1px solid var(--border);
+      border-radius:10px;
+      outline:none;
+    }
+    .field input:focus,
+    .field select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+    .error{
+      min-height:18px;
+      color:var(--danger);
+      font-size:12px;
+    }
+    .ok{
+      display:none;
+      color:var(--ok);
+      font-size:12px;
+    }
+
+    .controls{
+      display:flex;gap:12px;flex-wrap:wrap;align-items:center
+    }
+    button.primary{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--accent);
+      background:var(--accent);color:#001018;cursor:pointer;font-weight:600;
+    }
+    button.primary[disabled]{opacity:.5;cursor:not-allowed}
+    .switch{
+      display:flex;align-items:center;gap:8px;
+    }
+
+    .canvas-card{
+      margin-top:16px;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+    }
+    .canvas-frame{
+      border:1px dashed var(--border);
+      border-radius:10px;
+      padding:10px;
+      background:var(--canvas-bg);
+    }
+    canvas{display:block;width:100%;height:auto}
+
+    .output{margin-top:16px}
+    .summary{
+      display:grid;gap:8px;
+      grid-template-columns:1fr;
+    }
+    .summary .line{
+      padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);
+    }
+    code.k{
+      font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background:color-mix(in oklab, var(--border) 70%, transparent);
+      padding:2px 6px;border-radius:6px
+    }
+
+    .table-wrap{
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius:10px;overflow:auto;max-height:420px
+    }
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    thead{position:sticky;top:0;background:var(--panel)}
+    th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    .note{font-size:14px;color:var(--muted);margin-top:8px}
+
+    .actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+    button.secondary{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--border);
+      background:transparent;color:var(--ink);cursor:pointer;
+    }
+
+    @media (max-width:720px){
+      form .grid{grid-template-columns: repeat(6, 1fr)}
+    }
+    @media (max-width:460px){
+      form .grid{grid-template-columns: repeat(4, 1fr)}
+    }
+
+    /* Column spans */
+    .span-3{grid-column: span 3}
+    .span-4{grid-column: span 4}
+    .span-6{grid-column: span 6}
+    .span-8{grid-column: span 8}
+    .span-12{grid-column: span 12}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Rectangle Grid Area Calculator</h1>
+    <p class="lead">Enter width, height, and an n×m grid; get total and per-cell areas, a proportional drawing, and a CSV export.</p>
+
+    <section class="panel" aria-labelledby="inputs-heading">
+      <h2 id="inputs-heading" style="position:absolute;left:-9999px">Inputs</h2>
+      <form id="controls" novalidate>
+        <div class="grid">
+          <div class="field span-3">
+            <label for="width">Width (Units)</label>
+            <input id="width" name="width" type="number" placeholder="Width (Units)" inputmode="decimal" step="any" min="0.0000001" aria-label="Width in Units" aria-describedby="err-width" />
+            <div id="err-width" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="height">Height (Units)</label>
+            <input id="height" name="height" type="number" placeholder="Height (Units)" inputmode="decimal" step="any" min="0.0000001" aria-label="Height in Units" aria-describedby="err-height" />
+            <div id="err-height" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="cols">Columns (n)</label>
+            <input id="cols" name="cols" type="number" placeholder="Columns (n)" inputmode="numeric" step="1" min="1" aria-label="Number of columns n" aria-describedby="err-cols" />
+            <div id="err-cols" class="error" role="alert" aria-live="polite"></div>
+          </div>
+          <div class="field span-3">
+            <label for="rows">Rows (m)</label>
+            <input id="rows" name="rows" type="number" placeholder="Rows (m)" inputmode="numeric" step="1" min="1" aria-label="Number of rows m" aria-describedby="err-rows" />
+            <div id="err-rows" class="error" role="alert" aria-live="polite"></div>
+          </div>
+
+          <div class="field span-4">
+            <label for="units">Units label (optional)</label>
+            <input id="units" name="units" type="text" placeholder="Units" aria-label="Units label" />
+            <div class="ok" id="ok-units">Saved</div>
+          </div>
+
+          <div class="field span-4">
+            <label for="rounding">Rounding (display only)</label>
+            <select id="rounding" aria-label="Rounding for displayed numbers">
+              <option value="none">None</option>
+              <option value="1">1 decimal</option>
+              <option value="2">2 decimals</option>
+              <option value="3">3 decimals</option>
+            </select>
+          </div>
+
+          <div class="field span-4">
+            <label>Labels</label>
+            <div class="controls">
+              <label class="switch">
+                <input id="showLabels" type="checkbox" aria-label="Show cell labels (area per piece)" />
+                <span>Show cell labels</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="span-12 controls">
+            <button id="update" class="primary" type="submit" disabled>Update</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="canvas-card" aria-labelledby="viz-heading">
+      <h2 id="viz-heading" style="position:absolute;left:-9999px">Visualization</h2>
+      <div class="canvas-frame">
+        <canvas id="gridCanvas" aria-label="Rectangle grid visualization"></canvas>
+      </div>
+    </section>
+
+    <section class="output" aria-labelledby="output-heading">
+      <h2 id="output-heading" style="position:absolute;left:-9999px">Output</h2>
+      <div class="summary" id="summary"></div>
+
+      <div class="table-wrap" id="tableWrap" hidden>
+        <table id="cellTable" aria-label="Cell areas table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Row</th>
+              <th>Cell area (<span id="units2-head">Units²</span>)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="note" id="tableNote" hidden></div>
+
+      <div class="actions">
+        <button id="downloadCsv" class="secondary" type="button" disabled>Download CSV of cell areas</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- DOM refs ----------
+    const els = {
+      width: document.getElementById('width'),
+      height: document.getElementById('height'),
+      cols: document.getElementById('cols'),
+      rows: document.getElementById('rows'),
+      units: document.getElementById('units'),
+      rounding: document.getElementById('rounding'),
+      showLabels: document.getElementById('showLabels'),
+      update: document.getElementById('update'),
+
+      errWidth: document.getElementById('err-width'),
+      errHeight: document.getElementById('err-height'),
+      errCols: document.getElementById('err-cols'),
+      errRows: document.getElementById('err-rows'),
+
+      canvas: document.getElementById('gridCanvas'),
+      summary: document.getElementById('summary'),
+      tableWrap: document.getElementById('tableWrap'),
+      table: document.getElementById('cellTable'),
+      tableBody: document.querySelector('#cellTable tbody'),
+      tableNote: document.getElementById('tableNote'),
+      units2Head: document.getElementById('units2-head'),
+      downloadCsv: document.getElementById('downloadCsv'),
+    };
+
+    // ---------- Storage ----------
+    const STORE_KEY = 'rectGridSettings.v1';
+    const defaults = { width: 10, height: 6, n: 5, m: 3, units: 'Units', rounding: 'none', showLabels: false };
+
+    function loadSettings(){
+      try{
+        const raw = localStorage.getItem(STORE_KEY);
+        if(!raw) return {...defaults};
+        const obj = JSON.parse(raw);
+        return {...defaults, ...obj};
+      }catch{ return {...defaults}; }
+    }
+    function saveSettings(s){
+      try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch{}
+    }
+
+    // ---------- Validation ----------
+    function parsePositiveFloat(v){ const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; }
+    function parsePositiveInt(v){ const x = Number(v); return Number.isInteger(x) && x > 0 ? x : null; }
+
+    function validateAll(){
+      const w = parsePositiveFloat(els.width.value);
+      const h = parsePositiveFloat(els.height.value);
+      const n = parsePositiveInt(els.cols.value);
+      const m = parsePositiveInt(els.rows.value);
+
+      setError(els.width, els.errWidth, w ? '' : 'Width must be a positive number.');
+      setError(els.height, els.errHeight, h ? '' : 'Height must be a positive number.');
+      setError(els.cols, els.errCols, n ? '' : 'n must be a positive integer.');
+      setError(els.rows, els.errRows, m ? '' : 'm must be a positive integer.');
+
+      const ok = !!(w && h && n && m);
+      els.update.disabled = !ok;
+      return ok;
+    }
+    function setError(input, errEl, msg){
+      if(msg){
+        input.setAttribute('aria-invalid', 'true');
+        errEl.textContent = msg;
+      }else{
+        input.removeAttribute('aria-invalid');
+        errEl.textContent = '';
+      }
+    }
+
+    // ---------- Formatting ----------
+    function squared(units){ return units + '\u00B2'; } // Units²
+
+    // Display formatter; "none" avoids user-selected rounding; trims float noise to 12 dp.
+    function formatNumber(x, rounding){
+      if(!Number.isFinite(x)) return String(x);
+      if(rounding === 'none'){
+        const y = Math.round(x * 1e12) / 1e12; // clamp float noise; not user rounding
+        // Avoid trailing zeros
+        let s = y.toString();
+        if (s.includes('e') || s.includes('E')) return s; // scientific form
+        // Ensure max 12 decimals printed if toString produced many due to binary issues
+        if (!Number.isInteger(y)) {
+          s = y.toFixed(12).replace(/\.?0+$/,'');
+        }
+        return s;
+      }else{
+        const d = Number(rounding);
+        return x.toFixed(d);
+      }
+    }
+
+    // ---------- Core computations ----------
+    function computeAreas(width, height, n, m){
+      const cellW = width / n;
+      const cellH = height / m;
+      const totalArea = width * height;
+      const pieceArea = cellW * cellH;
+      return {cellW, cellH, totalArea, pieceArea};
+    }
+
+    // ---------- Rendering: summary & table ----------
+    function renderSummary(state){
+      const { width, height, n, m, units, rounding } = state;
+      const { totalArea, cellW, cellH, pieceArea } = state.results;
+
+      const f = (x)=>formatNumber(x, rounding);
+      const u2 = squared(units);
+
+      els.summary.innerHTML = `
+        <div class="line">Rectangle: <code class="k">${f(width)}</code> × <code class="k">${f(height)}</code> ${units} → Total area: <code class="k">${f(totalArea)}</code> ${u2}</div>
+        <div class="line">Grid: <code class="k">${n}</code> × <code class="k">${m}</code> → Pieces: <code class="k">${n*m}</code></div>
+        <div class="line">Each piece: <code class="k">${f(cellW)}</code> × <code class="k">${f(cellH)}</code> ${units} → Area: <code class="k">${f(pieceArea)}</code> ${u2}</div>
+      `;
+      els.units2Head.textContent = u2;
+    }
+
+    function renderTable(state){
+      const { n, m, rounding } = state;
+      const { pieceArea } = state.results;
+
+      const limit = 400;
+      if (n*m <= limit){
+        els.tableWrap.hidden = false;
+        els.tableNote.hidden = true;
+        const f = (x)=>formatNumber(x, rounding);
+        const rows = [];
+        for(let r=1; r<=m; r++){
+          for(let c=1; c<=n; c++){
+            rows.push(`<tr><td>${c}</td><td>${r}</td><td>${f(pieceArea)}</td></tr>`);
+          }
+        }
+        // Fast batch insert
+        els.tableBody.innerHTML = rows.join('');
+      }else{
+        els.tableBody.innerHTML = '';
+        els.tableWrap.hidden = true;
+        els.tableNote.hidden = false;
+        els.tableNote.textContent = 'Table hidden for large grids. Use download.';
+      }
+    }
+
+    // ---------- CSV ----------
+    function makeCSV(state){
+      const { n, m } = state;
+      const { cellW, cellH, pieceArea } = state.results;
+      // No display rounding applied here
+      const lines = ['col,row,width_of_cell,height_of_cell,area'];
+      for(let r=1; r<=m; r++){
+        for(let c=1; c<=n; c++){
+          lines.push([c, r, cellW, cellH, pieceArea].join(','));
+        }
+      }
+      return lines.join('\n');
+    }
+    function downloadCSV(state){
+      const csv = makeCSV(state);
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      const {width,height,n,m,units} = state;
+      a.download = `cell-areas_${width}x${height}_${n}x${m}_${units || 'Units'}.csv`;
+      a.href = URL.createObjectURL(blob);
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }
+
+    // ---------- Canvas drawing ----------
+    function drawGrid(state){
+      const { width: W, height: H, n, m, rounding, showLabels, units } = state;
+      const { pieceArea } = state.results;
+
+      const canvas = els.canvas;
+      const container = canvas.parentElement; // .canvas-frame
+      const cssMaxWidth = container.clientWidth;
+
+      // Compute CSS size keeping aspect ratio
+      const ratio = W / H;
+      const cssW = cssMaxWidth;
+      const cssH = Math.max(1, cssW / ratio);
+
+      // DPI scaling
+      const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0); // now 1 unit = 1 CSS pixel
+
+      // Colors from CSS vars
+      const cs = getComputedStyle(document.documentElement);
+      const bg = cs.getPropertyValue('--canvas-bg').trim() || '#fff';
+      const ink = cs.getPropertyValue('--ink').trim() || '#111';
+      const gridColor = cs.getPropertyValue('--grid').trim() || '#ddd';
+      const borderColor = cs.getPropertyValue('--border-strong').trim() || '#333';
+
+      // Clear
+      ctx.fillStyle = bg;
+      ctx.fillRect(0,0,cssW,cssH);
+
+      // Map Units → CSS px
+      const scaleX = cssW / W;
+      const scaleY = cssH / H;
+
+      // Outer border
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = borderColor;
+      ctx.strokeRect(0, 0, cssW, cssH);
+      ctx.restore();
+
+      // Grid lines
+      ctx.save();
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+
+      // Vertical lines (columns)
+      for(let i=1; i<n; i++){
+        const x = i * (W / n) * scaleX;
+        crispVLine(ctx, x, 0, cssH);
+      }
+      // Horizontal lines (rows)
+      for(let j=1; j<m; j++){
+        const y = j * (H / m) * scaleY;
+        crispHLine(ctx, 0, y, cssW);
+      }
+      ctx.restore();
+
+      // Cell labels
+      if (showLabels){
+        const f = (x)=>formatNumber(x, rounding);
+        const label = `${f(pieceArea)} ${squared(units)}`;
+        const cellPxW = scaleX * (W / n);
+        const cellPxH = scaleY * (H / m);
+        // Adaptive font size
+        const base = Math.min(cellPxW, cellPxH);
+        const fontPx = Math.max(10, Math.min(20, Math.floor(base * 0.28)));
+        ctx.fillStyle = ink;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `500 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif`;
+
+        for(let r=0; r<m; r++){
+          for(let c=0; c<n; c++){
+            const cx = (c + 0.5) * cellPxW;
+            const cy = (r + 0.5) * cellPxH;
+            // If cells are extremely small, skip to avoid clutter
+            if (cellPxW < 22 || cellPxH < 16) continue;
+            ctx.fillText(label, cx, cy);
+          }
+        }
+      }
+    }
+
+    function crispVLine(ctx, x, y1, y2){
+      // align to 0.5 for crisp 1px lines
+      const xx = Math.round(x) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(xx, y1);
+      ctx.lineTo(xx, y2);
+      ctx.stroke();
+    }
+    function crispHLine(ctx, x1, y, x2){
+      const yy = Math.round(y) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, yy);
+      ctx.lineTo(x2, yy);
+      ctx.stroke();
+    }
+
+    // ---------- Orchestration ----------
+    let lastState = null;
+
+    function recomputeAndRender(){
+      const width = parsePositiveFloat(els.width.value);
+      const height = parsePositiveFloat(els.height.value);
+      const n = parsePositiveInt(els.cols.value);
+      const m = parsePositiveInt(els.rows.value);
+      if(!(width && height && n && m)) return;
+
+      const units = (els.units.value || 'Units').trim();
+      const rounding = els.rounding.value || 'none';
+      const showLabels = !!els.showLabels.checked;
+
+      const results = computeAreas(width, height, n, m);
+
+      lastState = { width, height, n, m, units, rounding, showLabels, results };
+      saveSettings({ width, height, n, m, units, rounding, showLabels });
+
+      renderSummary(lastState);
+      renderTable(lastState);
+      drawGrid(lastState);
+
+      els.downloadCsv.disabled = false;
+    }
+
+    function redrawWithNewDisplay(){
+      if(!lastState) return;
+      lastState.rounding = els.rounding.value || 'none';
+      lastState.showLabels = !!els.showLabels.checked;
+      // Update summary/table/labels only; areas are unchanged
+      renderSummary(lastState);
+      renderTable(lastState);
+      drawGrid(lastState);
+    }
+
+    // ---------- Event wiring ----------
+    function init(){
+      // Restore settings
+      const s = loadSettings();
+      els.width.value = s.width;
+      els.height.value = s.height;
+      els.cols.value = s.n;
+      els.rows.value = s.m;
+      els.units.value = s.units;
+      els.rounding.value = s.rounding;
+      els.showLabels.checked = !!s.showLabels;
+
+      // Validate initial & enable Update
+      validateAll();
+      // First render
+      recomputeAndRender();
+
+      // Validation on input changes
+      ['input','change'].forEach(ev=>{
+        els.width.addEventListener(ev, validateAll);
+        els.height.addEventListener(ev, validateAll);
+        els.cols.addEventListener(ev, validateAll);
+        els.rows.addEventListener(ev, validateAll);
+      });
+
+      // Form submit = Update
+      document.getElementById('controls').addEventListener('submit', (e)=>{
+        e.preventDefault();
+        if (validateAll()) recomputeAndRender();
+      });
+
+      // Rounding and labels redraw immediately (display-only)
+      els.rounding.addEventListener('change', redrawWithNewDisplay);
+      els.showLabels.addEventListener('change', redrawWithNewDisplay);
+
+      // CSV
+      els.downloadCsv.addEventListener('click', ()=>{ if(lastState) downloadCSV(lastState); });
+
+      // Resize: redraw canvas only (cheap)
+      let raf = null;
+      window.addEventListener('resize', ()=>{
+        if (!lastState) return;
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=> drawGrid(lastState));
+      });
+    }
+
+    // Kick off
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Infinite Zoomable Grid — Vanilla JS + Canvas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1f2937;
+      --minor: rgba(31,41,55,0.12);
+      --major: rgba(31,41,55,0.28);
+      --axis:  rgba(59,130,246,0.65);
+      --label-bg: rgba(255,255,255,0.85);
+      --hud-bg: rgba(243,244,246,0.85);
+      --btn-bg: #f3f4f6;
+      --btn-fg: #111827;
+      --btn-br: #e5e7eb;
+      --btn-hover: #e5e7eb;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --chip-br: rgba(0,0,0,0.15);
+      --chip-sel: rgba(59,130,246,0.15);
+    }
+    .dark {
+      --bg: #0b0f15;
+      --fg: #e5e7eb;
+      --minor: rgba(229,231,235,0.10);
+      --major: rgba(229,231,235,0.22);
+      --axis:  rgba(147,197,253,0.75);
+      --label-bg: rgba(12,18,26,0.85);
+      --hud-bg: rgba(17,24,39,0.68);
+      --btn-bg: #111827;
+      --btn-fg: #f9fafb;
+      --btn-br: #1f2937;
+      --btn-hover: #1f2937;
+      --shadow: 0 2px 14px rgba(0,0,0,0.25);
+      --chip-br: rgba(255,255,255,0.15);
+      --chip-sel: rgba(147,197,253,0.16);
+    }
+
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,"Noto Sans"; }
+    #wrap { position: fixed; inset: 0; display: grid; }
+    canvas { width: 100%; height: 100%; display: block; touch-action: none; background: var(--bg); }
+
+    #ui { position: fixed; right: 12px; top: 12px; display: flex; gap: 8px; z-index: 20; filter: drop-shadow(var(--shadow)); }
+    .btn { appearance: none; border: 1px solid var(--btn-br); background: var(--btn-bg); color: var(--btn-fg); padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; letter-spacing: .2px; user-select: none; transition: background 120ms ease, transform 80ms ease; }
+    .btn:hover { background: var(--btn-hover); }
+    .btn:active { transform: translateY(1px); }
+
+    #hud { position: fixed; left: 12px; bottom: 12px; padding: 8px 10px; background: var(--hud-bg); color: var(--fg); border-radius: 10px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid var(--btn-br); white-space: nowrap; z-index: 20; }
+
+    #linePanel { position: fixed; right: 12px; top: 60px; width: 240px; max-height: calc(100vh - 80px); padding: 10px; border-radius: 12px; background: var(--hud-bg); border: 1px solid var(--btn-br); overflow: auto; z-index: 15; backdrop-filter: blur(6px); }
+    #linePanel h3 { margin: 6px 4px 8px; font-size: 12px; opacity: .8; font-weight: 700; }
+    .lineList { display: grid; gap: 6px; }
+    .lineBtn { display: grid; grid-template-columns: 20px 1fr; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; cursor: pointer; border: 1px solid var(--chip-br); background: transparent; color: var(--fg); text-align: left; user-select: none; }
+    .lineBtn:hover { background: var(--chip-sel); }
+    .lineBtn.active { outline: 2px solid rgba(59,130,246,0.6); background: var(--chip-sel); }
+    .swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--chip-br); }
+    .lineBtnContent { display: grid; gap: 6px; }
+    .lineLabel { font-weight: 600; font-size: 12px; }
+    .meta { font-size: 11px; opacity: .7; }
+
+    /* New: slider + delete row */
+    .lineControls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 6px;
+    }
+    .thicknessSlider { width: 100%; }
+
+    /* New: compact delete button */
+    .delBtn {
+      appearance: none;
+      border: 1px solid var(--btn-br);
+      background: var(--btn-bg);
+      color: var(--btn-fg);
+      border-radius: 8px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1;
+      min-width: 28px;
+      height: 24px;
+    }
+    .delBtn:hover { background: var(--btn-hover); }
+  </style>
+</head>
+<body>
+  <div id="wrap"><canvas id="grid"></canvas></div>
+
+  <div id="ui" aria-label="Controls">
+    <button id="reset" class="btn" title="Center at 0,0 and scale=1">Reiniciar</button>
+    <button id="theme" class="btn" title="Toggle dark/light theme">Cambiar estilo</button>
+  </div>
+
+  <aside id="linePanel" aria-label="Lines">
+    <h3>Lineas</h3>
+    <div class="lineList" id="lineList"></div>
+    <div class="meta">Selecciona una linea para mover (Máximo 10 lineas)</div>
+  </aside>
+
+  <div id="hud" aria-live="polite">x: 0, y: 0</div>
+
+  <script>
+    const canvas = document.getElementById('grid');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const hud = document.getElementById('hud');
+    const btnReset = document.getElementById('reset');
+    const btnTheme = document.getElementById('theme');
+    const lineListEl = document.getElementById('lineList');
+
+    let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    let scale = 1; // world→screen px
+    let tx = 0, ty = 0; // translation in CSS px
+    let width = 0, height = 0;
+    let dirty = true;
+
+    const activePointers = new Map();
+    let isPanning = false; let downPos = null; let downTime = 0;
+    const CLICK_MOVE_TOL = 5, CLICK_TIME_TOL = 300;
+
+    let selectedLineIndex = null; let draggingLine = false;
+    let wheelQueued = null; let isDark = false;
+
+    const MIN_SCALE = 1e-6, MAX_SCALE = 1e6;
+    const MIN_PX_SPACING = 48, MAX_PX_SPACING = 140;
+
+    const lines = []; let nextId = 1; let pendingPoint = null;
+    const palette = ['#db1a3a','#1368ce','#d89e00','#26890c','#06b6d4','#e11d48','#22c55e','#a855f7'];
+    let colorIndex = 0;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, rect.width|0); height = Math.max(1, rect.height|0);
+      dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = (width * dpr)|0; canvas.height = (height * dpr)|0;
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.imageSmoothingEnabled = true; dirty = true;
+    }
+
+    function toWorld(sx, sy){ return { x:(sx - tx)/scale, y:(sy - ty)/scale }; }
+    function toScreen(wx, wy){ return { x: wx*scale + tx, y: wy*scale + ty }; }
+
+    function zoomAt(k, sx, sy){ const kC = clamp(scale*k, MIN_SCALE, MAX_SCALE)/scale; if(kC===1) return; tx = sx + (tx - sx)*kC; ty = sy + (ty - sy)*kC; scale *= kC; dirty = true; }
+    function panBy(dx, dy){ tx += dx; ty += dy; dirty = true; }
+    function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
+
+    function niceStep(pxPerUnit){ const target=(MIN_PX_SPACING+MAX_PX_SPACING)/2; const raw=target/pxPerUnit; const pow10=Math.pow(10, Math.floor(Math.log10(raw))); const candidates=[1,2,5].map(m=>m*pow10); let best=candidates[0],score=1/0; for(const c of candidates){ const px=c*pxPerUnit; const inBand = px>=MIN_PX_SPACING && px<=MAX_PX_SPACING; const s=Math.abs(px-target)+(inBand?0:1000); if(s<score){score=s;best=c;} } let s=best; while(s*pxPerUnit<MIN_PX_SPACING) s*=2; while(s*pxPerUnit>MAX_PX_SPACING) s/=2; return s; }
+
+    function visibleWorldBounds(){ const tl=toWorld(0,0), br=toWorld(width,height); return {minX:Math.min(tl.x,br.x), maxX:Math.max(tl.x,br.x), minY:Math.min(tl.y,br.y), maxY:Math.max(tl.y,br.y)}; }
+
+    function drawGrid(){
+      ctx.save(); ctx.clearRect(0,0,width,height);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); ctx.fillRect(0,0,width,height);
+      const cs = getComputedStyle(document.documentElement);
+      const minorColor=cs.getPropertyValue('--minor').trim(), majorColor=cs.getPropertyValue('--major').trim(), axisColor=cs.getPropertyValue('--axis').trim(), labelBg=cs.getPropertyValue('--label-bg').trim(), fg=cs.getPropertyValue('--fg').trim();
+      const pxPerUnit=scale, minorStep=niceStep(pxPerUnit), majorEvery=10; const {minX,maxX,minY,maxY}=visibleWorldBounds(); const ex=(width/scale)*.2, ey=(height/scale)*.2; const crisp=v=>((v+0.5)|0)+0.5;
+      ctx.lineWidth=1;
+      for(let x=Math.floor((minX-ex)/minorStep)*minorStep; x<=maxX+ex; x+=minorStep){ const sx=crisp(toScreen(x,0).x); const major=(Math.round(x/minorStep)%majorEvery)===0; ctx.strokeStyle=major?majorColor:minorColor; ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,height); ctx.stroke(); }
+      for(let y=Math.floor((minY-ey)/minorStep)*minorStep; y<=maxY+ey; y+=minorStep){ const sy=crisp(toScreen(0,y).y); const major=(Math.round(y/minorStep)%majorEvery)===0; ctx.strokeStyle=major?majorColor:minorColor; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(width,sy); ctx.stroke(); }
+      ctx.lineWidth=1.25; ctx.strokeStyle=axisColor; const sx0=crisp(toScreen(0,0).x); ctx.beginPath(); ctx.moveTo(sx0,0); ctx.lineTo(sx0,height); ctx.stroke(); const sy0=crisp(toScreen(0,0).y); ctx.beginPath(); ctx.moveTo(0,sy0); ctx.lineTo(width,sy0); ctx.stroke();
+      ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto,Arial'; ctx.fillStyle=fg; const pad=3; let lastX=-1e9; ctx.textAlign='center'; ctx.textBaseline='top';
+      for(let x=Math.floor((minX-ex)/minorStep)*minorStep; x<=maxX+ex; x+=minorStep*10){ const sx=toScreen(x,0).x; const label=formatNumber(x); const w=ctx.measureText(label).width; const half=w/2; if(sx-half>lastX+8 && sx+half>0 && sx-half<width){ drawLabelBackground(sx-half-pad, pad, w+pad*2, 16, labelBg); ctx.fillText(label, sx, pad*2); lastX=sx+half; } }
+      ctx.textAlign='left'; ctx.textBaseline='middle'; let lastY=-1e9;
+      for(let y=Math.floor((minY-ey)/minorStep)*minorStep; y<=maxY+ey; y+=minorStep*10){ const sy=toScreen(0,y).y; const label=formatNumber(y); const w=ctx.measureText(label).width; const h=14; if(sy-h/2>lastY+6 && sy>0 && sy<height){ drawLabelBackground(pad, sy-h/2-pad, w+pad*2, h+pad*2, labelBg); ctx.fillText(label, pad*2, sy); lastY=sy+h/2; } }
+      drawLines();
+      ctx.restore();
+    }
+
+    function drawLabelBackground(x,y,w,h,bg){ const r=4; ctx.fillStyle=bg; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+    function formatNumber(v){ const stepWorld=niceStep(scale); const decimals=Math.max(0, -Math.floor(Math.log10(stepWorld))+1); return Number(v.toFixed(Math.min(8,decimals))).toString(); }
+
+    let lastPointer={x:0,y:0};
+    function drawHUD(){ const w=toWorld(lastPointer.x,lastPointer.y); hud.textContent = `x: ${formatNumber(w.x)}, y: ${formatNumber(w.y)}`; }
+
+    function drawLines(){
+      const minSegmentPx=6; const baseStroke=2;
+      for(let i=0;i<lines.length;i++){
+        const seg=lines[i]; const a=toScreen(seg.a.x,seg.a.y), b=toScreen(seg.b.x,seg.b.y); const lenPx=Math.hypot(b.x-a.x,b.y-a.y);
+        if(lenPx<minSegmentPx){ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2; const r=Math.max(1.5, Math.min(5, scale*0.75)); ctx.fillStyle=seg.color; ctx.beginPath(); ctx.arc(mx,my,r,0,Math.PI*2); ctx.fill(); continue; }
+        const lw=clamp((seg.thickness||baseStroke)*scale, 0.5, 8); ctx.lineWidth=lw; ctx.strokeStyle=seg.color; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        if(i===selectedLineIndex){ ctx.fillStyle='rgba(59,130,246,0.9)'; const r=clamp(4*Math.sqrt(scale),3,8); ctx.beginPath(); ctx.arc(a.x,a.y,r,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(b.x,b.y,r,0,Math.PI*2); ctx.fill(); }
+      }
+      if(pendingPoint){ const ghost='rgba(99,102,241,0.6)'; const a=toScreen(pendingPoint.x,pendingPoint.y), b=lastPointer; const lw=clamp(1.5*scale,0.5,6); ctx.lineWidth=lw; ctx.strokeStyle=ghost; ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=ghost; ctx.beginPath(); ctx.arc(a.x,a.y,3,0,Math.PI*2); ctx.fill(); }
+    }
+
+    // -------- Delegated events for line list (no per-render listeners) --------
+    lineListEl.addEventListener('click', (e)=>{
+      const delBtn = e.target.closest('.delBtn');
+      if (delBtn) {
+        const idx = Number(delBtn.dataset.idx);
+        deleteLine(idx);
+        return; // don't toggle selection
+      }
+      if (e.target.classList.contains('thicknessSlider')) return; // don't toggle when sliding
+
+      const btn = e.target.closest('.lineBtn');
+      if(!btn) return;
+      const idx = Number(btn.dataset.idx);
+      selectedLineIndex = (selectedLineIndex===idx ? null : idx);
+      draggingLine = false;
+      renderLineButtons();
+      dirty = true;
+    });
+
+    lineListEl.addEventListener('input', (e)=>{
+      if(!e.target.classList.contains('thicknessSlider')) return;
+      const idx = Number(e.target.dataset.idx);
+      const val = parseFloat(e.target.value);
+      if(Number.isFinite(val) && lines[idx]){ lines[idx].thickness = val; dirty = true; }
+    });
+
+    function deleteLine(idx){
+      if (idx < 0 || idx >= lines.length) return;
+      lines.splice(idx, 1);
+
+      // Update selection index safely
+      if (selectedLineIndex === idx) {
+        selectedLineIndex = null;
+        draggingLine = false;
+      } else if (selectedLineIndex != null && selectedLineIndex > idx) {
+        selectedLineIndex -= 1;
+      }
+
+      renderLineButtons();
+      dirty = true;
+    }
+
+    function renderLineButtons(){
+      // Build once via string to minimize GC; sliders & delete get data-idx for delegation
+      let html = '';
+      for(let i=0;i<lines.length;i++){
+        const seg = lines[i];
+        const active = (i===selectedLineIndex) ? ' active' : '';
+        const len = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+        const thickness = seg.thickness ?? 2;
+        html += `
+          <div class="lineBtn${active}" data-idx="${i}" role="button" aria-pressed="${i===selectedLineIndex}">
+            <div class="swatch" style="background:${seg.color}"></div>
+            <div class="lineBtnContent">
+              <div class="lineLabel">Linea ${i+1} <span class="meta">• ${formatNumber(len)} unidades</span></div>
+              <div class="lineControls">
+                <input class="thicknessSlider" type="range" min="0.5" max="10" step="0.5" value="${thickness}" data-idx="${i}" />
+                <button class="delBtn" data-idx="${i}" title="Delete line ${i+1}" aria-label="Delete line ${i+1}">✕</button>
+              </div>
+            </div>
+          </div>`;
+      }
+      lineListEl.innerHTML = html;
+    }
+
+    function loop(){ if(dirty){ drawGrid(); drawHUD(); dirty=false; } requestAnimationFrame(loop); }
+
+    canvas.addEventListener('pointerdown', (e)=>{
+      canvas.setPointerCapture(e.pointerId);
+      activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      isPanning=true; downPos={x:e.clientX,y:e.clientY}; downTime=performance.now();
+      if(selectedLineIndex!=null) draggingLine=true;
+    });
+
+    canvas.addEventListener('pointermove', (e)=>{
+      const prev=activePointers.get(e.pointerId); const curr={x:e.clientX,y:e.clientY};
+      lastPointer=screenFromClient(e.clientX,e.clientY);
+      if(prev){
+        activePointers.set(e.pointerId,curr);
+        if(activePointers.size===1 && isPanning){
+          const dx=curr.x-prev.x, dy=curr.y-prev.y;
+          if(draggingLine && selectedLineIndex!=null){
+            const dwx=dx/scale, dwy=dy/scale; const seg=lines[selectedLineIndex];
+            seg.a.x+=dwx; seg.a.y+=dwy; seg.b.x+=dwx; seg.b.y+=dwy;
+          } else { panBy(dx,dy); }
+        }
+      }
+      if(activePointers.size===2) updatePinchState();
+      dirty=true;
+    });
+
+    canvas.addEventListener('pointerup', (e)=>{
+      canvas.releasePointerCapture(e.pointerId);
+      const up={x:e.clientX,y:e.clientY}; const dt=performance.now()-downTime;
+      const moved=Math.hypot(up.x-(downPos?.x??up.x), up.y-(downPos?.y??up.y));
+      if(dt<=CLICK_TIME_TOL && moved<=CLICK_MOVE_TOL){
+        if(!draggingLine){
+          const screen=screenFromClient(e.clientX,e.clientY);
+          const world=toWorld(screen.x,screen.y);
+          handleUserClick(world);
+        }
+      }
+      activePointers.delete(e.pointerId);
+      if(activePointers.size===0){ isPanning=false; draggingLine=false; }
+      dirty=true;
+    });
+
+    canvas.addEventListener('pointercancel', (e)=>{
+      activePointers.delete(e.pointerId);
+      if(activePointers.size===0){ isPanning=false; draggingLine=false; }
+    });
+
+    function handleUserClick(worldPt){
+      if(!pendingPoint){ pendingPoint=worldPt; }
+      else {
+        const color=palette[colorIndex++%palette.length];
+        if(lines.length>=10){
+          lines.shift();
+          if(selectedLineIndex!=null) selectedLineIndex=Math.max(0, selectedLineIndex-1);
+        }
+        lines.push({ a: pendingPoint, b: worldPt, color, id: nextId++, thickness: 2 });
+        pendingPoint=null; renderLineButtons();
+      }
+      dirty=true;
+    }
+
+    let pinchPrev=null;
+    function updatePinchState(){
+      if(activePointers.size!==2){ pinchPrev=null; return; }
+      const [a,b]=Array.from(activePointers.values());
+      const cx=(a.x+b.x)/2, cy=(a.y+b.y)/2; const dx=a.x-b.x, dy=a.y-b.y; const dist=Math.hypot(dx,dy);
+      if(pinchPrev){
+        const k=dist/Math.max(1,pinchPrev.d);
+        const pivot=screenFromClient(cx,cy);
+        zoomAt(k,pivot.x,pivot.y);
+        const ddx=cx-pinchPrev.c.x, ddy=cy-pinchPrev.c.y;
+        if(selectedLineIndex!=null){
+          const seg=lines[selectedLineIndex]; const dwx=ddx/scale, dwy=ddy/scale;
+          seg.a.x+=dwx; seg.a.y+=dwy; seg.b.x+=dwx; seg.b.y+=dwy;
+        } else { panBy(ddx,ddy); }
+      }
+      pinchPrev={c:{x:cx,y:cy}, d:dist};
+    }
+
+    canvas.addEventListener('wheel', (e)=>{
+      e.preventDefault();
+      const client=screenFromClient(e.clientX,e.clientY);
+      const base=1.05;
+      const k=Math.pow(base, -e.deltaY/100);
+      if(wheelQueued){
+        wheelQueued.k*=k; wheelQueued.px=client.x; wheelQueued.py=client.y;
+      } else {
+        wheelQueued={k,px:client.x,py:client.y};
+        requestAnimationFrame(()=>{
+          if(wheelQueued){ zoomAt(wheelQueued.k,wheelQueued.px,wheelQueued.py); wheelQueued=null; }
+        });
+      }
+    }, {passive:false});
+
+    function screenFromClient(x,y){ const r=canvas.getBoundingClientRect(); return { x: x - r.left, y: y - r.top }; }
+
+    btnReset.addEventListener('click', ()=>{
+      scale=1; tx=(width/2)|0; ty=(height/2)|0;
+      pendingPoint=null; selectedLineIndex=null; draggingLine=false; dirty=true;
+    });
+    btnTheme.addEventListener('click', ()=>{ isDark=!isDark; document.documentElement.classList.toggle('dark', isDark); dirty=true; });
+
+    function handleResize(){
+      const centerWorld=toWorld(width/2,height/2);
+      resizeCanvas();
+      const centerScreen=toScreen(centerWorld.x,centerWorld.y);
+      tx += width/2 - centerScreen.x; ty += height/2 - centerScreen.y; dirty=true;
+    }
+    window.addEventListener('resize', handleResize);
+
+    function init(){ resizeCanvas(); tx=(width/2)|0; ty=(height/2)|0; dirty=true; loop(); renderLineButtons(); }
+    init();
+
+    window.addEventListener('keydown', (e)=>{
+      const step=40, pivot={x:width/2,y:height/2};
+      if(e.key==='+'||e.key==='=') zoomAt(1.05,pivot.x,pivot.y);
+      else if(e.key==='-') zoomAt(1/1.05,pivot.x,pivot.y);
+      else if(e.key==='Escape'){ selectedLineIndex=null; draggingLine=false; renderLineButtons(); }
+      else if(e.key==='ArrowLeft') panBy(step,0);
+      else if(e.key==='ArrowRight') panBy(-step,0);
+      else if(e.key==='ArrowUp') panBy(0,step);
+      else if(e.key==='ArrowDown') panBy(0,-step);
+      dirty=true;
+    });
+
+    ['pointerdown','pointermove','pointerup','pointercancel'].forEach(ev=> canvas.addEventListener(ev, ()=>{ dirty=true; }));
+
+    const mediaDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+    if(mediaDark && mediaDark.matches){ isDark=true; document.documentElement.classList.add('dark'); dirty=true; }
+  </script>
+</body>
+</html>

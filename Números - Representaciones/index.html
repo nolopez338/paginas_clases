@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laboratorio de Números — Índice</title>
+  <meta name="theme-color" content="#f98b51" />
+  <style>
+    :root{
+      --bg1:#f98b51;
+      --bg2:#f472b6;
+      --panel:rgba(255,255,255,.85);
+      --text:#0f172a;
+      --muted:#475569;
+      --accent:#111827;
+      --accent2:#22d3ee;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      font:16px/1.45 system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      min-height:100dvh;
+    }
+
+    header{ padding:28px 20px 10px; text-align:center; }
+    .title{
+      margin:0;
+      font-size:clamp(28px,5.5vw,56px);
+      font-weight:800;
+      letter-spacing:.3px;
+      text-shadow:0 6px 18px rgba(0,0,0,.2);
+    }
+    .subtitle{ margin:.5rem 0 0; opacity:.9; font-size:clamp(14px,2.6vw,18px); }
+
+    main{ width:min(1100px,92vw); margin:26px auto 34px; }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:min(28px,4vw);
+    }
+    a.card{
+      display:grid; grid-template-rows:auto auto 1fr auto; gap:10px;
+      text-decoration:none; color:var(--text);
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.6);
+      border-radius:18px; padding:22px;
+      backdrop-filter: blur(6px);
+      box-shadow:0 20px 40px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.5);
+      transition:transform .15s ease, box-shadow .15s ease;
+    }
+    a.card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 26px 56px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.6);
+    }
+    .icon{
+      width:56px;height:56px;border-radius:14px;
+      display:grid;place-items:center;
+      background:var(--accent);color:#fff;font-size:28px;
+      box-shadow:0 6px 14px rgba(17,24,39,.35);
+    }
+    .card h2{ margin:6px 0 0; font-size:clamp(18px,2.5vw,24px); }
+    .card p{ margin:.35rem 0 0; color:var(--muted); font-size:clamp(13px,2.2vw,16px); }
+    .go{
+      margin-top:14px; display:inline-flex;align-items:center;gap:8px;
+      background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px;
+      font-weight:600; letter-spacing:.2px;
+      box-shadow:0 10px 20px rgba(17,24,39,.25);
+      transition:filter .15s ease;
+    }
+    .card:hover .go{ filter:brightness(1.08) }
+    .kbd{
+      margin-left:auto; font-size:12px; color:#0f172a;
+      background:#e2e8f0; border-radius:8px; padding:4px 8px;
+    }
+
+    footer{ padding:14px 18px 22px; text-align:center; opacity:.9; font-size:14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="title">Sistemas numéricos</h1>
+  </header>
+
+  <main>
+    <section class="grid" aria-label="Demos disponibles">
+      <a class="card" href="src/binario.html" aria-label="Abrir Convertidor Binario">
+        <div class="icon" aria-hidden="true">⚙️</div>
+        <h2>Convertidor Binario</h2>
+        <p>Vista interactiva de 7 bits. Negro es 0, blanco es 1. Muestra/oculta los valores de las casillas.</p>
+        <div class="go">Abrir <span aria-hidden="true">→</span><span class="kbd">1</span></div>
+      </a>
+
+      <a class="card" href="src/numeros_antiguos.html" aria-label="Abrir Numeración Antigua">
+        <div class="icon" aria-hidden="true">📜</div>
+        <h2>Numeración Antigua</h2>
+        <p>Explora sistemas de numeración históricos y cómo representan las cantidades.</p>
+        <div class="go">Abrir <span aria-hidden="true">→</span><span class="kbd">2</span></div>
+      </a>
+
+      <a class="card" href="src/bases_numericas.html" aria-label="Abrir Bases Numéricas">
+        <div class="icon" aria-hidden="true">🔢</div>
+        <h2>Bases Numéricas</h2>
+        <p>Convierte y visualiza cualquier número en bases de 2 a 16 mostrando coeficientes y potencias.</p>
+        <div class="go">Abrir <span aria-hidden="true">→</span><span class="kbd">3</span></div>
+      </a>
+    </section>
+  </main>
+  <script>
+    // Atajos de teclado
+    document.addEventListener('keydown', (e)=>{
+      if(e.altKey||e.ctrlKey||e.metaKey) return;
+      if(e.key==='1') window.location.href = 'src/binario.html';
+      if(e.key==='2') window.location.href = 'src/numeros_antiguos.html';
+      if(e.key==='3') window.location.href = 'src/bases_numericas.html';
+    });
+  </script>
+</body>
+</html>

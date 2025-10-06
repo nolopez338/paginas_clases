@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Convertidor de Números</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(1200px 800px at 70% -20%, #1f2937 0%, var(--bg) 60%);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      .card {
+        width: min(680px, 92vw);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        padding: 28px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-weight: 700;
+      }
+      p.sub {
+        margin: 0 0 22px;
+        color: var(--muted);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+      input[type="number"] {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(17,24,39,0.65);
+        color: var(--text);
+        font-size: 16px;
+        outline: none;
+      }
+      button {
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: linear-gradient(180deg, #0ea5e9, #0284c7);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .helper { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; }
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px dashed rgba(255,255,255,0.25);
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .result {
+        margin-top: 18px;
+        padding: 20px;
+        border-radius: 16px;
+        background: rgba(2, 6, 23, 0.55);
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      .label { color: var(--muted); font-size: 14px; }
+      .roman {
+        font-size: clamp(20px, 5vw, 40px);
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        margin-top: 6px;
+        word-break: break-word;
+      }
+      .egyptian {
+        font-size: clamp(60px, 10vw, 100px); /* Increased font size */
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        margin-top: 6px;
+        word-break: break-word;
+      }
+      .error { color: var(--danger); margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Convertidor de Números</h1>
+      <p class="sub">Introduce un número entero (1–3999 para números romanos; sin límite para egipcios).</p>
+
+      <div class="row">
+        <input id="numberInput" type="number" min="1" step="1" placeholder="ej. 1994" />
+        <button id="convertBtn" type="button">Convertir</button>
+      </div>
+      <div class="helper">
+        <span class="chip" data-val="4">4</span>
+        <span class="chip" data-val="9">9</span>
+        <span class="chip" data-val="58">58</span>
+        <span class="chip" data-val="1994">1994</span>
+        <span class="chip" data-val="4000">4000</span>
+        <span class="chip" data-val="100000">100000</span>
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <section class="result">
+        <div class="label">Número romano</div>
+        <div id="romanOut" class="roman">—</div>
+      </section>
+      <section class="result">
+        <div class="label">Número egipcio</div>
+        <div id="egyptianOut" class="egyptian">—</div>
+      </section>
+    </main>
+
+    <script>
+      function toRoman(n) {
+        if (n < 1 || n > 3999) return "—";
+        const map = [
+          [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
+          [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+          [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+        ];
+        let num = n, out = "";
+        for (const [val, sym] of map) {
+          while (num >= val) { out += sym; num -= val; }
+        }
+        return out;
+      }
+
+      function toEgyptian(n) {
+        if (n < 1) return "—";
+        const symbols = {
+          1000000: "𓁨",
+          100000: "𓅨",
+          10000: "𓂭",
+          1000: "𓆼",
+          100: "𓍢",
+          10: "𓎆",
+          1: "𓏺"
+        };
+        let out = "";
+        for (const val of [1000000, 100000, 10000, 1000, 100, 10, 1]) {
+          out += symbols[val].repeat(Math.floor(n / val));
+          n %= val;
+        }
+        return out;
+      }
+
+      const input = document.querySelector("#numberInput");
+      const btn = document.querySelector("#convertBtn");
+      const romanOut = document.querySelector("#romanOut");
+      const egyptianOut = document.querySelector("#egyptianOut");
+      const err = document.querySelector("#error");
+
+      function convertFromInput() {
+        const value = input.value.trim();
+        if (!value) {
+          romanOut.textContent = "—";
+          egyptianOut.textContent = "—";
+          err.textContent = "";
+          return;
+        }
+
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 1) {
+          err.textContent = "Solo se permiten enteros mayores que 0.";
+          romanOut.textContent = "—";
+          egyptianOut.textContent = "—";
+          return;
+        }
+        err.textContent = "";
+
+        if (n > 3999) {
+          romanOut.textContent = "—";
+          egyptianOut.textContent = toEgyptian(n);
+        } else {
+          romanOut.textContent = toRoman(n);
+          egyptianOut.textContent = toEgyptian(n);
+        }
+      }
+
+      btn.addEventListener("click", convertFromInput);
+      input.addEventListener("keydown", e => { if (e.key === "Enter") convertFromInput(); });
+      document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => { input.value = chip.dataset.val; convertFromInput(); });
+      });
+
+      // Initial conversion on page load
+      input.value = "1994";
+      convertFromInput();
+    </script>
+  </body>
+</html>

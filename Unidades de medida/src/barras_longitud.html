@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generador de Barras</title>
+  <style>
+    :root{
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --danger: #f87171;
+      --chart-height: clamp(240px, 55vh, 560px);
+      --bar-radius: 12px;
+      --gap: 16px;
+      --bar-color: lightblue;
+    }
+    *{ box-sizing: border-box; }
+    html, body{
+      height: 100%;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 20% 0%, #0b1025 0%, var(--bg) 60%);
+    }
+    .page{ max-width: 1100px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px); display: grid; gap: 20px; }
+    header{ display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    header h1{ margin: 0; font-size: clamp(18px,3.2vw,26px); }
+    .hint{ color: var(--muted); font-size: 12px; }
+    .card{ background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; }
+    .controls{ display: grid; gap: 10px; }
+    .row{ display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+    label{ color: var(--muted); font-size: 14px; }
+    #numbers{ border: 1px solid rgba(255,255,255,0.12); background: var(--card); color: var(--text); padding: 12px 14px; border-radius: 12px; outline: none; }
+    button{ background: var(--bar-color); color: #0b1025; border: none; padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 700; }
+    .error{ display: none; color: var(--danger); background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+    .chart-wrap{ height: var(--chart-height); }
+    .bar-stage{ display: flex; align-items: stretch; gap: var(--gap); height: 100%; padding: 16px; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.08); overflow-x: auto; scrollbar-width: thin; }
+    .bar-col{ flex: 1 1 40px; min-width: 40px; max-width: 120px; display: grid; grid-template-rows: 1fr auto; gap: 8px; text-align: center; height: 100%; }
+    .bar{ width: 100%; height: 0%; border-radius: var(--bar-radius); background: var(--bar-color); transition: height .6s ease; align-self: end; }
+    .label{ margin-top: 6px; font-size: clamp(28px, 4vw, 40px); font-weight: bold; color: var(--text); }
+    .tests{ display: flex; flex-wrap: wrap; gap: 8px; }
+    .test-btn{ background: rgba(173,216,230,0.25); color: var(--text); border: 1px solid rgba(255,255,255,0.12); padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>Generador de Barras</h1>
+    </header>
+    <section class="card controls" aria-label="Controles">
+      <label for="numbers">Números (separados por comas)</label>
+      <div class="row">
+        <input id="numbers" type="text" inputmode="decimal" placeholder="ej.: 5, 10, 3, 8, 12" value="5, 10, 15" />
+        <button id="generate" type="button">Generar Barras</button>
+      </div>
+      <div id="error" class="error" role="alert" aria-live="polite"></div>
+      <div class="tests" aria-label="Pruebas rápidas">
+        <button class="test-btn" data-values="10,15,20">Prueba: 10, 15, 20</button>
+        <button class="test-btn" data-values="10,15,20,50">Prueba: 10, 15, 20, 50</button>
+        <button class="test-btn" data-values="10,15,20,50,100">Prueba: 10, 15, 20, 50, 100</button>
+        <button class="test-btn" data-values="10,15,20,50,100,1000">Prueba: 10, 15, 20, 50, 100, 1000</button>
+        <button class="test-btn" data-values="1,2,3,4,5,6">Prueba: 1..6</button>
+      </div>
+    </section>
+    <section class="card" aria-label="Gráfico">
+      <div class="chart-wrap">
+        <div id="stage" class="bar-stage" role="img" aria-label="Gráfico de barras"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    function setError(msg){ const el = document.getElementById('error'); if(!msg){ el.style.display = 'none'; el.textContent = ''; } else { el.style.display = 'block'; el.textContent = msg; } }
+    function parseInput(input){ const tokens = input.split(',').map(s => s.trim()).filter(Boolean); if(tokens.length === 0) return { ok: false, error: 'Por favor, introduce al menos un número.' }; const values = [], invalid = []; for(const t of tokens){ const n = Number(t); if(Number.isFinite(n) && n >= 0){ values.push(n); } else { invalid.push(t); } } if(invalid.length > 0) return { ok: false, error: 'Números inválidos (no negativos): ' + invalid.join(', ') }; return { ok: true, values }; }
+    function buildBars(values){ const stage = document.getElementById('stage'); const existing = Array.from(stage.querySelectorAll('.bar-col')); if(!Array.isArray(values)) return; const max = Math.max(0, ...values); const safeMax = max > 0 ? max : 1; for(let i = 0; i < values.length; i++){ const v = values[i]; let col = existing[i]; if(!col){ col = document.createElement('div'); col.className = 'bar-col'; const bar = document.createElement('div'); bar.className = 'bar'; bar.style.height = '0%'; const label = document.createElement('div'); label.className = 'label'; label.textContent = v; col.appendChild(bar); col.appendChild(label); stage.appendChild(col); requestAnimationFrame(() => { bar.style.height = (v / safeMax * 100) + '%'; }); } else { const bar = col.querySelector('.bar'); const label = col.querySelector('.label'); label.textContent = v; bar.style.height = (v / safeMax * 100) + '%'; } } for(let i = values.length; i < existing.length; i++){ const col = existing[i]; const bar = col.querySelector('.bar'); if(bar){ bar.style.height = '0%'; const remove = () => col.remove(); bar.addEventListener('transitionend', remove, { once: true }); setTimeout(remove, 700); } else { col.remove(); } } }
+    function generate(){ const raw = document.getElementById('numbers').value; const result = parseInput(raw); if(!result.ok){ setError(result.error); buildBars([]); return; } setError(''); buildBars(result.values); }
+    document.getElementById('generate').addEventListener('click', generate);
+    document.getElementById('numbers').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); generate(); } });
+    document.querySelectorAll('.test-btn').forEach(btn => { btn.addEventListener('click', () => { const vals = btn.getAttribute('data-values') || ''; document.getElementById('numbers').value = vals; generate(); }); });
+    window.addEventListener('DOMContentLoaded', generate);
+  </script>
+</body>
+</html>

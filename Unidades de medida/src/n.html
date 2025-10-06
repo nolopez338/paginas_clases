@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Líneas Cartesianas — dibujar, mover, rotar, medir</title>
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --panel:#111827; /* gray-900 */
+      --muted:#94a3b8; /* slate-400 */
+      --accent:#22d3ee; /* cyan-400 */
+      --accent2:#f472b6; /* pink-400 */
+      --grid:#1f2937; /* gray-800 */
+      --axis:#374151; /* gray-700 */
+      --white:#e5e7eb; /* gray-200 */
+      --danger:#ef4444; /* red-500 */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--white);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial}
+    .app{display:grid;grid-template-columns:320px 1fr;height:100%}
+    aside{background:var(--panel);border-right:1px solid #1f2937;padding:16px;display:flex;flex-direction:column;gap:12px}
+    h1{font-size:16px;margin:0 0 6px 0}
+    .toolbar{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:8px}
+    button, select{background:#0b1220;border:1px solid #243041;color:var(--white);padding:8px 10px;border-radius:10px;cursor:pointer}
+    button:hover{border-color:#34506e}
+    button.primary{background:#0b1f2a;border-color:#2563eb}
+    button.danger{border-color:var(--danger);color:#fecaca}
+    .row{display:flex;gap:8px;align-items:center}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;background:#0b1220;border:1px solid #243041;padding:2px 6px;border-radius:6px;color:#cbd5e1}
+    .hint{color:var(--muted)}
+    .readout{background:#0b1220;border:1px solid #243041;border-radius:10px;padding:10px}
+    .readout table{width:100%;border-collapse:collapse}
+    .readout td{padding:2px 0}
+    canvas{display:block;width:100%;height:100%}
+    .footer{margin-top:auto;color:var(--muted);font-size:12px}
+    .badge{display:inline-block;padding:2px 6px;border-radius:999px;background:#0b1220;border:1px solid #243041;color:#cbd5e1;font-size:12px}
+    .swatch{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:6px}
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>Líneas Cartesianas</h1>
+      <div class="toolbar" role="group" aria-label="Modos de edición">
+        <button id="modeDraw" class="primary" title="D para alternar" aria-pressed="true">✏️ Dibujar línea</button>
+        <button id="modeSelect" title="S para alternar" aria-pressed="false">🖐️ Seleccionar/Transformar</button>
+        <button id="resetView" title="Centrar el plano">🎯 Reiniciar</button>
+        <button id="deleteLine" class="danger" title="Eliminar línea seleccionada (Supr/Backspace)">🗑️ Borrar</button>
+      </div>
+
+      <div class="readout" id="measureBox" aria-live="polite" aria-atomic="true">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <strong>Medida</strong>
+          <span class="badge">Máximo 2 líneas</span>
+        </div>
+        <table>
+          <tbody id="measureRows"></tbody>
+        </table>
+      </div>
+
+      <div class="readout">
+        <strong>Vista</strong>
+        <div class="row">
+          <label>Tamaño de grilla&nbsp;<select id="gridSize">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select></label>
+          <label>Snap&nbsp;<select id="snap">
+            <option value="none" selected>none</option>
+            <option value="grid">grid</option>
+          </select></label>
+        </div>
+        <div class="legend">
+          <span><span class="swatch" style="background: var(--accent)"></span>Línea 1</span>
+          <span><span class="swatch" style="background: var(--accent2)"></span>Línea 2</span>
+        </div>
+      </div>
+    </aside>
+
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script>
+  ;(() => {
+    // Canvas y cámara
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const ui = {
+      modeDraw: document.getElementById('modeDraw'),
+      modeSelect: document.getElementById('modeSelect'),
+      resetView: document.getElementById('resetView'),
+      deleteLine: document.getElementById('deleteLine'),
+      gridSize: document.getElementById('gridSize'),
+      snap: document.getElementById('snap'),
+      measureRows: document.getElementById('measureRows'),
+    };
+
+    // Colores
+    const COLORS = { grid: getCss('--grid'), axis: getCss('--axis'), fg: getCss('--white'),
+      a: getCss('--accent'), b: getCss('--accent2'), select: '#fbbf24', handle: '#a78bfa' };
+
+    // Cámara (pantalla = mundo*scale + [tx,ty])
+    const camera = { tx: 0, ty: 0, scale: 40 }; // 40 px por unidad inicialmente
+
+    // Entidades: hasta 2 líneas
+    /** @typedef {{id:string, a:{x:number,y:number}, b:{x:number,y:number}, color:string}} Line */
+    /** @type {Line[]} */
+    const lines = [];
+
+    // Estado de interacción
+    let mode = 'draw'; // 'draw' | 'select'
+    let drawing = { active:false, start:null };
+    let selectedId = null;
+    let dragging = { type:null, line:null, offset:null, anchor:null, snapshot:null }; // 'pan'|'move'|'rotate'|'endpointA'|'endpointB'
+
+    // Render bajo demanda
+    let needsRender = false;
+    function requestRender(){ if(!needsRender){ needsRender = true; requestAnimationFrame(render); } }
+
+    // DPI / tamaño
+    function resize() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(canvas.clientWidth * dpr);
+      canvas.height = Math.floor(canvas.clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // dibujar en px CSS
+      requestRender();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Helpers de vista
+    const worldToScreen = (p) => ({ x: p.x * camera.scale + camera.tx, y: -p.y * camera.scale + camera.ty });
+    const screenToWorld = (p) => ({ x: (p.x - camera.tx) / camera.scale, y: -(p.y - camera.ty) / camera.scale });
+
+    // Utils
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+    function getCss(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    function guid(){ return Math.random().toString(36).slice(2,9); }
+
+    // Snap
+    const snapMode = () => ui.snap.value;
+    function maybeSnap(p){
+      if (snapMode() === 'grid'){
+        const s = Number(ui.gridSize.value);
+        return { x: Math.round(p.x/s)*s, y: Math.round(p.y/s)*s };
+      }
+      return p;
+    }
+
+    // Hit testing
+    function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+    function pointLineDistance(p, a, b){
+      const ap = {x:p.x-a.x, y:p.y-a.y};
+      const ab = {x:b.x-a.x, y:b.y-a.y};
+      const ab2 = ab.x*ab.x + ab.y*ab.y;
+      let t = ab2 ? (ap.x*ab.x + ap.y*ab.y)/ab2 : 0;
+      t = clamp(t, 0, 1);
+      const proj = {x:a.x + ab.x*t, y:a.y + ab.y*t};
+      return dist(p, proj);
+    }
+
+    function hitTest(screenPt){
+      const sel = lines.find(l => l.id === selectedId);
+      if (sel){
+        const hs = handles(sel);
+        const r = 8;
+        if (dist(screenPt, hs.a) <= r) return {kind:'endpointA', line:sel};
+        if (dist(screenPt, hs.b) <= r) return {kind:'endpointB', line:sel};
+        if (dist(screenPt, hs.rot) <= r) return {kind:'rotate', line:sel};
+      }
+      let best = null, bestD = 12;
+      for (const l of lines){
+        const sa = worldToScreen(l.a), sb = worldToScreen(l.b);
+        const d = pointLineDistance(screenPt, sa, sb);
+        if (d < bestD){ bestD = d; best = l; }
+      }
+      if (best) return {kind:'line', line:best};
+      return null;
+    }
+
+    function handles(line){
+      const sa = worldToScreen(line.a), sb = worldToScreen(line.b);
+      const mid = { x: (sa.x+sb.x)/2, y: (sa.y+sb.y)/2 };
+      const vx = sb.x - sa.x, vy = sb.y - sa.y;
+      const len = Math.hypot(vx,vy) || 1;
+      const nx = -vy/len, ny = vx/len; // perpendicular
+      const rot = { x: mid.x + nx*24, y: mid.y + ny*24 };
+      return { a: sa, b: sb, mid, rot };
+    }
+
+    // Dibujo grilla y ejes (líneas nítidas)
+    function drawGrid(){
+      const {width, height} = canvas;
+      ctx.save();
+      ctx.clearRect(0,0,width,height);
+
+      const step = Number(ui.gridSize.value);
+      const stepPx = step * camera.scale;
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = COLORS.grid;
+      ctx.beginPath();
+
+      const startX = ((camera.tx % stepPx) + stepPx) % stepPx;
+      for (let x = startX; x <= width; x += stepPx){
+        const xx = Math.round(x) + 0.5;
+        ctx.moveTo(xx, 0); ctx.lineTo(xx, height);
+      }
+
+      const startY = ((camera.ty % stepPx) + stepPx) % stepPx;
+      for (let y = startY; y <= height; y += stepPx){
+        const yy = Math.round(y) + 0.5;
+        ctx.moveTo(0, yy); ctx.lineTo(width, yy);
+      }
+      ctx.stroke();
+
+      // Ejes
+      ctx.strokeStyle = COLORS.axis;
+      ctx.beginPath();
+      ctx.moveTo(0, Math.round(camera.ty)+0.5);
+      ctx.lineTo(width, Math.round(camera.ty)+0.5);
+      ctx.moveTo(Math.round(camera.tx)+0.5, 0);
+      ctx.lineTo(Math.round(camera.tx)+0.5, height);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawLines(){
+      for (const line of lines){
+        const sa = worldToScreen(line.a), sb = worldToScreen(line.b);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = line.color;
+        ctx.beginPath(); ctx.moveTo(sa.x, sa.y); ctx.lineTo(sb.x, sb.y); ctx.stroke();
+
+        // extremos
+        ctx.fillStyle = line.color;
+        ctx.beginPath(); ctx.arc(sa.x, sa.y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sb.x, sb.y, 4, 0, Math.PI*2); ctx.fill();
+
+        // overlay de selección
+        if (line.id === selectedId){
+          const hs = handles(line);
+          ctx.strokeStyle = COLORS.select;
+          ctx.setLineDash([6,6]);
+          ctx.beginPath(); ctx.moveTo(sa.x, sa.y); ctx.lineTo(sb.x, sb.y); ctx.stroke();
+          ctx.setLineDash([]);
+          // handle de rotación
+          ctx.fillStyle = COLORS.handle;
+          ctx.beginPath(); ctx.arc(hs.rot.x, hs.rot.y, 6, 0, Math.PI*2); ctx.fill();
+          // punto medio
+          ctx.fillStyle = COLORS.select;
+          ctx.beginPath(); ctx.arc(hs.mid.x, hs.mid.y, 3, 0, Math.PI*2); ctx.fill();
+        }
+      }
+    }
+
+    function render(){
+      needsRender = false;
+      drawGrid();
+      drawLines();
+      if (drawing.active && drawing.start){
+        const sa = worldToScreen(drawing.start);
+        const sb = worldToScreen(currentPointerWorld);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#60a5fa';
+        ctx.beginPath(); ctx.moveTo(sa.x, sa.y); ctx.lineTo(sb.x, sb.y); ctx.stroke();
+      }
+    }
+
+    // Medición (solo in/cm, localizados)
+    const nf3 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    function updateMeasurement(){
+      const tbody = ui.measureRows;
+      tbody.innerHTML = '';
+      const rows = lines.map((l, idx) => {
+        const px = lengthPx(l);
+        const inches = px / 96;
+        const cm = inches * 2.54;
+        return {
+          name: idx === 0 ? 'Línea 1' : 'Línea 2',
+          color: l.color,
+          inches: nf3.format(inches),
+          cm: nf3.format(cm),
+        };
+      });
+      for (const r of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><span class="swatch" style="background:${r.color}"></span>${r.name}</td>
+          <td style="text-align:right">${r.inches} in</td>
+          <td style="text-align:right">${r.cm} cm</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function lengthPx(l){
+      const sa = worldToScreen(l.a), sb = worldToScreen(l.b);
+      return Math.hypot(sb.x-sa.x, sb.y-sa.y);
+    }
+
+    // Estado / modos
+    function setMode(m){
+      mode = m;
+      ui.modeDraw.classList.toggle('primary', mode==='draw');
+      ui.modeSelect.classList.toggle('primary', mode==='select');
+      ui.modeDraw.setAttribute('aria-pressed', String(m==='draw'));
+      ui.modeSelect.setAttribute('aria-pressed', String(m==='select'));
+      cancelInteractions();
+      requestRender();
+    }
+
+    function cancelInteractions(){
+      drawing.active = false;
+      drawing.start = null;
+      dragging.type = null;
+      dragging.line = null;
+      dragging.offset = null;
+      dragging.anchor = null;
+      dragging.snapshot = null;
+    }
+
+    // Interacción (Pointer Events)
+    let currentPointerWorld = {x:0,y:0};
+
+    function onPointerMove(e){
+      const rect = canvas.getBoundingClientRect();
+      const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const wp = screenToWorld(sp);
+      currentPointerWorld = wp;
+
+      if (dragging.type === 'pan'){
+        camera.tx += e.movementX;
+        camera.ty += e.movementY;
+        requestRender();
+      } else if (dragging.type === 'move' && dragging.line){
+        const prev = screenToWorld({x: sp.x - e.movementX, y: sp.y - e.movementY});
+        const dx = wp.x - prev.x, dy = wp.y - prev.y;
+        dragging.line.a.x += dx; dragging.line.a.y += dy;
+        dragging.line.b.x += dx; dragging.line.b.y += dy;
+        updateMeasurement(); requestRender();
+      } else if (dragging.type === 'endpointA' && dragging.line){
+        const p = maybeSnap(wp);
+        dragging.line.a = p;
+        updateMeasurement(); requestRender();
+      } else if (dragging.type === 'endpointB' && dragging.line){
+        const p = maybeSnap(wp);
+        dragging.line.b = p;
+        updateMeasurement(); requestRender();
+      } else if (dragging.type === 'rotate' && dragging.line){
+        const mid = { x:(dragging.line.a.x+dragging.line.b.x)/2, y:(dragging.line.a.y+dragging.line.b.y)/2 };
+        const ang0 = Math.atan2(dragging.anchor.y - mid.y, dragging.anchor.x - mid.x);
+        const ang1 = Math.atan2(wp.y - mid.y, wp.x - mid.x);
+        const dAng = ang1 - ang0;
+        function rotate(p){
+          const dx = p.x - mid.x, dy = p.y - mid.y;
+          const r = Math.hypot(dx,dy);
+          const a = Math.atan2(dy,dx) + dAng;
+          return { x: mid.x + r*Math.cos(a), y: mid.y + r*Math.sin(a) };
+        }
+        dragging.line.a = rotate(dragging.snapshot.a);
+        dragging.line.b = rotate(dragging.snapshot.b);
+        updateMeasurement(); requestRender();
+      }
+    }
+
+    function onPointerDown(e){
+      const rect = canvas.getBoundingClientRect();
+      const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const wp = screenToWorld(sp);
+
+      if (mode === 'draw'){
+        if (!drawing.active){
+          if (lines.length >= 2){ /* mejor UX que alert: badge ya lo indica */ return; }
+          drawing.active = true;
+          drawing.start = maybeSnap(wp);
+        } else {
+          const end = maybeSnap(wp);
+          if (dist(drawing.start, end) < 1e-6){ return; } // ignora longitud cero
+          const id = guid();
+          const color = lines.length === 0 ? COLORS.a : COLORS.b;
+          lines.push({ id, a: drawing.start, b: end, color });
+          selectedId = id;
+          drawing.active = false;
+          drawing.start = null;
+          setMode('select');
+          updateMeasurement();
+        }
+        requestRender();
+        return;
+      }
+
+      // Modo seleccionar
+      const hit = hitTest(sp);
+      if (!hit){
+        selectedId = null;
+        dragging.type = 'pan';
+        requestRender();
+        return;
+      }
+      selectedId = hit.line.id;
+      if (hit.kind === 'line'){
+        dragging.type = 'move'; dragging.line = hit.line;
+      } else if (hit.kind === 'endpointA'){
+        dragging.type = 'endpointA'; dragging.line = hit.line;
+      } else if (hit.kind === 'endpointB'){
+        dragging.type = 'endpointB'; dragging.line = hit.line;
+      } else if (hit.kind === 'rotate'){
+        dragging.type = 'rotate'; dragging.line = hit.line; dragging.anchor = wp;
+        dragging.snapshot = { a: {...hit.line.a}, b: {...hit.line.b} };
+      }
+      requestRender();
+    }
+
+    function onPointerUp(){
+      if (dragging.type){ dragging.type = null; dragging.line = null; }
+    }
+
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); onPointerDown(e); });
+    window.addEventListener('pointerup', onPointerUp);
+
+    // Zoom con rueda (centrado en cursor)
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const before = screenToWorld(sp);
+      const zoom = Math.exp(-e.deltaY * 0.001);
+      camera.scale = clamp(camera.scale * zoom, 5, 400);
+      const after = screenToWorld(sp);
+      const dx = (after.x - before.x) * camera.scale;
+      const dy = (after.y - before.y) * camera.scale;
+      camera.tx += dx;
+      camera.ty -= dy;
+      requestRender();
+    }, { passive:false });
+
+    // Botones / UI
+    ui.modeDraw.addEventListener('click', () => setMode('draw'));
+    ui.modeSelect.addEventListener('click', () => setMode('select'));
+    ui.resetView.addEventListener('click', resetView);
+    ui.deleteLine.addEventListener('click', deleteSelected);
+    ui.gridSize.addEventListener('change', () => { requestRender(); });
+    ui.snap.addEventListener('change', () => { /* no es necesario redibujar */ });
+
+    // Teclado
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'd' || e.key === 'D') setMode('draw');
+      if (e.key === 's' || e.key === 'S') setMode('select');
+      if (e.key === 'Escape') cancelInteractions();
+      if (e.key === 'Backspace' || e.key === 'Delete'){ e.preventDefault(); deleteSelected(); }
+      if (selectedId){
+        if (e.key === 'ArrowUp'){   nudge(0,  0.25, e.shiftKey); }
+        if (e.key === 'ArrowDown'){ nudge(0, -0.25, e.shiftKey); }
+        if (e.key === 'ArrowLeft'){ nudge(-0.25, 0, e.shiftKey); }
+        if (e.key === 'ArrowRight'){nudge(0.25, 0, e.shiftKey); }
+      }
+      if (e.key === 'r' || e.key === 'R') resetView();
+    });
+
+    function nudge(dx, dy, fast){
+      const l = lines.find(x => x.id===selectedId); if(!l) return;
+      const k = fast ? 5 : 1;
+      l.a.x += dx*k; l.a.y += dy*k;
+      l.b.x += dx*k; l.b.y += dy*k;
+      updateMeasurement(); requestRender();
+    }
+
+    function deleteSelected(){
+      if (!selectedId) return;
+      const idx = lines.findIndex(l => l.id === selectedId);
+      if (idx >= 0) lines.splice(idx,1);
+      selectedId = null;
+      updateMeasurement(); requestRender();
+    }
+
+    function resetView(){
+      camera.tx = canvas.clientWidth / 2;
+      camera.ty = canvas.clientHeight / 2;
+      camera.scale = 40;
+      requestRender();
+    }
+
+    // Inicialización
+    setMode('draw');
+    resetView();
+    updateMeasurement();
+    requestRender();
+  })()
+  </script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dos barras — Unidades básicas o múltiplos</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --muted:#94a3b8;
+      --accent:#22d3ee; --barA:#7c3aed; --barB:#6b7280; --tick:#e5e7eb; --grid:#1f2937;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:960px;margin:0 auto;padding:24px}
+    .title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+    h1{font-size:1.1rem;margin:0}
+    .toggle{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:.95rem}
+    .panel{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:16px;margin-bottom:16px}
+    .controls{display:grid;gap:12px}
+    @media(min-width:920px){.controls{grid-template-columns:repeat(4,1fr)}}
+    label{display:flex;flex-direction:column;gap:6px;font-size:.95rem}
+    input[type="number"],select{background:#0b1220;color:var(--text);border:1px solid #26324a;border-radius:8px;padding:10px 12px}
+    input:focus,select:focus{border-color:var(--accent);outline:none}
+    .hint{color:var(--muted);font-size:.9rem;margin-top:8px}
+    .bars{display:grid;gap:18px}
+    .bar-row{display:flex;flex-direction:column;gap:8px}
+    .bar-label{display:flex;justify-content:space-between;color:var(--muted);font-size:.9rem}
+    .ratio{color:var(--muted);font-size:.85rem}
+    svg{width:100%;height:auto;display:block}
+    .legend{margin-top:6px;color:var(--muted);font-size:.85rem}
+    .hidden{display:none}
+
+    .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .btn{
+      appearance:none;border:1px solid #26324a;background:#0b1220;color:var(--text);
+      padding:10px 14px;border-radius:10px;cursor:pointer;font-size:.95rem;
+    }
+    .btn:hover{border-color:var(--accent)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title-row">
+    <h1>Dos barras — misma longitud, dos formas de medir</h1>
+    <label class="toggle" for="modeToggle" title="Cambiar entre unidades básicas y múltiplos">
+      <input id="modeToggle" type="checkbox" role="switch" aria-checked="false" />
+      Usar múltiplos de la Unidad
+    </label>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <label id="lenBasicLbl">
+        <span id="lenBasicText">Longitud de la barra en centímetros</span>
+        <input id="lenBasic" type="number" inputmode="decimal" enterkeyhint="done" min="1" step="1 value="30" />
+      </label>
+      <label id="screenBasicLbl">
+        <span id="screenBasicText">Longitud de la pantalla en centímetros</span>
+        <input id="screenBasic" type="number" inputmode="decimal" enterkeyhint="done" min="1" step="1" value="60" />
+      </label>
+
+      <label id="lenMultLbl" class="hidden">
+        Longitud de la barra en Unidades
+        <input id="lenMult" type="number" inputmode="decimal" enterkeyhint="done" min="1" step="1" value="30" />
+      </label>
+      <label id="screenMultLbl" class="hidden">
+        Longitud de la pantalla en Unidades
+        <input id="screenMult" type="number" inputmode="decimal" enterkeyhint="done" min="1" step="1" value="60" />
+      </label>
+
+      <label id="unitA_lbl">
+        Divisiones de la barra A
+        <select id="unitA">
+          <option value="cm">Centímetros</option>
+          <option value="dm">Decímetros</option>
+          <option value="m">Metros</option>
+          <option value="in">Pulgadas</option>
+          <option value="ft">Pies</option>
+          <option value="yd">Yardas</option>
+        </select>
+      </label>
+      <label id="unitB_lbl">
+        Divisiones de la barra B
+        <select id="unitB">
+          <option value="cm">Centímetros</option>
+          <option value="dm">Decímetros</option>
+          <option value="m">Metros</option>
+          <option value="in">Pulgadas</option>
+          <option value="ft">Pies</option>
+          <option value="yd">Yardas</option>
+        </select>
+      </label>
+
+      <label id="multA_lbl" class="hidden">
+        Múltiplo para barra A (×Unidad)
+        <input id="multA" type="number" inputmode="decimal" enterkeyhint="done" min="0.001" step="0.001" value="10" />
+      </label>
+      <label id="multB_lbl" class="hidden">
+        Múltiplo para barra B (×Unidad)
+        <input id="multB" type="number" inputmode="decimal" enterkeyhint="done" min="0.001" step="0.001" value="1" />
+      </label>
+    </div>
+
+    <div class="actions">
+      <button id="btnDownload" class="btn" title="Descargar las dos barras como PNG">Descargar PNGs</button>
+    </div>
+
+    <div class="hint" id="hintBasic">
+      Modo unidades básicas
+    </div>
+    <div class="hint hidden" id="hintMult">
+      Modo múltiplos
+    </div>
+  </div>
+
+  <div class="panel bars" id="barsPanel">
+    <div class="bar-row">
+      <div class="bar-label">
+        <span>Barra A</span><span id="labelA"></span>
+      </div>
+      <svg id="svgA" viewBox="0 0 100 60" role="img" aria-label="Barra A"></svg>
+      <div class="ratio" id="ratioA" aria-live="polite"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">
+        <span>Barra B</span><span id="labelB"></span>
+      </div>
+      <svg id="svgB" viewBox="0 0 100 60" role="img" aria-label="Barra B"></svg>
+      <div class="ratio" id="ratioB" aria-live="polite"></div>
+    </div>
+    <div class="legend" id="legend">
+      Marcas y etiquetas se adaptan a la densidad según el sistema elegido.
+    </div>
+  </div>
+</div>
+
+<script>
+  const CONVERSIONS = { cm:1, dm:10, m:100, in:2.54, ft:30.48, yd:91.44 };
+  const UNIT_LABELS = { cm:'centímetros', dm:'decímetros', m:'metros', in:'pulgadas', ft:'pies', yd:'yardas' };
+
+  const modeToggle = document.getElementById('modeToggle');
+
+  const lenBasic = document.getElementById('lenBasic');
+  const screenBasic = document.getElementById('screenBasic');
+  const lenBasicText = document.getElementById('lenBasicText');
+  const screenBasicText = document.getElementById('screenBasicText');
+
+  const lenMult = document.getElementById('lenMult');
+  const screenMult = document.getElementById('screenMult');
+
+  const unitA = document.getElementById('unitA');
+  const unitB = document.getElementById('unitB');
+  const multA = document.getElementById('multA');
+  const multB = document.getElementById('multB');
+
+  const unitA_lbl = document.getElementById('unitA_lbl');
+  const unitB_lbl = document.getElementById('unitB_lbl');
+  const multA_lbl = document.getElementById('multA_lbl');
+  const multB_lbl = document.getElementById('multB_lbl');
+
+  const lenBasicLbl = document.getElementById('lenBasicLbl');
+  const screenBasicLbl = document.getElementById('screenBasicLbl');
+  const lenMultLbl = document.getElementById('lenMultLbl');
+  const screenMultLbl = document.getElementById('screenMultLbl');
+
+  const hintBasic = document.getElementById('hintBasic');
+  const hintMult = document.getElementById('hintMult');
+
+  const svgA = document.getElementById('svgA');
+  const svgB = document.getElementById('svgB');
+  const labelA = document.getElementById('labelA');
+  const labelB = document.getElementById('labelB');
+  const ratioA = document.getElementById('ratioA');
+  const ratioB = document.getElementById('ratioB');
+  const barsPanel = document.getElementById('barsPanel');
+
+  const btnDownload = document.getElementById('btnDownload');
+
+  const state = { lengthCm: 30, screenLenCm: 60 };
+
+  [modeToggle, lenBasic, screenBasic, lenMult, screenMult, unitA, unitB, multA, multB]
+    .forEach(el => el.addEventListener('input', onInputs));
+
+  unitA.addEventListener('change', () => {
+    if (isBasicMode()){
+      syncBasicInputsFromState(true);
+    }
+    onInputs();
+  });
+
+  modeToggle.addEventListener('input', () => {
+    modeToggle.setAttribute('aria-checked', modeToggle.checked ? 'true' : 'false');
+  });
+
+  btnDownload.addEventListener('click', async () => {
+    try{
+      btnDownload.disabled = true;
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      renderAll();
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#111827';
+      await exportSvgAsPng(svgA, `barra-A_${ts}.png`, 2, bg);
+      await exportSvgAsPng(svgB, `barra-B_${ts}.png`, 2, bg);
+    } finally {
+      btnDownload.disabled = false;
+    }
+  });
+
+  let rafId = 0;
+  const ro = new ResizeObserver(() => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => { rafId = 0; renderAll(); });
+  });
+  ro.observe(barsPanel);
+
+  function onInputs(){
+    toggleControls();
+    renderAll();
+  }
+
+  function isBasicMode(){ return !modeToggle.checked; }
+
+  function toggleControls(){
+    const isBasic = isBasicMode();
+
+    lenBasicLbl.classList.toggle('hidden', !isBasic);
+    screenBasicLbl.classList.toggle('hidden', !isBasic);
+    lenMultLbl.classList.toggle('hidden', isBasic);
+    screenMultLbl.classList.toggle('hidden', isBasic);
+
+    unitA_lbl.classList.toggle('hidden', !isBasic);
+    unitB_lbl.classList.toggle('hidden', !isBasic);
+    multA_lbl.classList.toggle('hidden', isBasic);
+    multB_lbl.classList.toggle('hidden', isBasic);
+
+    hintBasic.classList.toggle('hidden', !isBasic);
+    hintMult.classList.toggle('hidden', isBasic);
+
+    if (isBasic){
+      syncBasicInputsFromState(false);
+    }
+  }
+
+  function syncBasicInputsFromState(updateValues = false){
+    const uA = unitA.value;
+    const factor = CONVERSIONS[uA];
+    const lenInUA = state.lengthCm / factor;
+    const screenInUA = state.screenLenCm / factor;
+
+    if (updateValues){
+      lenBasic.value = toNice(lenInUA);
+      screenBasic.value = toNice(screenInUA);
+    }
+
+    lenBasicText.textContent = `Longitud de la barra en ${UNIT_LABELS[uA]}`;
+    screenBasicText.textContent = `Longitud de la pantalla en ${UNIT_LABELS[uA]}`;
+  }
+
+  function renderAll(){
+    const targetWidth = getTargetWidth(barsPanel);
+    const padding = 16;
+    const usable = Math.max(260, targetWidth - 2*padding);
+
+    if (isBasicMode()){
+      const uA = unitA.value;
+      const factor = CONVERSIONS[uA];
+
+      const lenInUA = clamp(+lenBasic.value || 0, 0.001, 5000000);
+      const screenInUA = clamp(+screenBasic.value || 0, 0.001, 5000000);
+
+      state.lengthCm = lenInUA * factor;
+      state.screenLenCm = screenInUA * factor;
+
+      let pxPerCm = usable / state.screenLenCm;
+      pxPerCm = clamp(pxPerCm, 0.5, 120);
+
+      renderBarBasic(svgA, state.lengthCm, pxPerCm, unitA.value, '--barA', labelA, ratioA, state.screenLenCm);
+      renderBarBasic(svgB, state.lengthCm, pxPerCm, unitB.value, '--barB', labelB, ratioB, state.screenLenCm);
+
+    } else {
+      const lenUnits = clamp(+lenMult.value || 0, 0.001, 5000000);
+      const screenLenUnits = clamp(+screenMult.value || 0, 0.001, 5000000);
+
+      let pxPerUnit = usable / screenLenUnits;
+      pxPerUnit = clamp(pxPerUnit, 0.5, 120);
+
+      const kA = validStep(parseFloat(multA.value));
+      const kB = validStep(parseFloat(multB.value));
+      multA.value = kA;
+      multB.value = kB;
+
+      renderBarMultiples(svgA, lenUnits, pxPerUnit, kA, '--barA', labelA, ratioA, screenLenUnits);
+      renderBarMultiples(svgB, lenUnits, pxPerUnit, kB, '--barB', labelB, ratioB, screenLenUnits);
+    }
+  }
+
+  function renderBarBasic(svgEl, lengthCm, pxPerCm, unitKey, cssVar, labelEl, ratioEl, screenLenCm){
+    const unitCm = CONVERSIONS[unitKey];
+    const maxUnits = lengthCm / unitCm;
+    const pxPerUnit = unitCm * pxPerCm;
+
+    const {fontSize, tickStroke, barHeight, hPad, topPad, bottomPad, height} = sizing(pxPerCm);
+
+    const totalPx = lengthCm * pxPerCm;
+    const width = Math.max(screenLenCm * pxPerCm + hPad*2, 300);
+
+    svgEl.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svgEl.replaceChildren();
+
+    const {frag, rect, line, textEl, colors} = svgFactories(cssVar);
+
+    const frame = rect(0.5, 0.5, width-1, height-1, 'none', '#26324a'); frame.setAttribute('rx','8'); frag.appendChild(frame);
+
+    const barX = hPad;
+    const barY = topPad;
+    frag.appendChild(rect(barX, barY, totalPx, barHeight, colors.bar));
+
+    const minPxBetweenLabels = 48;
+    const stepUnits = computeStep(pxPerUnit, minPxBetweenLabels);
+    const tickBottom = barY + barHeight + fontSize * 1.1;
+
+    const MAX_MAJOR_TICKS = 800;
+    let count = 0;
+
+    const minorEvery = stepUnits / 5 >= 1 ? stepUnits / 5 : 0;
+    if (minorEvery){
+      for (let u=0; u<=maxUnits + 1e-9; u+=minorEvery){
+        const cmPos = u * unitCm;
+        if (cmPos > lengthCm + 1e-9) break;
+        const x = barX + cmPos * pxPerCm;
+        frag.appendChild(line(x, barY - 3, x, barY + barHeight + 3, colors.tick, Math.max(1, tickStroke*0.7)));
+      }
+    }
+
+    for (let u=0; u<=maxUnits + 1e-9; u+=stepUnits){
+      if (++count > MAX_MAJOR_TICKS) break;
+      const cmPos = u * unitCm;
+      if (cmPos > lengthCm + 1e-9) break;
+      const x = barX + cmPos * pxPerCm;
+      frag.appendChild(line(x, barY - 6, x, barY + barHeight + 6, colors.tick, tickStroke));
+      frag.appendChild(textEl(x, tickBottom, String(Math.round(u)), fontSize, 'middle', colors.tick));
+    }
+
+    const endX = barX + totalPx;
+    frag.appendChild(line(endX, barY - 6, endX, barY + barHeight + 6, colors.tick, tickStroke));
+
+    const unitVal = lengthCm / unitCm;
+    const decimals = (unitKey === 'in' || unitKey === 'ft' || unitKey === 'yd') ? 2 : 3;
+    frag.appendChild(textEl(endX, barY - fontSize * 0.4, `${unitVal.toFixed(decimals)} ${unitKey}`, fontSize, 'end', colors.tick));
+
+    svgEl.appendChild(frag);
+
+    labelEl.textContent = `Longitud: ${unitVal.toFixed(decimals)} ${unitKey} · Paso: ${stepUnits} ${unitKey}`;
+    const pct = (lengthCm / screenLenCm) * 100;
+    ratioEl.textContent = `La barra es ${pct.toFixed(1)}% de la longitud de la pantalla`;
+  }
+
+  function renderBarMultiples(svgEl, lengthUnits, pxPerUnit, multipleUnits, cssVar, labelEl, ratioEl, screenLenUnits){
+    const {fontSize, tickStroke, barHeight, hPad, topPad, bottomPad, height} = sizing(pxPerUnit);
+
+    const totalPx = lengthUnits * pxPerUnit;
+    const width = Math.max(screenLenUnits * pxPerUnit + hPad*2, 300);
+
+    svgEl.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svgEl.replaceChildren();
+
+    const {frag, rect, line, textEl, colors} = svgFactories(cssVar);
+
+    const frame = rect(0.5, 0.5, width-1, height-1, 'none', '#26324a'); frame.setAttribute('rx','8'); frag.appendChild(frame);
+
+    const barX = hPad;
+    const barY = topPad;
+    frag.appendChild(rect(barX, barY, totalPx, barHeight, colors.bar));
+
+    const blocks = lengthUnits / multipleUnits;
+    const tickBottom = barY + barHeight + fontSize * 1.1;
+
+    const pxPerBlock = multipleUnits * pxPerUnit;
+    const minPxBetweenLabels = 48;
+    const labelEveryBlocks = Math.max(1, Math.round(minPxBetweenLabels / pxPerBlock));
+
+    const MAX_MAJOR_TICKS = 800;
+    let count = 0;
+
+    for (let i=0; i<=blocks + 1e-9; i++){
+      if (++count > MAX_MAJOR_TICKS) break;
+      const posUnits = i * multipleUnits;
+      if (posUnits > lengthUnits + 1e-9) break;
+
+      const x = barX + posUnits * pxPerUnit;
+      frag.appendChild(line(x, barY - 6, x, barY + barHeight + 6, colors.tick, tickStroke));
+      if (i % labelEveryBlocks === 0){
+        frag.appendChild(textEl(x, tickBottom, String(i), fontSize, 'middle', colors.tick));
+      }
+    }
+
+    const endX = barX + totalPx;
+    frag.appendChild(line(endX, barY - 6, endX, barY + barHeight + 6, colors.tick, tickStroke));
+
+    // Aquí convertimos el conteo de bloques a fracción si tiene parte decimal
+    const blocksCount = lengthUnits / multipleUnits;
+    const blocksStr = toMixedFraction(blocksCount); // ← nuevo
+    frag.appendChild(textEl(endX, barY - fontSize * 0.4, `${blocksStr} Bloques (×${trimZeros(multipleUnits)})`, fontSize, 'end', colors.tick));
+
+    svgEl.appendChild(frag);
+
+    labelEl.textContent = `Longitud: ${trimZeros(lengthUnits)} Unidades · Paso: ×${trimZeros(multipleUnits)} Unidad`;
+    const pct = (lengthUnits / screenLenUnits) * 100;
+    ratioEl.textContent = `La barra es ${pct.toFixed(1)}% de la longitud de la pantalla`;
+  }
+
+  function sizing(pxPerBase){
+    const fontSize = clamp(Math.sqrt(pxPerBase) * 3.8, 14, 28);
+    const tickStroke = clamp(pxPerBase * 0.09, 1.2, 3);
+    const barHeight = 18;
+    const hPad = 16;
+    const topPad = Math.max(fontSize * 1.6 + 10, 34);
+    const bottomPad = Math.max(fontSize * 1.2 + 16, 36);
+    const height = barHeight + topPad + bottomPad;
+    return {fontSize, tickStroke, barHeight, hPad, topPad, bottomPad, height};
+  }
+
+  function svgFactories(cssVar){
+    const ns = 'http://www.w3.org/2000/svg';
+    const frag = document.createDocumentFragment();
+    const rect = (x,y,w,h,fill,stroke='none') => {
+      const r=document.createElementNS(ns,'rect');
+      r.setAttribute('x',x); r.setAttribute('y',y);
+      r.setAttribute('width',w); r.setAttribute('height',h);
+      r.setAttribute('fill',fill); r.setAttribute('stroke',stroke);
+      return r;
+    };
+    const line = (x1,y1,x2,y2,stroke,sw=1) => {
+      const l=document.createElementNS(ns,'line');
+      l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+      l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+      l.setAttribute('stroke',stroke); l.setAttribute('stroke-width',sw);
+      return l;
+    };
+    const textEl = (x,y,txt,fs,anchor='middle',fill) => {
+      const t=document.createElementNS(ns,'text');
+      t.setAttribute('x',x); t.setAttribute('y',y);
+      t.setAttribute('fill', fill);
+      t.setAttribute('font-size', String(fs));
+      t.setAttribute('text-anchor', anchor);
+      t.textContent = txt;
+      return t;
+    };
+    const barColor = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    const tickColor = getComputedStyle(document.documentElement).getPropertyValue('--tick').trim();
+    return {frag, rect, line, textEl, colors:{bar:barColor, tick:tickColor}};
+  }
+
+  function computeStep(pxPerUnit, minPxBetweenLabels){
+    const bases = [1, 2, 2.5, 5];
+    for (let mag = 0.001; mag <= 1e6; mag *= 10){
+      for (const b of bases){
+        const k = b * mag;
+        if (k * pxPerUnit >= minPxBetweenLabels) return k;
+      }
+    }
+    return 1e6;
+  }
+
+  function validStep(v){
+    if (!isFinite(v) || v <= 0) return 1;
+    return Math.max(0.001, +v);
+  }
+
+  function getTargetWidth(panel){
+    const rect = panel.getBoundingClientRect();
+    return rect.width || 800;
+  }
+
+  function clamp(v,min,max){ return Math.min(Math.max(v,min),max); }
+
+  function trimZeros(n){
+    const s = String(n);
+    return s.indexOf('.') >= 0 ? s.replace(/\.?0+$/,'') : s;
+  }
+
+  function toNice(x){
+    const s = x.toFixed(6);
+    return +s.replace(/\.?0+$/,'');
+  }
+
+  // Conversión de número a fracción mixta (para bloques)
+  function toMixedFraction(x){
+    const EPS = 1e-6;
+    const n = Math.floor(x + EPS);
+    let frac = x - n;
+    if (frac < EPS || (1 - frac) < EPS) return String(Math.round(x)); // entero
+
+    // Aproxima la parte fraccionaria con denominadores “amistosos”
+    const candidates = [2,3,4,5,6,8,10,12,16,20,24,32,40,48,64];
+    let best = {num:0, den:1, err:1e9};
+    for (const den of candidates){
+      const num = Math.round(frac * den);
+      if (num === 0) continue;
+      const err = Math.abs(frac - num/den);
+      if (err + 1e-12 < best.err){
+        const g = gcd(num, den);
+        best = {num: num/g, den: den/g, err};
+        if (best.err < 1e-8) break;
+      }
+    }
+    // Ajuste por redondeo a 1
+    if (Math.abs(frac - 1) < EPS || best.num === best.den){
+      return String(n + 1);
+    }
+    if (n === 0) return `${best.num}/${best.den}`;
+    return `${n} ${best.num}/${best.den}`;
+  }
+
+  function gcd(a,b){
+    a = Math.abs(a); b = Math.abs(b);
+    while (b){ const t = b; b = a % b; a = t; }
+    return a || 1;
+  }
+
+  // Exportar SVG a PNG
+  async function exportSvgAsPng(svgEl, filename, scale = 2, bgColor = null){
+    const vb = (svgEl.getAttribute('viewBox') || '0 0 300 150').split(/\s+/).map(Number);
+    const [, , vbW, vbH] = vb.length === 4 ? vb : [0,0,300,150];
+
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+    clone.setAttribute('style','font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;');
+
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([serialized], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = await loadImage(url);
+    URL.revokeObjectURL(url);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(vbW * scale));
+    canvas.height = Math.max(1, Math.round(vbH * scale));
+    const ctx = canvas.getContext('2d');
+
+    if (bgColor){
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    await new Promise(resolve => canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.download = filename;
+      a.href = URL.createObjectURL(blob);
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+      resolve();
+    }, 'image/png'));
+  }
+
+  function loadImage(src){
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+
+  // Inicio
+  syncBasicInputsFromState(true);
+  toggleControls();
+  renderAll();
+</script>
+</body>
+</html>

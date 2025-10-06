@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>2D Vector Visualizer (SVG)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b132b;
+      --panel:#1c2541;
+      --ink:#e6eefc;
+      --muted:#a8b3c7;
+      --grid:#2b3a67;
+      --axis:#d1d9ff;
+
+      /* Live-edit variables */
+      --a:#3aa6ff;   /* Vector A */
+      --b:#ff9f40;   /* Vector B */
+      --s:#22c55e;   /* Sum A+B */
+      --labelSize:12px;                  /* standard label size (vectors & info) */
+      --subLabelSize:calc(var(--labelSize) * 0.92);
+      --tickLabelSize:18px;              /* tick marks & axis label size */
+      --strokeWidth:3;                   /* vector thickness in px */
+
+      --border:#2d3b6c;
+      --focus:#94a3ff;
+      --exportStroke:#ffd166;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:grid; grid-template-rows:auto 1fr;
+    }
+    header{
+      padding:12px 16px; border-bottom:1px solid var(--border);
+      display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+      background:linear-gradient(180deg,#121a36,#0b132b 60%);
+    }
+    header h1{ margin:0; font-size:16px; font-weight:600 }
+    .controls-wrap{ position:relative; }
+    .controls{
+      display:flex; gap:12px; flex-wrap:wrap; align-items:end; margin-left:auto;
+      transition:opacity .2s ease, transform .2s ease, max-height .2s ease;
+    }
+    fieldset{
+      border:1px solid var(--border); border-radius:10px;
+      padding:8px 10px; min-width:220px; background:var(--panel);
+    }
+    legend{color:var(--muted); padding:0 6px; font-weight:600}
+    label{display:grid; grid-template-columns:auto 1fr; gap:6px 8px; align-items:center}
+    label span{color:var(--muted)}
+    input[type="number"]{
+      width:90px; padding:6px 8px; border-radius:8px; border:1px solid var(--border);
+      background:#101834; color:var(--ink); outline:none;
+    }
+    input[type="color"]{
+      width:42px; height:32px; padding:0; border:1px solid var(--border);
+      border-radius:6px; background:#101834;
+    }
+    input[type="range"]{ width:160px }
+    input[type="number"]:focus{border-color:var(--focus)}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .legend{
+      display:flex; gap:12px; align-items:center; color:var(--muted);
+      padding:6px 10px; border:1px dashed var(--border); border-radius:10px;
+      background:#0f1838;
+    }
+    .chip{display:inline-flex; gap:6px; align-items:center}
+    .dot{width:10px; height:10px; border-radius:50%}
+    .dot.a{background:var(--a)}
+    .dot.b{background:var(--b)}
+    .dot.s{background:var(--s)}
+
+    main{position:relative; display:grid; place-items:center; padding:10px}
+    svg{width:min(100%,1100px); height:70vh; border:1px solid var(--border);
+        border-radius:12px; background:#0e1734}
+    svg.grab{ cursor: grab; }
+    svg.grabbing{ cursor: grabbing; }
+
+    /* Pinned toolbar */
+    .pinned-bar{
+      position:absolute; top:12px; left:50%; transform:translateX(-50%);
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background:rgba(15,24,56,.85); backdrop-filter: blur(2px);
+      border:1px solid var(--border); border-radius:10px; padding:6px 10px;
+      z-index:5;
+      user-select:none;
+    }
+    .pinned-bar:empty{ display:none; }
+
+    .axis{stroke:var(--axis); stroke-width:1.5}
+    .grid{stroke:var(--grid); stroke-width:1}
+    .ticks{stroke:var(--axis); stroke-width:1.5}
+    .arrow{fill:none; stroke-width:var(--strokeWidth)}
+    .a-line{stroke:var(--a)}
+    .b-line{stroke:var(--b)}
+    .s-line{stroke:var(--s)}
+    .helperA{stroke:var(--a); stroke-dasharray:6 6; opacity:.95}
+    .helperB{stroke:var(--b); stroke-dasharray:6 6; opacity:.95}
+
+    .label{
+      font-size:var(--labelSize);
+      fill:var(--ink);
+      paint-order:stroke; stroke:#0e1734; stroke-width:3px;
+      user-select:none;
+    }
+    .sub{font-size:var(--subLabelSize); fill:var(--muted); user-select:none; }
+
+    .axis-end{
+      fill:var(--muted);
+      font-size:var(--tickLabelSize);
+      font-weight:600;
+      user-select:none;
+    }
+
+    .export-overlay{ pointer-events:none; }
+    .export-rect{
+      fill: none;
+      stroke: var(--exportStroke);
+      stroke-width: 1.5;
+      stroke-dasharray: 10 6;
+      opacity: .9;
+    }
+    .export-label{
+      fill: var(--exportStroke);
+      font-size: 12px;
+      font-weight:600;
+      paint-order: stroke; stroke:#0e1734; stroke-width:3px;
+    }
+
+    .cos-track{
+      fill:#ffffff14;
+      stroke:var(--axis);
+      stroke-width:1;
+      rx:3; ry:3;
+    }
+    .cos-fill{
+      fill:var(--s);
+      rx:3; ry:3;
+    }
+    .cos-tick{
+      stroke:var(--axis);
+      stroke-width:1.5;
+    }
+
+    .footer{ padding:6px 12px; text-align:center; color:var(--muted); }
+
+    .collapse-toggle{
+      background:#0f1838; color:var(--ink); border:1px solid var(--border);
+      border-radius:8px; padding:6px 10px; cursor:pointer;
+    }
+    .controls.collapsed{
+      max-height:0; overflow:hidden; opacity:0; transform:scale(0.98);
+      pointer-events:none;
+    }
+    .reopen{
+      position:fixed; right:12px; bottom:12px; z-index:10;
+      background:#0f1838; color:var(--ink); border:1px solid var(--border);
+      border-radius:999px; padding:10px 12px; cursor:pointer;
+      display:none;
+    }
+    .controls.collapsed ~ .reopen{ display:inline-flex; }
+
+    .btn{
+      background:#0f1838; color:var(--ink); border:1px solid var(--border);
+      border-radius:8px; padding:6px 10px; cursor:pointer;
+    }
+    .btn:active{ transform:translateY(1px) }
+
+    /* NEW: drag handles */
+    .handle{
+      pointer-events:all;
+      stroke:#0e1734;
+      stroke-width:2;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>2D Vector Visualizer</h1>
+
+    <div class="legend">
+      <span class="chip"><span class="dot a"></span> A</span>
+      <span class="chip"><span class="dot b"></span> B</span>
+      <span class="chip"><span class="dot s"></span> A+B</span>
+      <span class="chip">A→B (B color), B→A (A color)</span>
+    </div>
+
+    <div class="controls-wrap">
+      <div class="controls" id="controls">
+        <button id="collapseBtn" class="collapse-toggle" title="Collapse settings">Hide settings</button>
+
+        <fieldset>
+          <legend>Vector A</legend>
+          <div class="row">
+            <label><span>Ax</span><input id="ax" type="number" step="0.1" value="3"></label>
+            <label><span>Ay</span><input id="ay" type="number" step="0.1" value="2"></label>
+          </div>
+          <div class="row">
+            <label><input id="toggleA" type="checkbox" checked> <span>Show Vector A</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Vector B</legend>
+          <div class="row">
+            <label><span>Bx</span><input id="bx" type="number" step="0.1" value="-1"></label>
+            <label><span>By</span><input id="by" type="number" step="0.1" value="3"></label>
+          </div>
+          <div class="row">
+            <label><input id="toggleB" type="checkbox" checked> <span>Show Vector B</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Scaling (px per unit)</legend>
+          <div class="row">
+            <label><span>Scale X</span><input id="scaleX" type="number" step="1" min="5" value="40"></label>
+            <label><span>Scale Y</span><input id="scaleY" type="number" step="1" min="5" value="40"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Labels & Info</legend>
+          <div class="row">
+            <label><input id="toggleLabels" type="checkbox" checked> <span>Show vector labels</span></label>
+            <label><input id="toggleMagnitude" type="checkbox" checked> <span>Show magnitude</span></label>
+            <label><input id="toggleAngle" type="checkbox" checked> <span>Show angle</span></label>
+            <label><input id="toggleCoords" type="checkbox" checked> <span>Show coordinates (x, y)</span></label>
+            <label><input id="toggleTicks" type="checkbox" checked> <span>Show tick marks (with labels)</span></label>
+            <label><input id="toggleCos" type="checkbox"> <span>Show cos(A, B)</span></label>
+          </div>
+
+          <!-- Standard label size (affects vector labels and info). Max 128px -->
+          <div class="row" id="fontSizeControl">
+            <span style="color:var(--muted)">Label font</span>
+            <input id="labelSize" type="range" min="8" max="128" step="1" value="12" />
+            <span id="labelSizeVal" style="min-width:3ch;text-align:right">12</span><span>px</span>
+          </div>
+
+          <!-- Tick mark label size (affects axis ticks and axis letters). Max 128px -->
+          <div class="row" id="tickSizeControl">
+            <span style="color:var(--muted)">Tick font</span>
+            <input id="tickSize" type="range" min="8" max="128" step="1" value="18" />
+            <span id="tickSizeVal" style="min-width:3ch;text-align:right">18</span><span>px</span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Appearance</legend>
+          <div class="row" id="thicknessControl">
+            <span style="color:var(--muted)">Vector width</span>
+            <input id="thickness" type="range" min="1" max="12" step="1" value="3" />
+            <span id="thicknessVal" style="min-width:2ch;text-align:right">3</span><span>px</span>
+          </div>
+          <div class="row" id="colorControls">
+            <label><span>A color</span><input id="colorA" type="color" value="#3aa6ff"></label>
+            <label><span>B color</span><input id="colorB" type="color" value="#ff9f40"></label>
+            <label><span>Sum color</span><input id="colorS" type="color" value="#22c55e"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Export</legend>
+          <div class="row">
+            <button id="downloadBtn" class="btn" title="Download current view as PNG">Download PNG</button>
+            <span style="color:var(--muted)">Size: 900×600px</span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Sum & Pin</legend>
+          <div class="row">
+            <label><input id="toggleSum" type="checkbox" checked> <span>Show A + B (A→B & B→A)</span></label>
+          </div>
+
+          <div class="row" style="border-top:1px dashed var(--border); padding-top:8px;">
+            <label><input id="miniMode" type="checkbox"> <span>Show only pinned controls (mini mode)</span></label>
+          </div>
+
+          <div class="row" style="border-top:1px dashed var(--border); padding-top:8px;">
+            <span style="color:var(--muted)">Pin to graph top:</span>
+            <label><input id="pinCoordsA" type="checkbox" checked> <span>A coords</span></label>
+            <label><input id="pinCoordsB" type="checkbox" checked> <span>B coords</span></label>
+            <label><input id="pinScale"  type="checkbox" checked> <span>Scale X/Y</span></label>
+            <label><input id="pinFont"   type="checkbox" checked> <span>Font size</span></label>
+            <label><input id="pinWidth"  type="checkbox" checked> <span>Vector width</span></label>
+          </div>
+        </fieldset>
+      </div>
+
+      <button id="reopenBtn" class="reopen" title="Open settings">Open settings</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="pinnedBar" class="pinned-bar" aria-label="Pinned quick controls"></div>
+
+    <svg id="stage" viewBox="0 0 900 600" class="grab" aria-label="Vector plot">
+      <defs>
+        <marker id="arrowA" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L9,3 L0,6 Z" fill="var(--a)"></path>
+        </marker>
+        <marker id="arrowB" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L9,3 L0,6 Z" fill="var(--b)"></path>
+        </marker>
+        <marker id="arrowS" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L9,3 L0,6 Z" fill="var(--s)"></path>
+        </marker>
+      </defs>
+
+      <g id="viewport" transform="translate(450,300)">
+        <g id="grid"></g>
+
+        <g id="axes">
+          <line class="axis" x1="-10000" y1="0"   x2="10000" y2="0"></line>
+          <line class="axis" x1="0"      y1="-10000" x2="0"     y2="10000"></line>
+          <text id="xAxisLabel" class="axis-end">x</text>
+          <text id="yAxisLabel" class="axis-end">y</text>
+        </g>
+
+        <g id="ticks"></g>
+        <g id="tickLabels"></g>
+
+        <g id="vectors">
+          <path id="vecA" class="arrow a-line" marker-end="url(#arrowA)"></path>
+          <path id="vecB" class="arrow b-line" marker-end="url(#arrowB)"></path>
+          <path id="vecS" class="arrow s-line" marker-end="url(#arrowS)"></path>
+        </g>
+
+        <g id="helpers">
+          <path id="helperAB" class="arrow helperB" marker-end="url(#arrowB)"></path>
+          <path id="helperBA" class="arrow helperA" marker-end="url(#arrowA)"></path>
+        </g>
+
+        <g id="overlays" class="export-overlay">
+          <rect id="exportRect" class="export-rect" x="-450" y="-300" width="900" height="600" rx="2" ry="2"></rect>
+          <text id="exportLabel" class="export-label" x="0" y="0"></text>
+
+          <text id="cosSim" class="axis-end" x="0" y="0" style="display:none;"></text>
+          <rect id="cosBarTrack" class="cos-track" x="0" y="0" width="0" height="0" style="display:none;"></rect>
+          <rect id="cosBarFill"  class="cos-fill"  x="0" y="0" width="0" height="0" style="display:none;"></rect>
+          <line id="cosTickL" class="cos-tick" x1="0" y1="0" x2="0" y2="0" style="display:none;"></line>
+          <line id="cosTickM" class="cos-tick" x1="0" y1="0" x2="0" y2="0" style="display:none;"></line>
+          <line id="cosTickR" class="cos-tick" x1="0" y1="0" x2="0" y2="0" style="display:none;"></line>
+        </g>
+
+        <!-- NEW: draggable handles layer (above paths & helpers) -->
+        <g id="handles">
+          <circle id="handleA" class="handle" r="7" fill="var(--a)" style="display:none"></circle>
+          <circle id="handleB" class="handle" r="7" fill="var(--b)" style="display:none"></circle>
+        </g>
+
+        <g id="labels"></g>
+      </g>
+    </svg>
+  </main>
+
+  <div class="footer">
+    Tip: Drag to pan. Drag A/B tip to change direction. Toggle tick marks and cos(A,B) in “Labels & Info”.
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const axEl=$('#ax'), ayEl=$('#ay'), bxEl=$('#bx'), byEl=$('#by');
+    const scaleXEl=$('#scaleX'), scaleYEl=$('#scaleY');
+    const toggleA=$('#toggleA');
+    const toggleB=$('#toggleB');
+    const toggleLabels=$('#toggleLabels');
+    const toggleMagnitude=$('#toggleMagnitude');
+    const toggleAngle=$('#toggleAngle');
+    const toggleCoords=$('#toggleCoords');
+    const toggleTicks=$('#toggleTicks');
+    const toggleCos=$('#toggleCos');
+    const toggleSum=$('#toggleSum');
+    const labelSizeEl=$('#labelSize'), labelSizeVal=$('#labelSizeVal');
+    const tickSizeEl=$('#tickSize'),  tickSizeVal=$('#tickSizeVal');
+    const thicknessEl=$('#thickness'), thicknessVal=$('#thicknessVal');
+    const colorA=$('#colorA'), colorB=$('#colorB'), colorS=$('#colorS');
+
+    const pinCoordsA=$('#pinCoordsA');
+    const pinCoordsB=$('#pinCoordsB');
+    const pinScale=$('#pinScale');
+    const pinFont=$('#pinFont');
+    const pinWidth=$('#pinWidth');
+    const pinnedBar=$('#pinnedBar');
+
+    const miniMode=$('#miniMode');
+    const controls=$('#controls');
+    const collapseBtn=$('#collapseBtn');
+    const reopenBtn=$('#reopenBtn');
+
+    const svg = document.getElementById('stage');
+    const viewport = document.getElementById('viewport');
+    const gridLayer=$('#grid');
+    const ticksLayer=$('#ticks');
+    const tickLabelsLayer=$('#tickLabels');
+    const labelsLayer=$('#labels');
+    const vecAPath=$('#vecA'), vecBPath=$('#vecB'), vecSPath=$('#vecS');
+    const helperAB=$('#helperAB'), helperBA=$('#helperBA');
+
+    const handleA=$('#handleA'); // NEW
+    const handleB=$('#handleB'); // NEW
+
+    const xAxisLabel = $('#xAxisLabel');
+    const yAxisLabel = $('#yAxisLabel');
+
+    const exportRect = document.getElementById('exportRect');
+    const exportLabel = document.getElementById('exportLabel');
+    const cosSimLabel = document.getElementById('cosSim');
+    const cosBarTrack = document.getElementById('cosBarTrack');
+    const cosBarFill  = document.getElementById('cosBarFill');
+    const cosTickL = document.getElementById('cosTickL');
+    const cosTickM = document.getElementById('cosTickM');
+    const cosTickR = document.getElementById('cosTickR');
+
+    const WIDTH=900, HEIGHT=600;
+
+    // Pan state
+    let panX = 0, panY = 0;
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+
+    // NEW: handle-drag state
+    let activeHandle = null; // 'A' | 'B' | null
+
+    function applyViewportTransform(){
+      viewport.setAttribute('transform', `translate(${450 + panX},${300 + panY})`);
+      updateExportOverlay();
+      updateCosOverlay();
+    }
+
+    const mag=(x,y)=>Math.hypot(x,y);
+    const angDeg=(x,y)=>Math.atan2(y,x)*180/Math.PI;
+    const fmt=n=>Math.abs(n)<1e-9?'0':Number(n.toFixed(3)).toString();
+
+    function drawGrid(scaleX,scaleY){
+      gridLayer.innerHTML='';
+      ticksLayer.innerHTML='';
+      tickLabelsLayer.innerHTML='';
+
+      const halfW=WIDTH/2, halfH=HEIGHT/2;
+      const rangeX = halfW * 3;
+      const rangeY = halfH * 3;
+
+      const frag=document.createDocumentFragment();
+
+      for(let x=0; x<=rangeX; x+=scaleX){
+        frag.appendChild(line(x, -rangeY, x, rangeY));
+        if(x!==0) frag.appendChild(line(-x, -rangeY, -x, rangeY));
+      }
+      for(let y=0; y<=rangeY; y+=scaleY){
+        frag.appendChild(line(-rangeX, y, rangeX, y));
+        if(y!==0) frag.appendChild(line(-rangeX, -y, rangeX, -y));
+      }
+      gridLayer.appendChild(frag);
+
+      function line(x1,y1,x2,y2){
+        const el=document.createElementNS('http://www.w3.org/2000/svg','line');
+        el.setAttribute('x1',x1);el.setAttribute('y1',y1);
+        el.setAttribute('x2',x2);el.setAttribute('y2',y2);
+        el.setAttribute('class','grid');return el;
+      }
+
+      const halfWVis = halfW;
+      const halfHVis = halfH;
+      xAxisLabel.setAttribute('x', halfWVis - 8);
+      xAxisLabel.setAttribute('y', -6);
+      xAxisLabel.setAttribute('text-anchor', 'end');
+      xAxisLabel.setAttribute('dominant-baseline', 'ideographic');
+
+      yAxisLabel.setAttribute('x', 6);
+      yAxisLabel.setAttribute('y', -halfHVis + 16);
+      yAxisLabel.setAttribute('text-anchor', 'start');
+      yAxisLabel.setAttribute('dominant-baseline', 'hanging');
+
+      if (toggleTicks.checked){
+        const ticksFrag = document.createDocumentFragment();
+        const labelsFrag = document.createDocumentFragment();
+        const tickLen = Math.max(4, Math.min(10, Math.round(Math.min(scaleX, scaleY) * 0.15)));
+        const labelPad = 8;
+
+        // X ticks and labels
+        for(let x=0; x<=rangeX; x+=scaleX){
+          ticksFrag.appendChild(tickLine(x, -tickLen, x, tickLen));
+          if (x!==0) ticksFrag.appendChild(tickLine(-x, -tickLen, -x, tickLen));
+          if (x!==0){
+            labelsFrag.appendChild(tickLabel(x,  labelPad + 14,  (x/scaleX).toString(), 'middle'));
+            labelsFrag.appendChild(tickLabel(-x, labelPad + 14, (-x/scaleX).toString(), 'middle'));
+          }
+        }
+
+        // Y ticks and labels (positive above origin, negatives below)
+        for (let y = 0; y <= rangeY; y += scaleY) {
+          ticksFrag.appendChild(tickLine(-tickLen,  y,  tickLen,  y));     // screen +y (below)
+          if (y !== 0) ticksFrag.appendChild(tickLine(-tickLen, -y, tickLen, -y)); // screen -y (above)
+
+          if (y !== 0) {
+            labelsFrag.appendChild(tickLabel(-labelPad - 10, -y + 5,  (y / scaleY).toString(), 'end')); // positive
+            labelsFrag.appendChild(tickLabel(-labelPad - 10,  y + 5, (-y / scaleY).toString(), 'end')); // negative
+          }
+        }
+
+        ticksLayer.appendChild(ticksFrag);
+        tickLabelsLayer.appendChild(labelsFrag);
+
+        function tickLine(x1,y1,x2,y2){
+          const el=document.createElementNS('http://www.w3.org/2000/svg','line');
+          el.setAttribute('x1',x1);el.setAttribute('y1',y1);
+          el.setAttribute('x2',x2);el.setAttribute('y2',y2);
+          el.setAttribute('class','ticks');return el;
+        }
+        function tickLabel(x, y, text, anchor='middle'){
+          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('x', x); t.setAttribute('y', y);
+          t.setAttribute('class', 'axis-end');
+          t.setAttribute('text-anchor', anchor);
+          t.setAttribute('dominant-baseline', 'hanging');
+          t.textContent = text;
+          return t;
+        }
+      }
+    }
+
+    const toScreen=(x,y,sx,sy)=>({X:x*sx, Y:-y*sy});
+    function setArrow(pathEl,from,to){
+      const d=`M ${from.X} ${from.Y} L ${to.X} ${to.Y}`;
+      pathEl.setAttribute('d',d);
+      const visible=!(from.X===to.X && from.Y===to.Y);
+      pathEl.style.display=visible?'inline':'none';
+    }
+    function addText(txt,x,y,className='label'){
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('class',className);
+      t.textContent=txt;labelsLayer.appendChild(t);
+    }
+    function clampLabel(x,y){
+      const pad=6;const maxX=WIDTH/2-pad,maxY=HEIGHT/2-pad;
+      return {x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};
+    }
+
+    function applyColors(){
+      document.documentElement.style.setProperty('--a',colorA.value);
+      document.documentElement.style.setProperty('--b',colorB.value);
+      document.documentElement.style.setProperty('--s',colorS.value);
+    }
+    function applyLabelSize(){
+      const v=Math.min(128, parseInt(labelSizeEl.value||12,10));
+      labelSizeVal.textContent=v;
+      document.documentElement.style.setProperty('--labelSize',`${v}px`);
+      document.documentElement.style.setProperty('--subLabelSize',`calc(${v}px * 0.92)`);
+    }
+    function applyTickSize(){
+      const v=Math.min(128, parseInt(tickSizeEl.value||18,10));
+      tickSizeVal.textContent=v;
+      document.documentElement.style.setProperty('--tickLabelSize',`${v}px`);
+    }
+    function applyThickness(){
+      const v=parseInt(thicknessEl.value||3,10);
+      thicknessVal.textContent=v;
+      document.documentElement.style.setProperty('--strokeWidth',v);
+    }
+
+    function rebuildPinnedBar(){
+      pinnedBar.innerHTML='';
+      if(pinCoordsA.checked) pinnedBar.appendChild(makePinnedCoords('A', axEl, ayEl));
+      if(pinCoordsB.checked) pinnedBar.appendChild(makePinnedCoords('B', bxEl, byEl));
+      if(pinScale.checked)  pinnedBar.appendChild(makePinnedScale());
+      if(pinFont.checked)   pinnedBar.appendChild(makePinnedFont());
+      if(pinWidth.checked)  pinnedBar.appendChild(makePinnedWidth());
+    }
+
+    function makePinnedCoords(label, xEl, yEl){
+      const wrap=document.createElement('div'); wrap.className='row';
+      const title=document.createElement('span'); title.textContent=label; title.style.color='var(--muted)'; title.style.marginRight='4px';
+      const x=document.createElement('input'); x.type='number'; x.step='0.1'; x.value=xEl.value; x.style.width='76px';
+      const y=document.createElement('input'); y.type='number'; y.step='0.1'; y.value=yEl.value; y.style.width='76px';
+
+      x.addEventListener('input',()=>{ xEl.value=x.value; update(); });
+      y.addEventListener('input',()=>{ yEl.value=y.value; update(); });
+
+      const sync=()=>{ x.value=xEl.value; y.value=yEl.value; };
+      xEl.addEventListener('input',sync);
+      yEl.addEventListener('input',sync);
+
+      wrap.appendChild(title); wrap.appendChild(x); wrap.appendChild(y);
+      return wrap;
+    }
+
+    function makePinnedScale(){
+      const wrap=document.createElement('div'); wrap.className='row';
+      const label=document.createElement('span'); label.textContent='Scale'; label.style.color='var(--muted)';
+      const sx=document.createElement('input'); sx.type='number'; sx.step='1'; sx.min='5'; sx.value=scaleXEl.value; sx.style.width='80px';
+      const sy=document.createElement('input'); sy.type='number'; sy.step='1'; sy.min='5'; sy.value=scaleYEl.value; sy.style.width='80px';
+
+      sx.addEventListener('input',()=>{ scaleXEl.value=sx.value; update(); });
+      sy.addEventListener('input',()=>{ scaleYEl.value=sy.value; update(); });
+
+      const sync=()=>{ sx.value=scaleXEl.value; sy.value=scaleYEl.value; };
+      scaleXEl.addEventListener('input',sync);
+      scaleYEl.addEventListener('input',sync);
+
+      wrap.appendChild(label); wrap.appendChild(sx); wrap.appendChild(sy);
+      return wrap;
+    }
+
+    function makePinnedFont(){
+      const wrap=document.createElement('div'); wrap.className='row';
+      const label=document.createElement('span'); label.textContent='Font'; label.style.color='var(--muted)';
+      const r=document.createElement('input'); r.type='range'; r.min='8'; r.max='128'; r.step='1'; r.value=labelSizeEl.value;
+      const n=document.createElement('span'); n.style.minWidth='3ch'; n.style.textAlign='right'; n.textContent=labelSizeEl.value;
+
+      r.addEventListener('input',()=>{ labelSizeEl.value=r.value; n.textContent=r.value; applyLabelSize(); update(); });
+      const sync=()=>{ r.value=labelSizeEl.value; n.textContent=labelSizeEl.value; };
+      labelSizeEl.addEventListener('input',sync);
+
+      wrap.appendChild(label); wrap.appendChild(r); wrap.appendChild(n); wrap.appendChild(document.createTextNode('px'));
+      return wrap;
+    }
+
+    function makePinnedWidth(){
+      const wrap=document.createElement('div'); wrap.className='row';
+      const label=document.createElement('span'); label.textContent='Width'; label.style.color='var(--muted)';
+      const r=document.createElement('input'); r.type='range'; r.min='1'; r.max='12'; r.step='1'; r.value=thicknessEl.value;
+      const n=document.createElement('span'); n.style.minWidth='2ch'; n.style.textAlign='right'; n.textContent=thicknessEl.value;
+
+      r.addEventListener('input',()=>{ thicknessEl.value=r.value; n.textContent=r.value; applyThickness(); update(); });
+      const sync=()=>{ r.value=thicknessEl.value; n.textContent=thicknessEl.value; };
+      thicknessEl.addEventListener('input',sync);
+
+      wrap.appendChild(label); wrap.appendChild(r); wrap.appendChild(n); wrap.appendChild(document.createTextNode('px'));
+      return wrap;
+    }
+
+    function update(){
+      const A={x:parseFloat(axEl.value||0), y:parseFloat(ayEl.value||0)};
+      const B={x:parseFloat(bxEl.value||0), y:parseFloat(byEl.value||0)};
+      const S={x:A.x+B.x, y:A.y+B.y};
+
+      const sx=Math.max(5,parseFloat(scaleXEl.value||40));
+      const sy=Math.max(5,parseFloat(scaleYEl.value||40));
+
+      drawGrid(sx,sy);
+      labelsLayer.innerHTML='';
+
+      const O=toScreen(0,0,sx,sy);
+      const Ae=toScreen(A.x,A.y,sx,sy);
+      const Be=toScreen(B.x,B.y,sx,sy);
+      const Se=toScreen(S.x,S.y,sx,sy);
+
+      if (toggleA.checked){ setArrow(vecAPath,O,Ae); } else { vecAPath.style.display='none'; }
+      if (toggleB.checked){ setArrow(vecBPath,O,Be); } else { vecBPath.style.display='none'; }
+
+      if(toggleSum.checked){
+        vecSPath.style.display='inline';
+        setArrow(vecSPath,O,Se);
+
+        helperAB.setAttribute('marker-end','url(#arrowB)');
+        setArrow(helperAB,Ae,Se);
+
+        helperBA.setAttribute('marker-end','url(#arrowA)');
+        setArrow(helperBA,Be,Se);
+
+        helperAB.style.display='inline';
+        helperBA.style.display='inline';
+      }else{
+        vecSPath.style.display='none';
+        helperAB.style.display='none';
+        helperBA.style.display='none';
+      }
+
+      const showNames=toggleLabels.checked;
+      const showMag=toggleMagnitude.checked;
+      const showAng=toggleAngle.checked;
+      const showCoords=toggleCoords.checked;
+
+      function labelFor(name,V,end,visible){
+        if(!visible) return;
+        if(!(showNames || showMag || showAng || showCoords)) return;
+        if(V.x===0 && V.y===0) return;
+
+        const dx=Math.sign(end.X||1)*10;
+        const dy=-Math.sign(end.Y||-1)*10;
+        let lx=end.X+dx, ly=end.Y+dy;
+        ({x:lx,y:ly}=clampLabel(lx,ly));
+
+        let row=0;
+        if(showNames){ addText(`${name}`, lx, ly+14*row); row++; }
+        if(showCoords){ addText(`(${fmt(V.x)}, ${fmt(V.y)})`, lx, ly+14*row, 'label sub'); row++; }
+        if(showMag){   addText(`|${name}| = ${fmt(mag(V.x,V.y))}`, lx, ly+14*row, 'label sub'); row++; }
+        if(showAng){   addText(`θ = ${fmt(angDeg(V.x,V.y))}°`,     lx, ly+14*row, 'label sub'); }
+      }
+
+      labelFor('A',A,Ae, toggleA.checked);
+      labelFor('B',B,Be, toggleB.checked);
+      if(toggleSum.checked) labelFor('A+B',S,Se, true);
+
+      // NEW: position drag handles at vector tips (and show/hide per toggle)
+      if(toggleA.checked){
+        handleA.setAttribute('cx', Ae.X);
+        handleA.setAttribute('cy', Ae.Y);
+        handleA.style.display = 'inline';
+      }else{
+        handleA.style.display = 'none';
+      }
+      if(toggleB.checked){
+        handleB.setAttribute('cx', Be.X);
+        handleB.setAttribute('cy', Be.Y);
+        handleB.style.display = 'inline';
+      }else{
+        handleB.style.display = 'none';
+      }
+
+      updateExportOverlay();
+      updateCosOverlay();
+    }
+
+    function updateCosOverlay(){
+      const show = toggleCos.checked;
+      const elements = [cosSimLabel, cosBarTrack, cosBarFill, cosTickL, cosTickM, cosTickR];
+
+      if(!show){
+        elements.forEach(el=>el.style.display='none');
+        return;
+      }
+
+      const Ax=parseFloat(axEl.value||0), Ay=parseFloat(ayEl.value||0);
+      const Bx=parseFloat(bxEl.value||0), By=parseFloat(byEl.value||0);
+
+      const dot = Ax*Bx + Ay*By;
+      const mA = Math.hypot(Ax,Ay);
+      const mB = Math.hypot(Bx,By);
+
+      let text, v = 0, defined = !(mA===0 || mB===0);
+      if(!defined){
+        text = 'cos(A,B) = undefined';
+      }else{
+        const cos = dot/(mA*mB);
+        v = Math.max(-1, Math.min(1, cos));
+        text = `cos(A,B) = ${v.toFixed(3)}`;
+      }
+
+      const padX = 10, padY = 16;
+      const barW = 220, barH = 12, barGap = 8;
+      const left = (-WIDTH/2 - panX) + padX;
+      const top  = (-HEIGHT/2 - panY) + padY;
+
+      cosSimLabel.setAttribute('x', left);
+      cosSimLabel.setAttribute('y', top);
+      cosSimLabel.setAttribute('text-anchor','start');
+      cosSimLabel.setAttribute('dominant-baseline','hanging');
+      cosSimLabel.textContent = text;
+      cosSimLabel.style.display = 'inline';
+
+      const barX = left;
+      const barY = top + 24 + barGap;
+      cosBarTrack.setAttribute('x', barX);
+      cosBarTrack.setAttribute('y', barY);
+      cosBarTrack.setAttribute('width', barW);
+      cosBarTrack.setAttribute('height', barH);
+      cosBarTrack.style.display = 'inline';
+
+      const tickLen = 8;
+      const midX = barX + barW/2;
+      const y1 = barY - 2, y2 = barY - 2 - tickLen;
+      const lX = barX, rX = barX + barW;
+
+      cosTickL.setAttribute('x1', lX); cosTickL.setAttribute('y1', y1);
+      cosTickL.setAttribute('x2', lX); cosTickL.setAttribute('y2', y2);
+      cosTickM.setAttribute('x1', midX); cosTickM.setAttribute('y1', y1);
+      cosTickM.setAttribute('x2', midX); cosTickM.setAttribute('y2', y2);
+      cosTickR.setAttribute('x1', rX); cosTickR.setAttribute('y1', y1);
+      cosTickR.setAttribute('x2', rX); cosTickR.setAttribute('y2', y2);
+      cosTickL.style.display = cosTickM.style.display = cosTickR.style.display = 'inline';
+
+      if(!defined){
+        cosBarFill.style.display = 'none';
+      }else{
+        const half = barW/2;
+        if (v >= 0){
+          const w = v * half;
+          cosBarFill.setAttribute('x', midX);
+          cosBarFill.setAttribute('y', barY);
+          cosBarFill.setAttribute('width', w);
+          cosBarFill.setAttribute('height', barH);
+          cosBarFill.style.fill = getComputedStyle(document.documentElement).getPropertyValue('--s').trim() || '#22c55e';
+        }else{
+          const w = Math.abs(v) * half;
+          cosBarFill.setAttribute('x', midX - w);
+          cosBarFill.setAttribute('y', barY);
+          cosBarFill.setAttribute('width', w);
+          cosBarFill.setAttribute('height', barH);
+          cosBarFill.style.fill = getComputedStyle(document.documentElement).getPropertyValue('--b').trim() || '#ff9f40';
+        }
+        cosBarFill.style.display = 'inline';
+      }
+    }
+
+    function getRootCssVars(){
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        a: cs.getPropertyValue('--a').trim(),
+        b: cs.getPropertyValue('--b').trim(),
+        s: cs.getPropertyValue('--s').trim(),
+        labelSize: cs.getPropertyValue('--labelSize').trim(),
+        subLabelSize: cs.getPropertyValue('--subLabelSize').trim(),
+        tickLabelSize: cs.getPropertyValue('--tickLabelSize').trim(),
+        strokeWidth: cs.getPropertyValue('--strokeWidth').trim(),
+        grid: cs.getPropertyValue('--grid').trim(),
+        axis: cs.getPropertyValue('--axis').trim(),
+        ink: cs.getPropertyValue('--ink').trim(),
+        bg: '#0e1734'
+      };
+    }
+    function buildInlineStyle(vars){
+      return `
+:root{
+  --a:${vars.a}; --b:${vars.b}; --s:${vars.s};
+  --labelSize:${vars.labelSize}; --subLabelSize:${vars.subLabelSize};
+  --tickLabelSize:${vars.tickLabelSize};
+  --strokeWidth:${vars.strokeWidth};
+  --grid:${vars.grid}; --axis:${vars.axis}; --ink:${vars.ink};
+}
+.axis{stroke:var(--axis);stroke-width:1.5}
+.grid{stroke:var(--grid);stroke-width:1}
+.ticks{stroke:var(--axis);stroke-width:1.5}
+.arrow{fill:none;stroke-width:var(--strokeWidth)}
+.a-line{stroke:var(--a)}
+.b-line{stroke:var(--b)}
+.s-line{stroke:var(--s)}
+.helperA{stroke:var(--a);stroke-dasharray:6 6;opacity:.95}
+.helperB{stroke:var(--b);stroke-dasharray:6 6;opacity:.95}
+.label{font-size:var(--labelSize);fill:var(--ink);paint-order:stroke;stroke:${vars.bg};stroke-width:3px}
+.sub{font-size:var(--subLabelSize);fill:#a8b3c7}
+.axis-end{fill:#a8b3c7;font-size:var(--tickLabelSize);font-weight:600}
+`;
+    }
+    function serializeSvgForExport(){
+      const clone = svg.cloneNode(true);
+      const vb = clone.getAttribute('viewBox').split(/\s+/).map(Number);
+      const [minX,minY,vbW,vbH] = vb;
+
+      const vars = getRootCssVars();
+      const style = document.createElementNS('http://www.w3.org/2000/svg','style');
+      style.textContent = buildInlineStyle(vars);
+
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      bgRect.setAttribute('x', minX);
+      bgRect.setAttribute('y', minY);
+      bgRect.setAttribute('width', vbW);
+      bgRect.setAttribute('height', vbH);
+      bgRect.setAttribute('fill', vars.bg);
+
+      clone.querySelectorAll('.export-overlay').forEach(n=>n.remove());
+
+      clone.insertBefore(bgRect, clone.firstChild);
+      clone.insertBefore(style, bgRect.nextSibling);
+
+      const xml = new XMLSerializer().serializeToString(clone);
+      return { xml, width: vbW, height: vbH };
+    }
+    async function downloadPNG(){
+      const { xml, width, height } = serializeSvgForExport();
+      const svgBlob = new Blob([xml], {type: 'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(width);
+      canvas.height = Math.floor(height);
+      const ctx = canvas.getContext('2d');
+
+      await new Promise((res, rej)=>{
+        img.onload = ()=>res();
+        img.onerror = rej;
+        img.src = url;
+      });
+
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      const a = document.createElement('a');
+      a.download = 'vectors.png';
+      a.href = canvas.toDataURL('image/png');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function updateExportOverlay(){
+      const x = -WIDTH/2 - panX;
+      const y = -HEIGHT/2 - panY;
+      exportRect.setAttribute('x', x);
+      exportRect.setAttribute('y', y);
+      exportRect.setAttribute('width', WIDTH);
+      exportRect.setAttribute('height', HEIGHT);
+
+      const lx = x + WIDTH - 8;
+      const ly = y - 10;
+      exportLabel.setAttribute('x', lx);
+      exportLabel.setAttribute('y', ly);
+      exportLabel.setAttribute('text-anchor','end');
+      exportLabel.textContent = `PNG area: ${WIDTH}×${HEIGHT}px`;
+    }
+
+    // Pointer helpers
+    function pointerPos(evt){
+      if (evt.touches && evt.touches[0]) {
+        return { x: evt.touches[0].clientX, y: evt.touches[0].clientY };
+      }
+      return { x: evt.clientX, y: evt.clientY };
+    }
+
+    // screen → viewport coords (account pan)
+    function clientToViewport(evt){
+      const p = pointerPos(evt);
+      const svgRect = svg.getBoundingClientRect();
+      const xInSvg = (p.x - svgRect.left) * (WIDTH / svgRect.width) - WIDTH/2;
+      const yInSvg = (p.y - svgRect.top)  * (HEIGHT / svgRect.height) - HEIGHT/2;
+      const vx = xInSvg - panX;
+      const vy = yInSvg - panY;
+      return { vx, vy };
+    }
+
+    // viewport coords → math (units), using current scale and Y inversion
+    function viewportToMath(vx, vy){
+      const sx = Math.max(5, parseFloat(scaleXEl.value||40));
+      const sy = Math.max(5, parseFloat(scaleYEl.value||40));
+      const x =  vx / sx;
+      const y = -vy / sy;
+      return { x, y };
+    }
+
+    // Panning (mouse + touch) with handle-drag override
+    function onDown(evt){
+      const target = evt.target;
+      if (target === handleA && toggleA.checked){
+        activeHandle = 'A';
+        svg.classList.remove('grab'); svg.classList.add('grabbing');
+        evt.preventDefault();
+        return;
+      }
+      if (target === handleB && toggleB.checked){
+        activeHandle = 'B';
+        svg.classList.remove('grab'); svg.classList.add('grabbing');
+        evt.preventDefault();
+        return;
+      }
+
+      if (evt.target.closest('.pinned-bar')) return;
+      activeHandle = null;
+      isDragging = true;
+      svg.classList.remove('grab'); svg.classList.add('grabbing');
+      const p = pointerPos(evt);
+      lastX = p.x; lastY = p.y;
+      evt.preventDefault();
+    }
+
+    function onMove(evt){
+      if (activeHandle){
+        const { vx, vy } = clientToViewport(evt);
+        const { x, y } = viewportToMath(vx, vy);
+        const xf = Number(x.toFixed(3));
+        const yf = Number(y.toFixed(3));
+        if (activeHandle === 'A'){
+          axEl.value = xf;
+          ayEl.value = yf;
+        }else if (activeHandle === 'B'){
+          bxEl.value = xf;
+          byEl.value = yf;
+        }
+        update();
+        evt.preventDefault();
+        return;
+      }
+
+      if(!isDragging) return;
+      const p = pointerPos(evt);
+      const dx = p.x - lastX;
+      const dy = p.y - lastY;
+      lastX = p.x; lastY = p.y;
+      panX += dx;
+      panY += dy;
+      applyViewportTransform();
+      evt.preventDefault();
+    }
+
+    function onUp(){
+      activeHandle = null;
+      isDragging = false;
+      svg.classList.remove('grabbing'); svg.classList.add('grab');
+    }
+
+    // Wheel zoom (Shift → X only, Alt → Y only)
+    function clampScale(v){
+      return Math.max(5, Math.min(600, v));
+    }
+    function onWheel(evt){
+      evt.preventDefault();
+      const zoomIn = evt.deltaY < 0;
+      const factor = zoomIn ? 1.12 : 1/1.12;
+
+      let sx = parseFloat(scaleXEl.value || 40);
+      let sy = parseFloat(scaleYEl.value || 40);
+
+      const onlyX = evt.shiftKey && !evt.altKey;
+      const onlyY = evt.altKey  && !evt.shiftKey;
+
+      if (onlyX){
+        sx = clampScale(sx * factor);
+      } else if (onlyY){
+        sy = clampScale(sy * factor);
+      } else {
+        sx = clampScale(sx * factor);
+        sy = clampScale(sy * factor);
+      }
+
+      scaleXEl.value = Math.round(sx);
+      scaleYEl.value = Math.round(sy);
+      update();
+    }
+
+    [
+      axEl,ayEl,bxEl,byEl,scaleXEl,scaleYEl,
+      toggleA,toggleB,
+      toggleLabels,toggleMagnitude,toggleAngle,toggleCoords,toggleSum,toggleTicks,toggleCos
+    ].forEach(el=>{
+      el.addEventListener('input',update);
+      el.addEventListener('change',update);
+    });
+
+    [colorA,colorB,colorS].forEach(el=>{
+      el.addEventListener('input',()=>{ applyColors(); update(); });
+    });
+    labelSizeEl.addEventListener('input',()=>{ applyLabelSize(); update(); });
+    tickSizeEl.addEventListener('input',()=>{ applyTickSize(); update(); });
+    thicknessEl.addEventListener('input',()=>{ applyThickness(); update(); });
+
+    [pinCoordsA,pinCoordsB,pinScale,pinFont,pinWidth].forEach(cb=>{
+      cb.addEventListener('change', rebuildPinnedBar);
+    });
+
+    miniMode.addEventListener('change',()=>{
+      if(miniMode.checked){ controls.classList.add('collapsed'); }
+      else{ controls.classList.remove('collapsed'); }
+    });
+    collapseBtn.addEventListener('click',()=>{
+      controls.classList.add('collapsed');
+      miniMode.checked=true;
+    });
+    reopenBtn.addEventListener('click',()=>{
+      controls.classList.remove('collapsed');
+      miniMode.checked=false;
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', ()=>{
+      downloadPNG().catch(err=>{
+        console.error('PNG export failed:', err);
+        alert('Export failed. Try a different browser.');
+      });
+    });
+
+    svg.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    svg.addEventListener('mouseleave', ()=>{ onUp(); });
+
+    svg.addEventListener('touchstart', onDown, {passive:false});
+    svg.addEventListener('touchmove', onMove, {passive:false});
+    window.addEventListener('touchend', onUp);
+
+    // Wheel zoom listener
+    svg.addEventListener('wheel', onWheel, { passive:false });
+
+    // initial apply + draw
+    applyColors();
+    applyLabelSize();
+    applyTickSize();
+    applyThickness();
+    rebuildPinnedBar();
+    applyViewportTransform();
+    update();
+  </script>
+</body>
+</html>

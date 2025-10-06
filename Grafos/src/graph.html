@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Random Graph Generator</title>
+  <style>
+    :root{
+      --bg:#f6f9ff;
+      --panel:#ffffff;
+      --ink:#0b1f3b;
+      --muted:#5b7fa3;
+      --border:#d6e6ff;
+      --accent:#1e3a8a;
+      --edge:#90a4c6;
+      --node:#0ea5e9;
+      --warn:#b91c1c;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:15px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:grid;
+      grid-template-columns:320px 1fr;
+      gap:16px;
+    }
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:16px;
+      box-shadow:0 6px 20px rgba(10,40,80,.05);
+      margin:16px;
+      height:calc(100% - 32px);
+      overflow:auto;
+    }
+    h1{font-size:18px;margin:0 0 12px}
+    label{display:block;font-weight:600;margin:12px 0 6px}
+    input[type="number"], input[type="range"], input[type="color"]{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      font:inherit;
+      background:#fff;
+      color:var(--ink);
+      outline:none;
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+    button{
+      padding:10px 14px;
+      border-radius:10px;
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.secondary{
+      background:#fff;
+      color:var(--accent);
+    }
+    .note{color:var(--muted);font-size:13px;margin-top:8px}
+    .warn{color:var(--warn);font-weight:600;margin-top:10px}
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      border-radius:14px;
+      background:#fff;
+      border:1px solid var(--border);
+    }
+    .canvas-wrap{
+      margin:16px 16px 16px 0;
+      height:calc(100vh - 32px);
+    }
+    .inline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+    .small{font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <aside class="panel">
+    <h1>Random Graph Generator</h1>
+
+    <label for="nodes">Nodes</label>
+    <input id="nodes" type="number" min="1" step="1" value="20" />
+
+    <label for="edges">Edges</label>
+    <input id="edges" type="number" min="0" step="1" value="30" />
+
+    <div class="row">
+      <div>
+        <label for="mind">Min distance (px)</label>
+        <input id="mind" type="number" min="0" step="1" value="40" />
+      </div>
+      <div>
+        <label for="radius">Node radius (px)</label>
+        <input id="radius" type="number" min="1" step="1" value="6" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="w">Canvas width</label>
+        <input id="w" type="number" min="200" step="10" value="1100" />
+      </div>
+      <div>
+        <label for="h">Canvas height</label>
+        <input id="h" type="number" min="200" step="10" value="720" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="edgeWidth">Edge width (px)</label>
+        <input id="edgeWidth" type="number" min="1" step="1" value="2" />
+      </div>
+      <div>
+        <label for="idSize">ID size (px)</label>
+        <input id="idSize" type="range" min="8" max="28" step="1" value="12" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="nodeColor">Node color</label>
+        <input id="nodeColor" type="color" value="#0ea5e9" />
+      </div>
+      <div>
+        <label for="edgeColor">Edge color</label>
+        <input id="edgeColor" type="color" value="#90a4c6" />
+      </div>
+    </div>
+
+    <label class="inline" style="margin-top:8px">
+      <input id="showIds" type="checkbox" checked />
+      Show node IDs
+    </label>
+    <label class="inline">
+      <input id="showEdgeIds" type="checkbox" />
+      Show edge IDs
+    </label>
+    <label class="inline">
+      <input id="showDegrees" type="checkbox" />
+      Show node degrees
+    </label>
+
+    <div class="btns">
+      <button id="generate">Generate</button>
+      <button id="randomize" class="secondary" title="Randomize inputs a bit">Randomize inputs</button>
+      <button id="download" class="secondary">Download PNG</button>
+    </div>
+
+    <div id="messages" class="note"></div>
+  </aside>
+
+  <main class="panel canvas-wrap">
+    <canvas id="c"></canvas>
+  </main>
+
+  <script>
+    // Utilities
+    const randInt = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+    const rand = (a,b) => Math.random()*(b-a)+a;
+    const dist2 = (a,b) => { const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+    const $ = s => document.querySelector(s);
+
+    // Node placement with min-distance and gentle relaxation
+    function placeNodes(width,height,N,minDist,padding=20,maxAttempts=500){
+      const nodes=[]; let d=Math.max(0,minDist); let relaxed=0;
+      for(let i=0;i<N;i++){
+        let placed=false, attempts=0, localD2=d*d;
+        while(!placed){
+          if(attempts>maxAttempts){
+            d*=0.95; localD2=d*d; relaxed++; attempts=0;
+            if(d<2) throw new Error("Unable to place nodes with the given constraints.");
+          }
+          const x=rand(padding,width-padding), y=rand(padding,height-padding);
+          const p={id:i,x,y}; let ok=true;
+          for(const q of nodes){ if(dist2(p,q)<localD2){ ok=false; break; } }
+          if(ok){ nodes.push(p); placed=true; }
+          attempts++;
+        }
+      }
+      return {nodes, finalMinDist:d, relaxed};
+    }
+
+    // Unique random edges (simple graph)
+    function randomEdges(N,E){
+      const maxE=N*(N-1)/2, target=Math.min(E,maxE), set=new Set();
+      while(set.size<target){
+        const a=randInt(0,N-1); let b=randInt(0,N-1); if(a===b) continue;
+        const u=Math.min(a,b), v=Math.max(a,b), key=`${u}-${v}`;
+        set.add(key);
+      }
+      return Array.from(set,(k,i)=>{ const [u,v]=k.split('-').map(Number); return {u,v,id:i}; });
+    }
+
+    // Degrees from edge list
+    function computeDegrees(N, edges){
+      const deg = new Array(N).fill(0);
+      for(const e of edges){ deg[e.u]++; deg[e.v]++; }
+      return deg;
+    }
+
+    // Drawing
+    function draw(ctx,w,h,nodes,edges,radius,edgeW,showIds,showEdgeIds,showDegrees,idPx,nodeCol,edgeCol){
+      ctx.clearRect(0,0,w,h);
+
+      // Edges
+      ctx.lineWidth = edgeW;
+      ctx.strokeStyle = edgeCol;
+      ctx.beginPath();
+      for(const e of edges){
+        const a=nodes[e.u], b=nodes[e.v];
+        ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+      }
+      ctx.stroke();
+
+      // Edge IDs (midpoint)
+      if(showEdgeIds){
+        ctx.font = `700 ${idPx}px system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif`;
+        ctx.fillStyle = '#b91c1c';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for(const e of edges){
+          const a=nodes[e.u], b=nodes[e.v];
+          ctx.fillText(String(e.id), (a.x+b.x)/2, (a.y+b.y)/2);
+        }
+      }
+
+      // Nodes
+      ctx.fillStyle = nodeCol;
+      for(const n of nodes){
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, radius, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // Node IDs (bold, centered inside)
+      if(showIds){
+        ctx.font = `700 ${idPx}px system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif`;
+        ctx.fillStyle = '#0b1f3b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for(const n of nodes){
+          ctx.fillText(String(n.id), n.x, n.y);
+        }
+      }
+
+      // Node Degrees (below each node)
+      if(showDegrees){
+        const deg = computeDegrees(nodes.length, edges);
+        ctx.font = `700 ${Math.max(8, idPx-1)}px system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif`;
+        ctx.fillStyle = '#334155'; // slightly muted dark
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for(const n of nodes){
+          ctx.fillText(String(deg[n.id]), n.x, n.y + radius + 2);
+        }
+      }
+    }
+
+    // DOM & state
+    const canvas = $('#c');
+    const ctx = canvas.getContext('2d');
+    const messages = $('#messages');
+
+    function currentUI(){
+      return {
+        N: Math.max(1, Math.floor(Number($('#nodes').value || 0))),
+        E: Math.max(0, Math.floor(Number($('#edges').value || 0))),
+        minDist: Math.max(0, Math.floor(Number($('#mind').value || 0))),
+        radius: Math.max(1, Math.floor(Number($('#radius').value || 1))),
+        edgeWidth: Math.max(1, Math.floor(Number($('#edgeWidth').value || 1))),
+        w: Math.max(200, Math.floor(Number($('#w').value || 1100))),
+        h: Math.max(200, Math.floor(Number($('#h').value || 720))),
+        showIds: $('#showIds').checked,
+        showEdgeIds: $('#showEdgeIds').checked,
+        showDegrees: $('#showDegrees').checked,
+        idPx: Math.max(8, Math.floor(Number($('#idSize').value || 12))),
+        nodeColor: $('#nodeColor').value || '#0ea5e9',
+        edgeColor: $('#edgeColor').value || '#90a4c6',
+      };
+    }
+
+    function sizeCanvas(w,h){
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(w*dpr);
+      canvas.height = Math.floor(h*dpr);
+      canvas.style.width = w+'px';
+      canvas.style.height = h+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+
+    function redraw(){
+      const ui = currentUI();
+      const st = window.__lastGraphState;
+      if(!st) return;
+      draw(ctx, st.w, st.h, st.nodes, st.edges,
+           ui.radius, ui.edgeWidth, ui.showIds, ui.showEdgeIds, ui.showDegrees,
+           ui.idPx, ui.nodeColor, ui.edgeColor);
+    }
+
+    function generate(){
+      const ui = currentUI();
+      sizeCanvas(ui.w, ui.h);
+
+      let info;
+      try{
+        info = placeNodes(ui.w, ui.h, ui.N, ui.minDist, 24);
+      }catch(e){
+        messages.innerHTML = `<span class="warn">${e.message}</span>`;
+        return;
+      }
+
+      const maxEdges = ui.N*(ui.N-1)/2;
+      if(ui.E > maxEdges){
+        messages.innerHTML = `• Edges requested (${ui.E}) exceed simple graph max (${maxEdges}). Capped.`;
+      }else{
+        messages.textContent = 'OK';
+      }
+
+      const edges = randomEdges(ui.N, ui.E);
+      window.__lastGraphState = { w: ui.w, h: ui.h, nodes: info.nodes, edges };
+
+      draw(ctx, ui.w, ui.h, info.nodes, edges,
+           ui.radius, ui.edgeWidth, ui.showIds, ui.showEdgeIds, ui.showDegrees,
+           ui.idPx, ui.nodeColor, ui.edgeColor);
+    }
+
+    function randomizeInputs(){
+      $('#nodes').value = randInt(8, 80);
+      const n = Number($('#nodes').value);
+      const maxE = n*(n-1)/2;
+      $('#edges').value = randInt(Math.min(n-1, 6), Math.min(maxE, Math.max(10, Math.floor(n*1.5))));
+      $('#mind').value = randInt(20, 70);
+      $('#radius').value = randInt(4, 8);
+      $('#edgeWidth').value = randInt(1, 4);
+      $('#idSize').value = randInt(10, 18);
+    }
+
+    function downloadPNG(){
+      if(!window.__lastGraphState) generate();
+      const a = document.createElement('a');
+      a.download = 'random-graph.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }
+
+    // Buttons
+    $('#generate').addEventListener('click', generate);
+    $('#randomize').addEventListener('click', () => { randomizeInputs(); generate(); });
+    $('#download').addEventListener('click', downloadPNG);
+
+    // Live redraw controls (instant updates)
+    ['showIds','showEdgeIds','showDegrees','idSize','nodeColor','edgeColor','edgeWidth','radius']
+      .forEach(id => $('#'+id).addEventListener('input', redraw));
+
+    // First render
+    generate();
+  </script>
+</body>
+</html>

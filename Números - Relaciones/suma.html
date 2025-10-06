@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Number Diagrams — drag graphs, pan background, zoom, modals</title>
+<style>
+  :root{
+    --bg:#eaf2ff;
+    --card:#bdf8c7;
+    --ink:#0a0a0a;
+    --op:#b166e7;
+    --panel:rgba(255,255,255,.9);
+    --shadow:0 20px 50px rgba(0,0,0,.18), 0 6px 20px rgba(0,0,0,.12);
+    --border:#d1d9e6;
+    --danger:#b91c1c;
+    --focus:#2563eb;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    display:grid;
+    grid-template-rows:auto 1fr;
+    font-family:system-ui, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    color:var(--ink);
+  }
+  .controls{
+    display:grid; gap:.6rem .8rem;
+    grid-template-columns: 220px 1fr 110px;
+    padding:12px 16px;
+    background:rgba(255,255,255,.7);
+    border-bottom:1px solid rgba(0,0,0,.06);
+    align-items:center;
+    position:sticky; top:0; z-index:5;
+    backdrop-filter:saturate(120%) blur(4px);
+  }
+  .controls label{font-weight:600; font-size:.95rem}
+  .controls input[type="range"]{width:100%}
+  .controls input[type="number"]{
+    width:100%; padding:.4rem .55rem; border:1px solid #cbd5e1; border-radius:8px; font-size:.95rem;
+  }
+  .wrap{ width:min(1100px,94vw); margin:12px auto 18px; position:relative; }
+  canvas{
+    width:100%; height:560px; background:transparent; display:block;
+    border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.04);
+    cursor:crosshair; touch-action:none;
+  }
+  .hint{ margin-top:.6rem; color:#345; opacity:.75; text-align:center; }
+
+  /* Modals */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(10,16,28,.35); display:none; z-index:10; }
+  .modal{ position:fixed; inset:0; display:none; place-items:center; z-index:11; }
+  .modal.open, .modal-backdrop.open{ display:grid; }
+  .modal-card{ width:min(520px, 92vw); background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; box-shadow:var(--shadow); padding:18px; }
+  .modal-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .modal-title{ font-size:1.1rem; font-weight:700; }
+  .modal-body{ display:grid; gap:12px; }
+  .row{ display:grid; grid-template-columns: 1fr 140px; gap:10px; align-items:center; }
+  .row label{ font-weight:600; }
+  .row input[type="number"]{ width:100%; padding:.5rem .65rem; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+  .btn{ padding:.55rem .9rem; border:1px solid #cbd5e1; border-radius:10px; background:#fff; font-weight:700; cursor:pointer; }
+  .btn.primary{ background:var(--focus); color:#fff; border-color:transparent; }
+  .btn:focus-visible, input:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+  .error{ color:var(--danger); font-weight:700; }
+</style>
+</head>
+<body>
+
+  <form class="controls" id="ui" onsubmit="return false">
+    <label for="numFont">Number size</label>
+    <input id="numFont" type="range" min="24" max="160" step="2" value="72">
+    <input id="numFontBox" type="number" min="24" max="160" step="1" value="72">
+
+    <label for="symFont">Symbol size</label>
+    <input id="symFont" type="range" min="20" max="160" step="2" value="68">
+    <input id="symFontBox" type="number" min="20" max="160" step="1" value="68">
+
+    <label for="greenSize">Green squares</label>
+    <input id="greenSize" type="range" min="70" max="260" step="2" value="126">
+    <input id="greenSizeBox" type="number" min="70" max="260" step="1" value="126">
+
+    <label for="purpleSize">Purple squares</label>
+    <input id="purpleSize" type="range" min="22" max="120" step="1" value="49">
+    <input id="purpleSizeBox" type="number" min="22" max="120" step="1" value="49">
+
+    <label for="lineLen">Length of lines</label>
+    <input id="lineLen" type="range" min="80" max="320" step="4" value="128">
+    <input id="lineLenBox" type="number" min="80" max="320" step="1" value="128">
+
+    <label for="zoom">Canvas zoom</label>
+    <input id="zoom" type="range" min="0.5" max="3" step="0.05" value="1">
+    <input id="zoomBox" type="number" min="0.5" max="3" step="0.05" value="1">
+  </form>
+
+  <div class="wrap">
+    <canvas id="board"></canvas>
+    <div class="hint">
+      Empty drag: pan the background. Empty click: create a number. Click a number: decompose (modal asks both addends).
+      Drag any node: move the whole diagram. “=” sits at the midpoint of edge 1–3. Ctrl + wheel: zoom.
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-backdrop" id="backdrop"></div>
+
+  <div class="modal" id="modal-single" aria-modal="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Add a number</div>
+        <button class="btn" data-close="single" aria-label="Close">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="row"><label for="singleValue">Number</label><input id="singleValue" type="number" step="any" placeholder="e.g. 12"></div>
+        <div class="error" id="singleError" style="display:none"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close="single">Cancel</button>
+        <button class="btn primary" id="singleOk">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-pair" aria-modal="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Decompose into two addends</div>
+        <button class="btn" data-close="pair" aria-label="Close">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="row"><label for="pairA">Addend A</label><input id="pairA" type="number" step="any" placeholder="e.g. 5"></div>
+        <div class="row"><label for="pairB">Addend B</label><input id="pairB" type="number" step="any" placeholder="e.g. 7"></div>
+        <div class="error" id="pairError" style="display:none"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close="pair">Cancel</button>
+        <button class="btn primary" id="pairOk">Decompose</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+
+  // Adjustable params (defaults)
+  const params = { numberFont:72, symbolFont:68, numberSize:126, childSize:100, purpleSize:49, lineLen:128, edgeThick:18 };
+  const view = { zoom:1, minZoom:0.5, maxZoom:3, offsetX:0, offsetY:0 }; // <-- pan offsets
+  const radius = { number:22, child:20, plus:10 };
+
+  // Spacings
+  const H12 = () => params.lineLen*0.6;
+  const H23 = () => params.lineLen*1.0;
+  const H13 = () => H12()+H23();
+  const V3  = () => params.lineLen*1.0;
+  const EQ_W = () => Math.round(params.purpleSize*2.2);
+  const EQ_H = () => params.purpleSize;
+  const PLUS_W = () => params.purpleSize;
+
+  // Data
+  let idSeq = 1;
+  const graphs = [];
+
+  // HiDPI + transform
+  let dpr = 1;
+  function fit(){
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.round(r.width*dpr);
+    canvas.height= Math.round(r.height*dpr);
+    applyTransform(); render();
+  }
+  function applyTransform(){
+    // setTransform(a, b, c, d, e, f) → scale then translate (in device pixels)
+    const s = dpr * view.zoom;
+    ctx.setTransform(s, 0, 0, s, dpr*(view.offsetX*view.zoom), dpr*(view.offsetY*view.zoom));
+  }
+
+  const cssColor = (v,fb)=>getComputedStyle(document.documentElement).getPropertyValue(v).trim()||fb;
+
+  // Drawing
+  function rrect(x,y,w,h,r){
+    const rr=Math.min(r,w/2,h/2);
+    ctx.beginPath(); ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath();
+  }
+  function drawNumberNode(n){
+    const side = n.role==='child' ? params.childSize : params.numberSize;
+    n.w = side; n.h = side;
+    ctx.fillStyle = cssColor('--card','#bdf8c7');
+    rrect(n.x-n.w/2, n.y-n.h/2, n.w, n.h, n.r); ctx.fill();
+    ctx.fillStyle = cssColor('--ink','#0a0a0a');
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = `900 ${params.numberFont}px system-ui, Segoe UI, Roboto, Inter, Arial`;
+    ctx.fillText(String(n.value), n.x, n.y+2);
+  }
+  function drawEqualsNode(n){
+    n.w = EQ_W(); n.h = EQ_H(); n.r = n.h/2;
+    ctx.fillStyle = cssColor('--op','#b166e7');
+    rrect(n.x-n.w/2, n.y-n.h/2, n.w, n.h, n.r); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = `900 ${params.symbolFont}px system-ui, Segoe UI, Roboto, Inter, Arial`;
+    ctx.fillText('=', n.x, n.y+1);
+  }
+  function drawPlusNode(n){
+    n.w = PLUS_W(); n.h = PLUS_W(); n.r = radius.plus;
+    ctx.fillStyle = cssColor('--op','#b166e7');
+    rrect(n.x-n.w/2, n.y-n.h/2, n.w, n.h, n.r); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = `900 ${params.symbolFont}px system-ui, Segoe UI, Roboto, Inter, Arial`;
+    ctx.fillText('+', n.x, n.y+1);
+  }
+  function drawEdge(nu, nv){
+    ctx.strokeStyle = cssColor('--op','#b166e7');
+    ctx.lineWidth = params.edgeThick;
+    ctx.lineCap = 'round'; ctx.beginPath();
+    if (Math.abs(nu.y - nv.y) < 0.5){ const y=(nu.y+nv.y)/2; ctx.moveTo(nu.x,y); ctx.lineTo(nv.x,y); }
+    else if (Math.abs(nu.x - nv.x) < 0.5){ const x=(nu.x+nv.x)/2; ctx.moveTo(x,nu.y); ctx.lineTo(x,nv.y); }
+    else { ctx.moveTo(nu.x,nu.y); ctx.lineTo(nv.x,nu.y); ctx.lineTo(nv.x,nv.y); }
+    ctx.stroke();
+  }
+  function render(){
+    // clear in device space, then reapply transform
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    applyTransform();
+
+    for (const g of graphs){
+      for (const e of g.edges){
+        const u = g.nodes.find(n=>n.id===e.u);
+        const v = g.nodes.find(n=>n.id===e.v);
+        if (u && v) drawEdge(u,v);
+      }
+    }
+    for (const g of graphs){
+      for (const n of g.nodes){
+        if (n.type==='number') drawNumberNode(n);
+        else if (n.type==='equals') drawEqualsNode(n);
+        else if (n.type==='plus') drawPlusNode(n);
+      }
+    }
+  }
+
+  // Relayout
+  function relayoutGraph(g){
+    const n1 = g.nodes.find(n=>n.type==='number' && n.role==='root'); if (!n1) return;
+    const n3 = g.nodes.find(n=>n.type==='plus');
+    const n2 = g.nodes.find(n=>n.type==='equals');
+    if (n3){ n3.x = n1.x + H13(); n3.y = n1.y; }
+    if (n2 && n3){ n2.x = (n1.x + n3.x)/2; n2.y = n1.y; }
+    const childs = g.nodes.filter(n=>n.type==='number' && n.role==='child');
+    if (n3){ const [c1, c2] = childs; if (c1){ c1.x=n3.x; c1.y=n3.y - V3(); } if (c2){ c2.x=n3.x; c2.y=n3.y + V3(); } }
+    const edges=[]; if (n3) edges.push({u:n1.id,v:n3.id}); for (const c of childs) edges.push({u:n3.id,v:c.id}); g.edges=edges;
+  }
+  function relayoutAll(){ graphs.forEach(relayoutGraph); render(); }
+
+  // Hit tests
+  function hitAnyNode(x,y){
+    for (let gi=graphs.length-1; gi>=0; gi--){
+      const g = graphs[gi];
+      for (let i=g.nodes.length-1; i>=0; i--){
+        const n=g.nodes[i];
+        if (x>=n.x-n.w/2 && x<=n.x+n.w/2 && y>=n.y-n.h/2 && y<=n.y+n.h/2){ return {graph:g, node:n, gi}; }
+      }
+    }
+    return null;
+  }
+  function hitNumberNode(x,y){ const hit=hitAnyNode(x,y); return (hit && hit.node.type==='number')?hit:null; }
+
+  // Graph ops
+  function addRootNumber(x,y,value){
+    const g = {nodes:[], edges:[]};
+    g.nodes.push({ id:idSeq++, type:'number', role:'root', x, y, w:params.numberSize, h:params.numberSize, r:radius.number, value:Number(value) });
+    graphs.push(g); render();
+  }
+  function decomposeNumber(graph, node1, a, b){
+    const n1=node1;
+    const n3x=n1.x+H13(), n3y=n1.y;
+    const n2x=(n1.x+n3x)/2, n2y=n1.y;
+    const n4x=n3x, n4y=n3y - V3();
+    const n5x=n3x, n5y=n3y + V3();
+    const n2={id:idSeq++, type:'equals', x:n2x, y:n2y, w:EQ_W(), h:EQ_H(), r:EQ_H()/2};
+    const n3={id:idSeq++, type:'plus',   x:n3x, y:n3y, w:PLUS_W(), h:PLUS_W(), r:radius.plus};
+    const n4={id:idSeq++, type:'number', role:'child', x:n4x, y:n4y, w:params.childSize, h:params.childSize, r:radius.child, value:a};
+    const n5={id:idSeq++, type:'number', role:'child', x:n5x, y:n5y, w:params.childSize, h:params.childSize, r:radius.child, value:b};
+    graph.nodes.push(n2,n3,n4,n5);
+    graph.edges.push({u:n1.id,v:n3.id},{u:n3.id,v:n4.id},{u:n3.id,v:n5.id});
+    render();
+  }
+
+  // Coordinate transforms
+  function toWorldFromCSS(xCss, yCss){
+    // world = (css - offset*zoom) / zoom
+    return { x: (xCss - view.offsetX*view.zoom)/view.zoom, y: (yCss - view.offsetY*view.zoom)/view.zoom };
+  }
+  function cssPoint(evt){
+    const r = canvas.getBoundingClientRect();
+    return { x: evt.clientX - r.left, y: evt.clientY - r.top };
+  }
+  function toWorldEvt(evt){
+    const p = cssPoint(evt);
+    return toWorldFromCSS(p.x, p.y);
+  }
+
+  // Pointer interactions: drag-graph, pan-background, click
+  const DRAG_THRESH = 6;
+  let pointerDown = null; // {mode:'graph'|'pan', x,y, cssX,cssY, hit?, moved, snapshot?}
+
+  canvas.addEventListener('pointerdown', (evt)=>{
+    const css = cssPoint(evt);
+    const world = toWorldFromCSS(css.x, css.y);
+    const hit = hitAnyNode(world.x, world.y);
+
+    if (hit){
+      // drag graph
+      const g = graphs.splice(hit.gi,1)[0]; graphs.push(g);
+      pointerDown = {mode:'graph', x:world.x, y:world.y, cssX:css.x, cssY:css.y, hit, moved:false,
+                     snapshot: g.nodes.map(n=>({n, x:n.x, y:n.y}))};
+    } else {
+      // pan background
+      pointerDown = {mode:'pan', x:world.x, y:world.y, cssX:css.x, cssY:css.y, moved:false};
+    }
+    canvas.setPointerCapture(evt.pointerId);
+    canvas.style.cursor = 'grabbing';
+  });
+
+  canvas.addEventListener('pointermove', (evt)=>{
+    if (!pointerDown) return;
+    const css = cssPoint(evt);
+
+    if (pointerDown.mode === 'graph'){
+      const world = toWorldFromCSS(css.x, css.y);
+      const dx = world.x - pointerDown.x;
+      const dy = world.y - pointerDown.y;
+      if (!pointerDown.moved && Math.hypot(dx,dy) >= DRAG_THRESH) pointerDown.moved = true;
+      if (pointerDown.moved){
+        const g = graphs[graphs.length-1];
+        for (const s of pointerDown.snapshot){ s.n.x = s.x + dx; s.n.y = s.y + dy; }
+        render();
+      }
+    } else {
+      // pan in CSS space, translate to world delta by dividing by zoom
+      const dxCss = css.x - pointerDown.cssX;
+      const dyCss = css.y - pointerDown.cssY;
+      if (!pointerDown.moved && Math.hypot(dxCss,dyCss) >= DRAG_THRESH) pointerDown.moved = true;
+      if (pointerDown.moved){
+        view.offsetX += dxCss / view.zoom;
+        view.offsetY += dyCss / view.zoom;
+        pointerDown.cssX = css.x; pointerDown.cssY = css.y;
+        applyTransform(); render();
+      }
+    }
+  });
+
+  canvas.addEventListener('pointerup', (evt)=>{
+    const wasDragging = pointerDown && pointerDown.moved;
+    const mode = pointerDown?.mode;
+    const css = cssPoint(evt);
+    const world = toWorldFromCSS(css.x, css.y);
+    const hitNum = hitNumberNode(world.x, world.y);
+    pointerDown = null;
+    canvas.releasePointerCapture?.(evt.pointerId);
+    canvas.style.cursor = 'crosshair';
+    if (wasDragging) return; // end of drag, no click
+
+    if (mode === 'graph' && hitNum){
+      // open pair modal for decomposition
+      openPairModal(hitNum.graph, hitNum.node);
+      return;
+    }
+    if (mode === 'pan'){
+      // background click → add root number
+      openSingleModal(world.x, world.y);
+    }
+  });
+
+  canvas.addEventListener('pointercancel', ()=>{ pointerDown=null; render(); });
+
+  // Zoom
+  function setZoom(z){
+    view.zoom = Math.min(view.maxZoom, Math.max(view.minZoom, z));
+    applyTransform(); render();
+  }
+  canvas.addEventListener('wheel', (evt)=>{
+    if (!evt.ctrlKey) return;
+    evt.preventDefault();
+    const delta = -Math.sign(evt.deltaY) * 0.1;
+    setZoom(view.zoom + delta);
+    document.getElementById('zoom').value = view.zoom.toFixed(2);
+    document.getElementById('zoomBox').value = view.zoom.toFixed(2);
+  }, {passive:false});
+
+  // UI bindings
+  function bindSlider(idRange, idBox, getter, setter, onChange){
+    const r = document.getElementById(idRange), b = document.getElementById(idBox);
+    const sync = v=>{ r.value=String(v); b.value=String(v); if(onChange) onChange(v); render(); };
+    r.addEventListener('input', ()=>{ const v=Number(r.value); setter(v); b.value=r.value; if(onChange)onChange(v); render(); });
+    b.addEventListener('change', ()=>{ const v=Number(b.value); setter(v); r.value=b.value; if(onChange)onChange(v); render(); });
+    sync(getter());
+  }
+  bindSlider('numFont','numFontBox', ()=>params.numberFont, v=>params.numberFont=v);
+  bindSlider('symFont','symFontBox', ()=>params.symbolFont, v=>params.symbolFont=v);
+  bindSlider('greenSize','greenSizeBox', ()=>params.numberSize, v=>{
+    params.numberSize=v; params.childSize = Math.max(60, Math.round(v*0.79));
+  });
+  bindSlider('purpleSize','purpleSizeBox', ()=>params.purpleSize, v=>params.purpleSize=v);
+  bindSlider('lineLen','lineLenBox', ()=>params.lineLen, v=>{ params.lineLen=v; relayoutAll(); });
+
+  (function(){
+    const rz=document.getElementById('zoom'), bz=document.getElementById('zoomBox');
+    const sync=v=>{ rz.value=String(v); bz.value=String(v); };
+    rz.addEventListener('input', ()=>{ setZoom(Number(rz.value)); sync(view.zoom); });
+    bz.addEventListener('change', ()=>{ setZoom(Number(bz.value)); sync(view.zoom); });
+    sync(view.zoom);
+  })();
+
+  window.addEventListener('resize', fit, {passive:true});
+  fit();
+
+  // ===== Modals logic =====
+  const backdrop = document.getElementById('backdrop');
+
+  const modalSingle = document.getElementById('modal-single');
+  const singleValue = document.getElementById('singleValue');
+  const singleError = document.getElementById('singleError');
+  const singleOk = document.getElementById('singleOk');
+  let singleCtx = null; // {x,y}
+  function openSingleModal(x,y){
+    singleCtx = {x,y}; singleValue.value=''; singleError.style.display='none';
+    showModal('single'); setTimeout(()=>singleValue.focus(),0);
+  }
+
+  const modalPair = document.getElementById('modal-pair');
+  const pairA = document.getElementById('pairA');
+  const pairB = document.getElementById('pairB');
+  const pairError = document.getElementById('pairError');
+  const pairOk = document.getElementById('pairOk');
+  let pairCtx = null; // {graph, node}
+  function openPairModal(graph, node){
+    pairCtx = {graph, node}; pairA.value=''; pairB.value=''; pairError.style.display='none';
+    showModal('pair'); setTimeout(()=>pairA.focus(),0);
+  }
+
+  function showModal(which){
+    backdrop.classList.add('open');
+    (which==='single'?modalSingle:modalPair).classList.add('open');
+  }
+  function closeModal(which){
+    backdrop.classList.remove('open');
+    (which==='single'?modalSingle:modalPair).classList.remove('open');
+  }
+  document.querySelectorAll('[data-close="single"]').forEach(el=>el.addEventListener('click', ()=>closeModal('single')));
+  document.querySelectorAll('[data-close="pair"]').forEach(el=>el.addEventListener('click', ()=>closeModal('pair')));
+  backdrop.addEventListener('click', ()=>{ closeModal('single'); closeModal('pair'); });
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape'){ closeModal('single'); closeModal('pair'); } });
+
+  singleOk.addEventListener('click', ()=>{
+    const v = Number(singleValue.value);
+    if (!Number.isFinite(v)){ singleError.textContent='Please enter a valid number.'; singleError.style.display='block'; singleValue.focus(); return; }
+    addRootNumber(singleCtx.x, singleCtx.y, v); closeModal('single');
+  });
+  function tryParsePair(){
+    const a=Number(pairA.value), b=Number(pairB.value);
+    if (!Number.isFinite(a) || !Number.isFinite(b)){ pairError.textContent='Both entries must be valid numbers.'; pairError.style.display='block'; return null; }
+    return {a,b};
+  }
+  modalSingle.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); singleOk.click(); } });
+  modalPair.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); pairOk.click(); } });
+  pairOk.addEventListener('click', ()=>{
+    const parsed = tryParsePair(); if (!parsed) return;
+    const {a,b} = parsed; const target = pairCtx.node.value;
+    if (a+b !== target){ pairError.textContent = `a + b = ${a+b}, which is different from ${target}.`; pairError.style.display='block'; return; }
+    decomposeNumber(pairCtx.graph, pairCtx.node, a, b); closeModal('pair');
+  });
+
+})();
+</script>
+</body>
+</html>

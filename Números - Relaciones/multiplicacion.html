@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Multiplication Grid Visualizer</title>
+  <style>
+    :root{
+      --bg:#eaf2ff;
+      --ink:#0b1f3b;
+
+      --green:#2fa36a;
+      --green-soft:#e9fff3;
+
+      --red:#e74a4a;
+      --red-soft:#ffe7e7;
+
+      --radius:18px;
+      --gap:14px;
+      --cell:64px;      /* default cell size */
+      --shadow:0 4px 16px rgba(0,0,0,.06);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color:var(--ink);
+      background:var(--bg);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:24px;
+      gap:18px;
+    }
+
+    .app{
+      width:min(1024px, 100%);
+      display:grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "controls"
+        "board";
+      gap:20px;
+    }
+
+    .controls{
+      grid-area:controls;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px 18px;
+      background:white;
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow:var(--shadow);
+    }
+    .controls label{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:14px;
+    }
+    .controls input[type="number"],
+    .controls input[type="range"]{
+      margin-left:6px;
+    }
+
+    .board{
+      grid-area:board;
+      display:grid;
+      grid-template-columns: minmax(300px, 1fr) auto;
+      grid-template-rows: 1fr auto;
+      gap:20px;
+      align-items:start;
+    }
+
+    .top-row{
+      grid-column:1; grid-row:2;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:16px;
+      background:var(--green-soft);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      min-height:calc(var(--cell) * .9);
+      gap:12px;
+      width:100%;
+    }
+    .green-box{
+      width:var(--cell);
+      height:calc(var(--cell) * 0.9);
+      border-radius:12px;
+      background:var(--green);
+    }
+
+    .red-container{
+      grid-column:1; grid-row:1;
+      width:100%;
+      display:grid;
+      place-items:center;
+      padding:18px;
+      background:var(--red-soft);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+    .red-grid{
+      display:grid;
+      gap:12px;
+    }
+    .red-cell{
+      width:calc(var(--cell) * 0.95);
+      height:calc(var(--cell) * 0.95);
+      background:var(--red);
+      border-radius:12px;
+    }
+
+    .right{
+      grid-column:2; grid-row:1;
+      display:flex;
+      align-items:flex-start;
+    }
+    .right .green-container{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      padding:16px;
+      background:var(--green-soft);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+
+    @media (max-width: 820px){
+      .board{
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .red-container{ grid-column:1; grid-row:1; }
+      .right{ grid-column:1; grid-row:2; justify-content:center; }
+      .top-row{ grid-column:1; grid-row:3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="controls">
+      <label>
+        Primer número (Columnas)
+        <input id="colsInput" type="number" min="0" max="20" step="1" value="3" />
+      </label>
+      <label>
+        Segundo número (Filas)
+        <input id="rowsInput" type="number" min="0" max="20" step="1" value="3" />
+      </label>
+      <label>
+        Tamaño
+        <input id="sizeSlider" type="range" min="30" max="100" value="64" />
+      </label>
+      <span aria-live="polite" id="totalLabel">Total: </span>
+    </div>
+
+    <div class="board">
+      <div class="top-row" id="topBoxes" aria-label="Top boxes"></div>
+      <div class="red-container">
+        <div class="red-grid" id="redGrid" aria-label="Multiplication grid"></div>
+      </div>
+      <div class="right">
+        <div class="green-container" id="rightBoxes" aria-label="Right boxes"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const colsInput   = document.getElementById('colsInput');
+    const rowsInput   = document.getElementById('rowsInput');
+    const sizeSlider  = document.getElementById('sizeSlider');
+    const topBoxes    = document.getElementById('topBoxes');
+    const rightBoxes  = document.getElementById('rightBoxes');
+    const redGrid     = document.getElementById('redGrid');
+    const totalLabel  = document.getElementById('totalLabel');
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function render(){
+      const cols = clamp(parseInt(colsInput.value || 0, 10), 0, 20);
+      const rows = clamp(parseInt(rowsInput.value || 0, 10), 0, 20);
+
+      topBoxes.innerHTML = '';
+      for(let i=0;i<cols;i++){
+        const b=document.createElement('div');
+        b.className='green-box';
+        topBoxes.appendChild(b);
+      }
+
+      rightBoxes.innerHTML = '';
+      for(let i=0;i<rows;i++){
+        const b=document.createElement('div');
+        b.className='green-box';
+        rightBoxes.appendChild(b);
+      }
+
+      redGrid.innerHTML='';
+      redGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const cell=document.createElement('div');
+          cell.className='red-cell';
+          redGrid.appendChild(cell);
+        }
+      }
+
+      totalLabel.textContent = `Total: ${rows*cols}`;
+    }
+
+    function updateSize(){
+      const val = sizeSlider.value;
+      document.documentElement.style.setProperty('--cell', val + 'px');
+    }
+
+    colsInput.addEventListener('input', render);
+    rowsInput.addEventListener('input', render);
+    sizeSlider.addEventListener('input', updateSize);
+
+    // Initial
+    updateSize();
+    render();
+  </script>
+</body>
+</html>

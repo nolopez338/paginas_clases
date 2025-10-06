@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Planar Graph Generator (selection highlight independent of path toggle)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b132b;
+      --panel:#1c2541;
+      --ink:#e6eefc;
+      --muted:#a8b3c7;
+      --accent:#3aa6ff;
+      --stage:#0a1026;
+
+      --edgeColor:#89a8ff;
+      --nodeFill:#ffb86b;
+      --nodeStroke:#1a263e;
+      --highlight:#22c55e;  /* path color */
+      --labelInk:#e6eefc;
+      --sel:#ffd166;        /* selection outline */
+      --labelSize: 12px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--ink);
+      background:var(--bg);
+      display:grid;
+      grid-template-rows:auto 1fr;
+    }
+    header{
+      background:var(--panel);
+      box-shadow:0 2px 10px rgba(0,0,0,.25);
+      padding:12px 16px;
+      display:grid;
+      grid-template-columns: repeat(12, max-content) 1fr;
+      gap:10px 14px;
+      align-items:end;
+    }
+    header .group{ display:flex; gap:10px; align-items:end; }
+    label{ font-size:12px; color:var(--muted); display:block; }
+    input[type="number"]{
+      width:110px; padding:8px 10px; border-radius:10px; border:1px solid #30406c;
+      background:#0f1a38; color:var(--ink);
+    }
+    input[type="range"]{ width:220px; }
+    input[type="color"]{ width:40px; height:34px; border:none; background:transparent; padding:0; }
+    .inline{ display:flex; align-items:center; gap:8px; color:var(--ink); font-size:14px; }
+    button{
+      padding:10px 14px; border:0; border-radius:12px; background:var(--accent); color:#001226;
+      font-weight:600; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.2);
+    }
+    button.ghost{ background:transparent; border:1px solid #2b3f77; color:var(--ink); }
+    #error{
+      grid-column: 1 / -1;
+      min-height: 0.9rem;
+      background:transparent;
+      border-radius:10px;
+      padding:0 8px;
+      font-weight:600;
+    }
+    #error.show{ background:#ffdada; color:#4a0e0e; padding:8px 10px; }
+    main{
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap:12px;
+      padding:12px;
+      min-height:0;
+    }
+    #stage-wrap{
+      background:var(--stage);
+      border:1px solid #203058;
+      border-radius:14px;
+      position:relative;
+      overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+    }
+    svg{
+      width:100%; height:100%;
+      background:
+        linear-gradient(var(--stage),#091022) padding-box,
+        repeating-linear-gradient(0deg, transparent, transparent 24px, #0f1a38 25px),
+        repeating-linear-gradient(90deg, transparent, transparent 24px, #0f1a38 25px);
+    }
+    .edge{ stroke:var(--edgeColor); opacity:.95 }
+    .edge.path{ stroke:var(--highlight); opacity:1 }
+
+    .node{ fill:var(--nodeFill); stroke:var(--nodeStroke); stroke-width:1.5; cursor:grab; }
+    .node.selected{ stroke:var(--sel); stroke-width:3; }
+    .node.path{ fill:var(--highlight); stroke:#0e1a2e; stroke-width:2; }
+    .node.dragging{ cursor:grabbing; }
+
+    .label, .wlabel{
+      fill:var(--labelInk);
+      pointer-events:none;
+      font-size: var(--labelSize);
+      line-height: 1;
+    }
+    .wlabel{ opacity:.9; }
+
+    aside{
+      background:var(--panel);
+      border:1px solid #203058;
+      border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; min-height:0;
+    }
+    h2{ margin:4px 0 0; font-size:16px; }
+    textarea{
+      flex:1 1 auto;
+      min-height:0;
+      resize:vertical;
+      width:100%;
+      background:#0f1a38;
+      color:#d9e6ff;
+      border:1px solid #203058;
+      border-radius:10px;
+      padding:10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      white-space:pre;
+    }
+    small{ color:var(--muted); display:block; }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; }
+    .pill{ background:#11214a; color:#cfe0ff; border:1px solid #27417c; border-radius:999px; padding:4px 8px; font-size:12px; }
+    .ta-actions{ display:flex; gap:8px; align-items:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="group">
+      <div>
+        <label for="n">Nodes (N)</label>
+        <input id="n" type="number" min="3" step="1" value="10">
+      </div>
+      <div>
+        <label for="e">Edges (E)</label>
+        <input id="e" type="number" min="3" step="1" value="24">
+      </div>
+    </div>
+
+    <div class="group">
+      <div>
+        <label for="minDist">Min node distance (px)</label>
+        <div class="inline">
+          <input id="minDist" type="range" min="0" max="200" step="1" value="18">
+          <span id="minDistVal">18</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div>
+        <label for="nodeSize">Node size (r)</label>
+        <div class="inline">
+          <input id="nodeSize" type="range" min="4" max="24" step="1" value="7">
+          <span id="nodeSizeVal">7</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div>
+        <label for="edgeW">Edge thickness</label>
+        <div class="inline">
+          <input id="edgeW" type="range" min="1" max="8" step="1" value="2">
+          <span id="edgeWVal">2</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="inline" style="margin-bottom:4px;">
+        <input id="toggleLabels" type="checkbox" checked>
+        Show node labels
+      </label>
+      <label class="inline" style="margin-bottom:4px;">
+        <input id="toggleW" type="checkbox">
+        Show edge weights
+      </label>
+    </div>
+
+    <div class="group" id="pathGroup" style="display:none;">
+      <label class="inline" style="margin-bottom:4px;">
+        <input id="togglePath" type="checkbox" checked>
+        Show shortest path
+      </label>
+      <span class="pill" id="pathLen"></span>
+    </div>
+
+    <div class="group">
+      <div>
+        <label>Node color</label>
+        <div class="inline">
+          <input id="colorNode" type="color" value="#ffb86b" />
+        </div>
+      </div>
+      <div>
+        <label>Edge color</label>
+        <div class="inline">
+          <input id="colorEdge" type="color" value="#89a8ff" />
+        </div>
+      </div>
+      <div>
+        <label>Highlight color</label>
+        <div class="inline">
+          <input id="colorHi" type="color" value="#22c55e" />
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div>
+        <label for="labelSize">Label size (px)</label>
+        <div class="inline">
+          <input id="labelSize" type="range" min="8" max="64" step="1" value="12">
+          <span id="labelSizeVal">12</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <button id="btn-generate">Generate</button>
+      <button id="btn-export-png" class="ghost">Export tight PNG</button>
+    </div>
+
+    <div class="row">
+      <span class="pill" id="pill-stats">N=0, E=0</span>
+    </div>
+    <div id="error"></div>
+  </header>
+
+  <main>
+    <div id="stage-wrap">
+      <svg id="svg" viewBox="-300 -300 600 600" xmlns="http://www.w3.org/2000/svg">
+        <g id="edges"></g>
+        <g id="nodes"></g>
+        <g id="wlabels"></g>
+      </svg>
+    </div>
+    <aside>
+      <h2>Adjacency list (editable)</h2>
+      <textarea id="adj"></textarea>
+      <div class="ta-actions">
+        <button id="btn-adj-apply">Update</button>
+        <small>Format · one line per node, e.g.  
+0: 1(2), 3(1)  
+1: 0(2)  
+Undirected; if both directions give different weights, the first mention wins.</small>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // Graph state
+    let nodes=[], edges=[], outerFace=[0,1,2];
+
+    // Selection & shortest path state
+    let selected=[];
+    let showPath=true;
+    let pathNodes=new Set();
+    let pathEdges=new Set();
+    let pathWeight=0;
+
+    // DOM
+    const svg=document.getElementById('svg');
+    const gEdges=document.getElementById('edges');
+    const gNodes=document.getElementById('nodes');
+    const gWLabels=document.getElementById('wlabels');
+    const adjTA=document.getElementById('adj');
+    const btnAdjApply=document.getElementById('btn-adj-apply');
+    const pillStats=document.getElementById('pill-stats');
+    const errorBox=document.getElementById('error');
+
+    const nInput=document.getElementById('n');
+    const eInput=document.getElementById('e');
+
+    const minDistRange=document.getElementById('minDist');
+    const minDistVal=document.getElementById('minDistVal');
+
+    const nodeSizeRange=document.getElementById('nodeSize');
+    const nodeSizeVal=document.getElementById('nodeSizeVal');
+
+    const edgeWRange=document.getElementById('edgeW');
+    const edgeWVal=document.getElementById('edgeWVal');
+
+    const toggleLabels=document.getElementById('toggleLabels');
+    const toggleW=document.getElementById('toggleW');
+    const pathGroup=document.getElementById('pathGroup');
+    const togglePath=document.getElementById('togglePath');
+    const pathLen=document.getElementById('pathLen');
+
+    const colorNode=document.getElementById('colorNode');
+    const colorEdge=document.getElementById('colorEdge');
+    const colorHi=document.getElementById('colorHi');
+
+    const labelSizeRange=document.getElementById('labelSize');
+    const labelSizeVal=document.getElementById('labelSizeVal');
+
+    // UI events
+    minDistRange.addEventListener('input', ()=>{ minDistVal.textContent=minDistRange.value; });
+    nodeSizeRange.addEventListener('input', ()=>{ nodeSizeVal.textContent=nodeSizeRange.value; render(); });
+    edgeWRange.addEventListener('input', ()=>{ edgeWVal.textContent=edgeWRange.value; render(); });
+    toggleLabels.addEventListener('change', render);
+    toggleW.addEventListener('change', render);
+    togglePath?.addEventListener('change', ()=>{ showPath = togglePath.checked; render(); });
+
+    // label size
+    labelSizeRange.addEventListener('input', ()=>{
+      labelSizeVal.textContent = labelSizeRange.value;
+      document.documentElement.style.setProperty('--labelSize', `${labelSizeRange.value}px`);
+      render();
+    });
+
+    // color pickers -> CSS variables
+    colorNode.addEventListener('input', () => setCSS('--nodeFill', colorNode.value));
+    colorEdge.addEventListener('input', () => setCSS('--edgeColor', colorEdge.value));
+    colorHi  .addEventListener('input', () => { setCSS('--highlight', colorHi.value); render(); });
+
+    document.getElementById('btn-generate').addEventListener('click',()=>{
+      try{
+        clearError();
+        const N=Math.max(3,parseInt(nInput.value));
+        const E=parseInt(eInput.value);
+        const maxE=3*N-6;
+        if(E>maxE) return showError(`For N=${N}, planar graphs satisfy E ≤ 3N−6 = ${maxE}.`);
+        if(E<N-1) return showError(`Requested E=${E}. A connected graph on N=${N} needs at least N−1 = ${N-1} edges.`);
+        const g=buildPlanarTriangulation(N);
+        trimEdgesTo(g,E);
+        g.edges.forEach(e => { if(e.w==null) e.w = 1; });
+        ({nodes,edges}=g);
+        randomPlaceWithMinDist(nodes, +minDistRange.value);
+        clearSelection();
+        render(); updateAdjTextarea(); updateStats();
+      }catch(err){ showError(err.message); }
+    });
+
+    document.getElementById('btn-export-png').addEventListener('click',exportTightPNG);
+
+    // Apply adjacency changes on button click
+    btnAdjApply.addEventListener('click', ()=>{
+      try{
+        clearError();
+        const parsedEdges = parseAdjacencyText(adjTA.value); // first-mention wins inside
+        edges = parsedEdges;
+        if(selected.length===2) computeWeightedShortestPath(selected[0], selected[1]);
+        render(); updateStats();
+      }catch(e){
+        showError(e.message);
+      }
+    });
+
+    // Build planar triangulation by face splitting
+    function buildPlanarTriangulation(N){
+      const nodes=Array.from({length:N},(_,i)=>({id:i,x:0,y:0,fixed:false}));
+      const set=new Set(); const faces=[[0,1,2]];
+      addEdge(set,0,1); addEdge(set,1,2); addEdge(set,2,0);
+      for(let v=3; v<N; v++){
+        const [a,b,c]=faces.pop();
+        addEdge(set,v,a); addEdge(set,v,b); addEdge(set,v,c);
+        faces.push([a,b,v],[b,c,v],[c,a,v]);
+      }
+      const edges=[...set].map(s=>{
+        const [u,v]=s.split(',').map(Number);
+        return {u,v,w:1};
+      });
+      outerFace=[0,1,2];
+      return {nodes, edges};
+    }
+    function addEdge(set,u,v){ set.add(Math.min(u,v)+','+Math.max(u,v)); }
+
+    // Trim edges to target while preserving connectivity
+    function trimEdgesTo(graph,targetE){
+      const {nodes,edges}=graph;
+      while(edges.length>targetE){
+        const idx=pickRemovableEdgeIndex(nodes.length,edges);
+        if(idx===-1) throw Error(`Cannot reach E=${targetE} without disconnecting (stuck at E=${edges.length}).`);
+        edges.splice(idx,1);
+      }
+    }
+    function pickRemovableEdgeIndex(N,edges){
+      const order=[...edges.keys()];
+      for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+      for(const i of order){ if(!isBridge(N,edges,i)) return i; }
+      return -1;
+    }
+    function isBridge(N,edges,removeIdx){
+      const adj=Array.from({length:N},()=>[]);
+      for(let i=0;i<edges.length;i++){
+        if(i===removeIdx) continue;
+        const {u,v}=edges[i]; adj[u].push(v); adj[v].push(u);
+      }
+      const seen=Array(N).fill(false); let cnt=0;
+      const stack=[0]; seen[0]=true;
+      while(stack.length){
+        const x=stack.pop(); cnt++;
+        for(const y of adj[x]) if(!seen[y]){ seen[y]=true; stack.push(y); }
+      }
+      return cnt<N;
+    }
+
+    // Random placement with min distance enforcement
+    function randomPlaceWithMinDist(nodes, minDist){
+      const vb=svg.viewBox.baseVal;
+      const baseR=Math.min(vb.width, vb.height)*0.33;
+      let R=baseR;
+      const maxAttemptsPerNode=500;
+      for(let i=0;i<nodes.length;i++){ nodes[i].x=0; nodes[i].y=0; }
+
+      for(let i=0;i<nodes.length;i++){
+        let placed=false, attempts=0;
+        while(!placed && attempts<maxAttemptsPerNode){
+          attempts++;
+          const a=Math.random()*Math.PI*2;
+          const r=Math.sqrt(Math.random())*R;
+          const x=r*Math.cos(a), y=r*Math.sin(a);
+          let ok=true;
+          for(let j=0;j<i;j++){
+            if(dist2(x,y,nodes[j].x,nodes[j].y) < minDist*minDist){ ok=false; break; }
+          }
+          if(ok){ nodes[i].x=x; nodes[i].y=y; placed=true; }
+          if(attempts===maxAttemptsPerNode && !placed){
+            R*=1.2; attempts=0;
+          }
+        }
+      }
+    }
+
+    // Selection logic
+    function handleNodeClick(id){
+      const idx=selected.indexOf(id);
+      if(idx>=0){
+        selected.splice(idx,1);
+      }else{
+        if(selected.length<2){
+          selected.push(id);
+        }else{
+          selected = [selected[1], id];
+        }
+      }
+      updateSelectionUI();
+      render();
+    }
+
+    function updateSelectionUI(){
+      if(selected.length===2){
+        computeWeightedShortestPath(selected[0], selected[1]); // compute path (may or may not be shown)
+        pathGroup.style.display='flex';
+        // Do NOT tie selection highlight to this toggle:
+        // the toggle only controls path visibility.
+      }else{
+        clearPath();
+        pathGroup.style.display='none';
+      }
+    }
+
+    function clearSelection(){
+      selected = [];
+      clearPath();
+      pathGroup.style.display='none';
+    }
+
+    // Weighted shortest path: Dijkstra
+    function computeWeightedShortestPath(s,t){
+      const N = nodes.length;
+      const adj = Array.from({length:N},()=>new Map()); // u -> (v -> w)
+      for(const {u,v,w} of edges){
+        adj[u].set(v, Math.min(adj[u].get(v) ?? Infinity, w));
+        adj[v].set(u, Math.min(adj[v].get(u) ?? Infinity, w));
+      }
+
+      const dist = Array(N).fill(Infinity);
+      const prev = Array(N).fill(-1);
+      dist[s]=0;
+
+      const Q = new Set([...Array(N).keys()]);
+      while(Q.size){
+        let u=-1, best=Infinity;
+        for(const x of Q){ if(dist[x]<best){ best=dist[x]; u=x; } }
+        if(u===-1 || best===Infinity) break;
+        Q.delete(u);
+        if(u===t) break;
+
+        for(const [v,w] of adj[u].entries()){
+          if(!Q.has(v)) continue;
+          const alt = dist[u] + w;
+          if(alt < dist[v]){
+            dist[v]=alt;
+            prev[v]=u;
+          }
+        }
+      }
+
+      if(dist[t]===Infinity){
+        clearPath();
+        return;
+      }
+
+      const path=[];
+      for(let cur=t; cur!==-1; cur=prev[cur]) path.push(cur);
+      path.reverse();
+
+      pathNodes = new Set(path);
+      pathEdges = new Set();
+      for(let i=0;i<path.length-1;i++){
+        const a=Math.min(path[i], path[i+1]);
+        const b=Math.max(path[i], path[i+1]);
+        pathEdges.add(`${a},${b}`);
+      }
+      pathWeight = dist[t];
+      pathLen.textContent = `Weight: ${pathWeight} (hops ${path.length-1})`;
+    }
+
+    function clearPath(){
+      pathNodes = new Set();
+      pathEdges = new Set();
+      pathWeight = 0;
+      pathLen.textContent = '';
+    }
+
+    // Rendering
+    function render(){
+      const baseR = +nodeSizeRange.value;
+      const highlightR = Math.round(baseR * 1.6);
+      const showLabels = toggleLabels.checked;
+      const edgeW = +edgeWRange.value;
+      const edgeWPath = Math.max(edgeW + 1, Math.round(edgeW * 1.5));
+      const showWeights = toggleW.checked;
+
+      // edges
+      gEdges.innerHTML='';
+      for(const {u,v} of edges){
+        const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+        l.setAttribute('x1',nodes[u].x); l.setAttribute('y1',nodes[u].y);
+        l.setAttribute('x2',nodes[v].x); l.setAttribute('y2',nodes[v].y);
+        const onPath = showPath && pathEdges.has(key(u,v)); // path visibility obeys toggle
+        l.setAttribute('class','edge' + (onPath ? ' path' : ''));
+        l.setAttribute('stroke-width', onPath ? edgeWPath : edgeW);
+        gEdges.appendChild(l);
+      }
+
+      // weight labels
+      gWLabels.innerHTML='';
+      if(showWeights){
+        for(const e of edges){
+          const x = (nodes[e.u].x + nodes[e.v].x) / 2;
+          const y = (nodes[e.u].y + nodes[e.v].y) / 2;
+          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('class','wlabel');
+          t.setAttribute('x', x);
+          t.setAttribute('y', y);
+          t.setAttribute('text-anchor','middle');
+          t.setAttribute('dominant-baseline','central');
+          t.textContent = String(e.w);
+          t.addEventListener('dblclick', () => {
+            const nv = prompt('Edge weight', e.w);
+            if(nv==null) return;
+            const w = Number(nv);
+            if(!Number.isFinite(w) || w<0){ showError('Weight must be a non-negative number.'); return; }
+            e.w = w;
+            if(selected.length===2) computeWeightedShortestPath(selected[0], selected[1]);
+            updateAdjTextarea();
+            render();
+          });
+          gWLabels.appendChild(t);
+        }
+      }
+
+      // nodes
+      gNodes.innerHTML='';
+      for(const v of nodes){
+        const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.dataset.id=v.id;
+
+        const isSelected = selected.includes(v.id);
+        const inPath = pathNodes.has(v.id);         // membership only
+        const showPathClass = showPath && inPath;   // visualize only if toggle ON
+
+        const classes = ['node'];
+        if(isSelected) classes.push('selected');
+        if(showPathClass) classes.push('path');
+
+        const needsBig = isSelected || showPathClass;  // ALWAYS big if selected
+        const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('class', classes.join(' '));
+        c.setAttribute('r', needsBig ? highlightR : baseR);
+        c.setAttribute('cx',v.x);
+        c.setAttribute('cy',v.y);
+        g.appendChild(c);
+
+        if(showLabels){
+          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('class','label');
+          const offs = needsBig ? highlightR : baseR;
+          t.setAttribute('x',v.x + offs + 4);
+          t.setAttribute('y',v.y - Math.max(offs - 2, 0));
+          t.textContent=v.id;
+          g.appendChild(t);
+        }
+
+        addDragBehavior(g, v);
+        addClickBehavior(g, v);
+        gNodes.appendChild(g);
+      }
+    }
+
+    // Dragging with min-distance enforcement
+    function addDragBehavior(g, v){
+      let dragging=false, moved=false;
+      let offset={x:0,y:0};
+
+      const onDown=(ev)=>{
+        dragging=true; moved=false;
+        v.fixed=true;
+        const pt=getSVGPoint(ev);
+        offset.x=v.x-pt.x;
+        offset.y=v.y-pt.y;
+        g.querySelector('.node').classList.add('dragging');
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp, {once:true});
+      };
+      const onMove=(ev)=>{
+        if(!dragging) return;
+        moved=true;
+        const pt=getSVGPoint(ev);
+        let nx=pt.x+offset.x, ny=pt.y+offset.y;
+
+        const md = +minDistRange.value;
+        for(const u of nodes){
+          if(u===v) continue;
+          const dx=nx-u.x, dy=ny-u.y;
+          const d=Math.hypot(dx,dy);
+          if(d>0 && d<md){
+            const k=md/d;
+            nx=u.x + dx*k;
+            ny=u.y + dy*k;
+          }
+        }
+        v.x=nx; v.y=ny;
+        render(); updateAdjTextarea();
+      };
+      const onUp=()=>{
+        dragging=false;
+        g.querySelector('.node').classList.remove('dragging');
+        window.removeEventListener('pointermove', onMove);
+      };
+
+      g.addEventListener('pointerdown', onDown);
+
+      // mark if moved to suppress click
+      g.dataset.movedFlag = '0';
+      window.addEventListener('pointermove', ()=>{ if(dragging) g.dataset.movedFlag='1'; });
+      window.addEventListener('pointerup', ()=>{ setTimeout(()=>g.dataset.movedFlag='0',0); });
+    }
+
+    // Click behavior (only when not dragging)
+    function addClickBehavior(g, v){
+      g.addEventListener('click', ()=>{
+        if(g.dataset.movedFlag === '1') return;
+        handleNodeClick(v.id);
+      });
+    }
+
+    // Helpers
+    function key(u,v){ return Math.min(u,v)+','+Math.max(u,v); }
+    function getSVGPoint(evt){
+      const pt=svg.createSVGPoint();
+      pt.x=evt.clientX; pt.y=evt.clientY;
+      return pt.matrixTransform(svg.getScreenCTM().inverse());
+    }
+    function dist2(x1,y1,x2,y2){ const dx=x1-x2, dy=y1-y2; return dx*dx+dy*dy; }
+    function setCSS(name,value){ document.documentElement.style.setProperty(name,value); }
+
+    // ----- Adjacency list <-> graph -----
+    function updateAdjTextarea(){
+      const N = nodes.length;
+      const adj = Array.from({length:N},()=>new Map());
+      for(const {u,v,w} of edges){
+        adj[u].set(v,w); adj[v].set(u,w);
+      }
+      let s='';
+      for(let i=0;i<N;i++){
+        const list=[...adj[i].entries()]
+          .sort((a,b)=>a[0]-b[0])
+          .map(([v,w])=>`${v}(${w})`).join(', ');
+        s += `${i}: ${list}\n`;
+      }
+      adjTA.value = s.trim();
+    }
+
+    // parse adjacency text; first mention of an (undirected) edge wins
+    function parseAdjacencyText(text){
+      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+      if(lines.length===0) throw Error('Adjacency list is empty.');
+      const ids = new Set();
+      const seenEdge = new Map(); // "a,b" -> w
+      for(const line of lines){
+        const m = line.match(/^(\d+)\s*:\s*(.*)$/);
+        if(!m) throw Error(`Bad line: "${line}"`);
+        const u = Number(m[1]);
+        ids.add(u);
+        const rhs = m[2].trim();
+        if(rhs==='') continue;
+        const parts = rhs.split(',').map(s=>s.trim()).filter(Boolean);
+        for(const p of parts){
+          const mm = p.match(/^(\d+)(?:\(([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\))?$/);
+          if(!mm) throw Error(`Bad entry "${p}" in line "${line}"`);
+          const v = Number(mm[1]);
+          const w = mm[2] != null ? Number(mm[2]) : 1;
+          if(!Number.isFinite(w) || w<0) throw Error(`Invalid weight "${mm[2]}" in "${p}"`);
+          const a = Math.min(u,v), b = Math.max(u,v);
+          const k = `${a},${b}`;
+          if(!seenEdge.has(k)){  // first instance wins
+            seenEdge.set(k, w);
+          }
+          ids.add(v);
+        }
+      }
+      const maxId = Math.max(...ids);
+      if(maxId >= nodes.length){
+        const oldLen = nodes.length;
+        for(let i=oldLen;i<=maxId;i++){
+          nodes.push({id:i,x:0,y:0,fixed:false});
+        }
+        randomPlaceWithMinDist(nodes, +minDistRange.value);
+      }
+      const newEdges=[];
+      for(const [k,w] of seenEdge.entries()){
+        const [a,b]=k.split(',').map(Number);
+        newEdges.push({u:a,v:b,w});
+      }
+      return newEdges;
+    }
+
+    function showError(msg){ errorBox.textContent=msg; errorBox.classList.add('show'); }
+    function clearError(){ errorBox.textContent=''; errorBox.classList.remove('show'); }
+    function updateStats(){ pillStats.textContent=`N=${nodes.length}, E=${edges.length}`; }
+
+    // Export a tightly-cropped PNG around nodes (+ small margin)
+    function exportTightPNG(){
+      try{
+        if(!nodes.length){ showError('Nothing to export.'); return; }
+
+        // Compute node bbox including each node's CURRENT rendered radius
+        const baseR = +nodeSizeRange.value;
+        const hiR = Math.round(baseR * 1.6);
+        let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+
+        for(const v of nodes){
+          const isSelected = selected.includes(v.id);
+          const inPath = pathNodes.has(v.id);
+          const showPathClass = showPath && inPath;
+          const r = (isSelected || showPathClass) ? hiR : baseR;
+          minX = Math.min(minX, v.x - r);
+          maxX = Math.max(maxX, v.x + r);
+          minY = Math.min(minY, v.y - r);
+          maxY = Math.max(maxY, v.y + r);
+        }
+
+        // Small margin (use label size as a hint)
+        const labelPX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--labelSize')) || 12;
+        const margin = Math.max(12, Math.round(labelPX * 1.0));
+
+        minX -= margin; minY -= margin;
+        maxX += margin; maxY += margin;
+
+        const vbX = minX;
+        const vbY = minY;
+        const vbW = Math.max(2, maxX - minX);
+        const vbH = Math.max(2, maxY - minY);
+
+        // Clone SVG and set viewBox to the tight bbox
+        const clone = svg.cloneNode(true);
+        const styleEl = document.createElementNS('http://www.w3.org/2000/svg','style');
+        styleEl.textContent = inlineSVGStyles();
+        clone.insertBefore(styleEl, clone.firstChild);
+
+        clone.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+        clone.setAttribute('width',  vbW);
+        clone.setAttribute('height', vbH);
+        clone.setAttribute('preserveAspectRatio','xMidYMid meet');
+
+        const serializer = new XMLSerializer();
+        const source = serializer.serializeToString(clone);
+        const svgBlob = new Blob([source], {type:'image/svg+xml;charset=utf-8'});
+        const url = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.ceil(window.devicePixelRatio || 1);
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.max(2, Math.round(vbW * scale));
+          canvas.height = Math.max(2, Math.round(vbH * scale));
+          const ctx = canvas.getContext('2d');
+
+          ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+          const stageColor = getComputedStyle(document.documentElement)
+            .getPropertyValue('--stage').trim() || '#0a1026';
+          ctx.fillStyle = stageColor;
+          ctx.fillRect(0, 0, vbW, vbH);
+
+          ctx.drawImage(img, 0, 0);
+
+          URL.revokeObjectURL(url);
+          canvas.toBlob(blob => download(blob, `planar_graph_tight_N${nodes.length}_E${edges.length}.png`));
+        };
+        img.onerror = () => showError('PNG export failed to render the SVG.');
+        img.src = url;
+      }catch(err){
+        showError('PNG export error: ' + err.message);
+      }
+    }
+
+    // CSS for embedding into SVG using current CSS variable values
+    function inlineSVGStyles(){
+      const rs = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const edge = rs('--edgeColor','#89a8ff');
+      const path = rs('--highlight','#22c55e');
+      const nodeFill = rs('--nodeFill','#ffb86b');
+      const nodeStroke = rs('--nodeStroke','#1a263e');
+      const sel = rs('--sel','#22c55e');
+      const ink = rs('--labelInk','#e6eefc');
+      const labelSize = rs('--labelSize','12px');
+
+      return `
+        .edge{ stroke:${edge}; opacity:.95 }
+        .edge.path{ stroke:${path}; opacity:1 }
+        .node{ fill:${nodeFill}; stroke:${nodeStroke}; stroke-width:1.5 }
+        .node.selected{ stroke:${sel}; stroke-width:3 }
+        .node.path{ fill:${path}; stroke:#0e1a2e; stroke-width:2 }
+        .label, .wlabel{ fill:${ink}; font: ${labelSize} sans-serif; line-height:1 }
+      `;
+    }
+
+    function download(blob,filename){
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
+    }
+
+    // Initial demo
+    (function init(){
+      minDistVal.textContent=minDistRange.value;
+      nodeSizeVal.textContent=nodeSizeRange.value;
+      edgeWVal.textContent=edgeWRange.value;
+      setCSS('--nodeFill', colorNode.value);
+      setCSS('--edgeColor', colorEdge.value);
+      setCSS('--highlight', colorHi.value);
+      setCSS('--labelSize', `${labelSizeRange.value}px`);
+
+      nInput.value=10;
+      eInput.value=24;
+      document.getElementById('btn-generate').click();
+    })();
+  </script>
+</body>
+</html>
