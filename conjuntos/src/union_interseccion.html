@@ -18,7 +18,7 @@
 
       --red:#e74a4a;
       --blue:#4a7fe7;
-      --orange:#f0a640;
+      --orange:#f0a640; /* funciona como amarillo */
       --green:#36a56a;
     }
 
@@ -108,7 +108,7 @@
       display:grid;
       grid-template-columns:repeat(2, 1fr);
       gap:1rem;
-      margin-bottom: 2.5rem; /* espacio extra al final de las cards */
+      margin-bottom: 2.5rem;
     }
     .card{
       background:var(--card);
@@ -117,7 +117,6 @@
       padding:1rem;
       min-height:140px;
 
-      /* “marco” interior como en la imagen */
       position:relative;
       display:flex;
       align-items:center;
@@ -148,7 +147,7 @@
     .card.orange{ border-color: var(--orange); }
     .card.green{ border-color: var(--green); }
 
-    /* Marcador de color en la esquina superior izquierda */
+    /* Marcador de color */
     .badge{
       position:absolute;
       top:.5rem; left:.5rem;
@@ -161,7 +160,12 @@
     .card.orange .badge{ background:var(--orange); }
     .card.green .badge{ background:var(--green); }
 
-    /* Responsivo */
+    /* Números y comas más oscuras */
+    .card.red   .num{ color: color-mix(in srgb, var(--red),   black 25%); }
+    .card.blue  .num{ color: color-mix(in srgb, var(--blue),  black 25%); }
+    .card.orange .num{ color: color-mix(in srgb, var(--orange),black 25%); }
+    .card.green .num{ color: color-mix(in srgb, var(--green), black 25%); }
+
     @media (max-width: 900px){
       .controls{ grid-template-columns: 1fr; }
       .grid-2x2{ grid-template-columns:1fr; }
@@ -170,7 +174,7 @@
   </style>
 </head>
 <body>
-  <section class="controls" aria-label="Entradas">
+  <section class="controls">
     <div class="control">
       <label for="inputTopA">Lista superior A (píldora morada)</label>
       <textarea id="inputTopA" placeholder="Ej: 1, 2, A, B"></textarea>
@@ -195,51 +199,60 @@
       <label for="inputBL4">Lista inferior 4 (borde verde)</label>
       <textarea id="inputBL4" placeholder="Ej: 1, 2, 3"></textarea>
     </div>
-    <p class="hint">Escribe elementos separados por comas y/o saltos de línea. Se mostrarán como “a, b, c”.</p>
+    <p class="hint">Escribe elementos separados por comas y/o saltos de línea.</p>
   </section>
 
-  <main class="stage" aria-label="Vista">
+  <main class="stage">
     <div class="top-row">
       <div class="pill purple" id="pillA">1 , 2, A, B</div>
       <div class="pill teal" id="pillB">2, 3, B, C</div>
     </div>
 
-    <section class="grid-2x2" aria-label="Cuadrícula 2x2">
+    <section class="grid-2x2">
       <article class="card red">
-        <div class="badge" aria-hidden="true"></div>
-        <div class="inner">
-          <div class="list-text" id="card1">1, 2, 3</div>
-        </div>
+        <div class="badge"></div>
+        <div class="inner"><div class="list-text" id="card1">1, 2, 3</div></div>
       </article>
 
       <article class="card blue">
-        <div class="badge" aria-hidden="true"></div>
-        <div class="inner">
-          <div class="list-text" id="card2">1, 2, 3</div>
-        </div>
+        <div class="badge"></div>
+        <div class="inner"><div class="list-text" id="card2">1, 2, 3</div></div>
       </article>
 
       <article class="card orange">
-        <div class="badge" aria-hidden="true"></div>
-        <div class="inner">
-          <div class="list-text" id="card3">1, 2, 3</div>
-        </div>
+        <div class="badge"></div>
+        <div class="inner"><div class="list-text" id="card3">1, 2, 3</div></div>
       </article>
 
       <article class="card green">
-        <div class="badge" aria-hidden="true"></div>
-        <div class="inner">
-          <div class="list-text" id="card4">1, 2, 3</div>
-        </div>
+        <div class="badge"></div>
+        <div class="inner"><div class="list-text" id="card4">1, 2, 3</div></div>
       </article>
     </section>
   </main>
 
   <script>
-    // Utilidad: convierte un bloque de texto en una lista "a, b, c"
+    // Envuelve números y comas (que los siguen) en spans
+    const toSpannedList = (raw) => {
+      if (!raw) return "";
+      const parts = raw
+        .split(/,|\n/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const numRe = /^[+-]?\d+(?:\.\d+)?$/;
+      return parts.map((t, i) => {
+        const comma = i < parts.length - 1 ? "," : "";
+        if (numRe.test(t)) {
+          return `<span class="num">${t}${comma}</span>`;
+        } else {
+          return `${t}${comma}`;
+        }
+      }).join(" ");
+    };
+
     const normalizeListText = (raw) => {
       if (!raw) return "";
-      // Split por coma o salto de línea
       const parts = raw
         .split(/,|\n/g)
         .map(s => s.trim())
@@ -247,29 +260,29 @@
       return parts.join(", ");
     };
 
-    // Mapeo inputs -> salidas
     const bindings = [
-      { input: "inputTopA", out: "pillA" },
-      { input: "inputTopB", out: "pillB" },
-      { input: "inputBL1", out: "card1" },
-      { input: "inputBL2", out: "card2" },
-      { input: "inputBL3", out: "card3" },
-      { input: "inputBL4", out: "card4" },
+      { input: "inputTopA", out: "pillA", type: "plain" },
+      { input: "inputTopB", out: "pillB", type: "plain" },
+      { input: "inputBL1", out: "card1", type: "colored" },
+      { input: "inputBL2", out: "card2", type: "colored" },
+      { input: "inputBL3", out: "card3", type: "colored" },
+      { input: "inputBL4", out: "card4", type: "colored" },
     ];
 
-    // Listener genérico (con pequeño debounce para evitar repintados excesivos)
-    const attach = (idIn, idOut) => {
+    const attach = ({input: idIn, out: idOut, type}) => {
       const $in = document.getElementById(idIn);
       const $out = document.getElementById(idOut);
       let t;
-      const render = () => { $out.textContent = normalizeListText($in.value); };
+      const render = () => {
+        if (type === "colored") $out.innerHTML = toSpannedList($in.value);
+        else $out.textContent = normalizeListText($in.value);
+      };
       const handler = () => { clearTimeout(t); t = setTimeout(render, 80); };
       $in.addEventListener("input", handler);
-      // primer render por si hay valores iniciales
       render();
     };
 
-    bindings.forEach(({input, out}) => attach(input, out));
+    bindings.forEach(attach);
   </script>
 </body>
 </html>
