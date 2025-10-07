@@ -20,6 +20,10 @@
       --labelInk:#e6eefc;
       --sel:#ffd166;        /* selection outline */
       --labelSize: 12px;
+
+      /* new for boxed weight labels */
+      --wboxBg:#0f1a38;       /* solid background to improve legibility */
+      --wboxStroke:#27417c;   /* box border */
     }
 
     *{ box-sizing:border-box; }
@@ -100,7 +104,22 @@
       font-size: var(--labelSize);
       line-height: 1;
     }
-    .wlabel{ opacity:.9; }
+
+    /* new boxed weight label styles */
+    .wbox{ pointer-events:auto; } /* needed so dblclick works */
+    .wbg{
+      fill:var(--wboxBg);
+      stroke:var(--wboxStroke);
+      stroke-width:1;
+      shape-rendering:crispEdges;
+    }
+    .wtext{
+      fill:var(--labelInk);
+      font-size: var(--labelSize);
+      dominant-baseline:central;
+      text-anchor:middle;
+      pointer-events:none;
+    }
 
     aside{
       background:var(--panel);
@@ -448,8 +467,7 @@ Undirected; if both directions give different weights, the first mention wins.</
       if(selected.length===2){
         computeWeightedShortestPath(selected[0], selected[1]); // compute path (may or may not be shown)
         pathGroup.style.display='flex';
-        // Do NOT tie selection highlight to this toggle:
-        // the toggle only controls path visibility.
+        // selection highlight is independent of the path toggle
       }else{
         clearPath();
         pathGroup.style.display='none';
@@ -541,20 +559,54 @@ Undirected; if both directions give different weights, the first mention wins.</
         gEdges.appendChild(l);
       }
 
-      // weight labels
+      // boxed weight labels
       gWLabels.innerHTML='';
       if(showWeights){
+        const labelPX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--labelSize')) || 12;
+        const boxSize = Math.max(18, Math.round(labelPX * 1.8)); // square, large enough for 2–3 digits
+        const half = boxSize / 2;
+
         for(const e of edges){
-          const x = (nodes[e.u].x + nodes[e.v].x) / 2;
-          const y = (nodes[e.u].y + nodes[e.v].y) / 2;
-          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-          t.setAttribute('class','wlabel');
-          t.setAttribute('x', x);
-          t.setAttribute('y', y);
-          t.setAttribute('text-anchor','middle');
-          t.setAttribute('dominant-baseline','central');
+          const ux = nodes[e.u].x, uy = nodes[e.u].y;
+          const vx = nodes[e.v].x, vy = nodes[e.v].y;
+          const mx = (ux + vx) / 2;
+          const my = (uy + vy) / 2;
+
+          // perpendicular unit normal to the edge (avoid overlapping the edge)
+          const dx = vx - ux, dy = vy - uy;
+          const len = Math.hypot(dx, dy) || 1;
+          let nx = -dy / len, ny = dx / len;
+
+          // base offset away from the line; grow with edge width and node size
+          let offset = Math.max(10, Math.round(edgeW * 3), Math.round(baseR * 0.9));
+
+          // if too close to either node, flip to the other side
+          const nearU = Math.hypot(mx + nx*offset - ux, my + ny*offset - uy) < (baseR + Math.SQRT2*half + 2);
+          const nearV = Math.hypot(mx + nx*offset - vx, my + ny*offset - vy) < (baseR + Math.SQRT2*half + 2);
+          if(nearU || nearV){ nx *= -1; ny *= -1; }
+
+          const cx = mx + nx * offset;
+          const cy = my + ny * offset;
+
+          const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+          g.setAttribute('class','wbox');
+          g.setAttribute('transform', `translate(${cx},${cy})`);
+
+          const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+          r.setAttribute('class','wbg');
+          r.setAttribute('x', -half);
+          r.setAttribute('y', -half);
+          r.setAttribute('width', boxSize);
+          r.setAttribute('height', boxSize);
+
+          const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('class','wtext');
+          t.setAttribute('x', 0);
+          t.setAttribute('y', 0);
           t.textContent = String(e.w);
-          t.addEventListener('dblclick', () => {
+
+          // edit weight on double click
+          g.addEventListener('dblclick', () => {
             const nv = prompt('Edge weight', e.w);
             if(nv==null) return;
             const w = Number(nv);
@@ -564,7 +616,10 @@ Undirected; if both directions give different weights, the first mention wins.</
             updateAdjTextarea();
             render();
           });
-          gWLabels.appendChild(t);
+
+          g.appendChild(r);
+          g.appendChild(t);
+          gWLabels.appendChild(g);
         }
       }
 
@@ -824,6 +879,8 @@ Undirected; if both directions give different weights, the first mention wins.</
       const sel = rs('--sel','#22c55e');
       const ink = rs('--labelInk','#e6eefc');
       const labelSize = rs('--labelSize','12px');
+      const wbg = rs('--wboxBg','#0f1a38');
+      const wst = rs('--wboxStroke','#27417c');
 
       return `
         .edge{ stroke:${edge}; opacity:.95 }
@@ -831,7 +888,9 @@ Undirected; if both directions give different weights, the first mention wins.</
         .node{ fill:${nodeFill}; stroke:${nodeStroke}; stroke-width:1.5 }
         .node.selected{ stroke:${sel}; stroke-width:3 }
         .node.path{ fill:${path}; stroke:#0e1a2e; stroke-width:2 }
-        .label, .wlabel{ fill:${ink}; font: ${labelSize} sans-serif; line-height:1 }
+        .label{ fill:${ink}; font: ${labelSize} sans-serif; line-height:1 }
+        .wbg{ fill:${wbg}; stroke:${wst}; stroke-width:1; shape-rendering:crispEdges }
+        .wtext{ fill:${ink}; font: ${labelSize} sans-serif; line-height:1; dominant-baseline:central; text-anchor:middle }
       `;
     }
 
