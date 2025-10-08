@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Interactive Statistics Tutor — Mean, Median, Mode & Histogram</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b132b;
+      --panel:#1c2541;
+      --card:#111a33;
+      --ink:#e6eefc;
+      --muted:#a8b3c7;
+      --bar:#8ab6ff;
+      --axis:#88a1c2;
+      --median:#3ab0ff; /* blue */
+      --mode:#ff5a5a;   /* red  */
+      --mean:#22c55e;   /* green */
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,var(--bg),#0a1126);
+      color:var(--ink);
+      font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;
+      line-height:1.45;
+    }
+    header{padding:16px 20px;background:var(--panel);border-bottom:1px solid #22345a}
+    header h1{margin:0 0 4px 0;font-size:20px;font-weight:700}
+    header p{margin:0;color:var(--muted);font-size:14px}
+    main{display:grid;grid-template-columns:360px 1fr 360px;gap:16px;padding:16px}
+    @media(max-width:1200px){main{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid #1c2b4f;border-radius:14px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+    .card h2{margin:0 0 8px 0;font-size:16px;font-weight:700}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .stack{display:grid;gap:8px}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"],textarea,select,input[type="number"]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a3b66;background:#0b1633;color:var(--ink);font-size:14px;outline:none}
+    input[type="range"]{width:100%}
+    textarea{min-height:90px;resize:vertical}
+    .small{font-size:12px;color:var(--muted)}
+    .btn{appearance:none;border:0;cursor:pointer;padding:10px 14px;border-radius:10px;font-weight:600;color:#05132a;background:linear-gradient(180deg,#62b6ff,#3aa6ff);box-shadow:0 6px 16px rgba(58,166,255,0.35)}
+    .btn.ghost{background:transparent;color:var(--ink);border:1px solid #2a3b66;box-shadow:none}
+    .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .stat{background:#0b1633;border:1px solid #22345a;border-radius:12px;padding:10px}
+    .stat .k{font-size:12px;color:var(--muted)}.stat .v{font-size:18px;font-weight:800}
+    .hist-wrap{width:100%;height:420px}
+    .axis-label{font-size:12px;fill:var(--axis)}
+    .bar{fill:var(--bar)}.bar:hover{fill:#b7d1ff}
+    .tick text{font-size:11px;fill:var(--axis)}.grid line{stroke:#1a2a4e;stroke-width:1}
+    .legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+    .legend .item{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+    .legend .swatch{width:14px;height:14px;border-radius:3px}
+    .swatch.median{background:var(--median)}
+    .swatch.mode{background:var(--mode)}
+    .swatch.mean{background:var(--mean)}
+    .pill{padding:4px 8px;border-radius:999px;background:#0b1633;border:1px solid #243865;font-size:12px}
+    .toggles{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .toggles label{display:inline-flex;gap:6px;align-items:center;color:var(--ink);font-size:13px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Interactive Statistics Tutor</h1>
+  <p>Enter positive integers or generate them from Normal/Uniform distributions. Lines show mean (green), median (blue, dashed), and mode (red).</p>
+</header>
+
+<main>
+  <!-- Left controls -->
+  <section class="card controls">
+    <h2>Data input</h2>
+    <div class="stack">
+      <label for="manual">Manual input (positive integers).</label>
+      <textarea id="manual" placeholder="Example: 1,2,2,3 5"></textarea>
+      <div id="parseMsg" class="small"></div>
+    </div>
+
+    <hr style="border-color:#243865;opacity:.5;margin:14px 0">
+
+    <h2>Random generation</h2>
+    <div class="stack">
+      <div class="row">
+        <div style="flex:1">
+          <label for="dist">Distribution</label>
+          <select id="dist">
+            <option value="uniform">Uniform</option>
+            <option value="normal" selected>Normal</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Count slider + number (bi-directional) -->
+      <div class="row">
+        <label style="flex:1">
+          How many values:
+          <input id="count" type="range" min="5" max="1000" step="5" value="100">
+        </label>
+        <input id="countNum" type="number" min="5" max="1000" step="5" value="100" style="width:90px">
+      </div>
+
+      <!-- Normal params (bi-directional) -->
+      <div id="params-normal" class="stack">
+        <div class="row">
+          <div style="flex:1">
+            <label>Mean (μ):
+              <input id="muNum" type="number" value="50" step="1">
+            </label>
+            <input id="muRange" type="range" min="1" max="200" value="50">
+          </div>
+          <div style="flex:1">
+            <label>Std Dev (σ):
+              <input id="sigmaNum" type="number" value="15" step="1" min="1">
+            </label>
+            <input id="sigmaRange" type="range" min="1" max="100" value="15">
+          </div>
+        </div>
+      </div>
+
+      <!-- Uniform params (bi-directional) -->
+      <div id="params-uniform" class="stack" style="display:none">
+        <div class="row">
+          <div style="flex:1">
+            <label>Min:
+              <input id="uminNum" type="number" value="1" step="1" min="1">
+            </label>
+            <input id="uminRange" type="range" min="1" max="999999" value="1">
+          </div>
+          <div style="flex:1">
+            <label>Max:
+              <input id="umaxNum" type="number" value="100" step="1" min="1">
+            </label>
+            <input id="umaxRange" type="range" min="2" max="1000000" value="100">
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <label><input type="radio" name="mode" value="append" checked> Append</label>
+        <label><input type="radio" name="mode" value="replace"> Replace</label>
+      </div>
+
+      <div class="row">
+        <button id="btnGenerate" class="btn">Generate</button>
+        <button id="btnClear" class="btn ghost">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Center: Histogram -->
+  <section class="card">
+    <h2>Histogram</h2>
+    <div class="hist-wrap">
+      <svg id="hist" width="100%" height="100%" viewBox="0 0 800 420"></svg>
+    </div>
+    <div id="histMsg" class="small"></div>
+
+    <!-- Toggles + common thickness slider -->
+    <div class="stack" style="margin-top:10px">
+      <div class="toggles">
+        <label><input type="checkbox" id="showMean" checked> <span style="color:var(--mean)">Mean</span></label>
+        <label><input type="checkbox" id="showMedian" checked> <span style="color:var(--median)">Median</span></label>
+        <label><input type="checkbox" id="showMode" checked> <span style="color:var(--mode)">Mode(s)</span></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">Line thickness:
+          <input id="lineWidth" type="range" min="1" max="8" step="1" value="2">
+        </label>
+        <span id="lineWidthVal" class="pill">2 px</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="item"><span class="swatch mean"></span> Mean</span>
+      <span class="item"><span class="swatch median"></span> Median</span>
+      <span class="item"><span class="swatch mode"></span> Mode(s)</span>
+    </div>
+  </section>
+
+  <!-- Right: Stats -->
+  <aside class="card">
+    <h2>Core statistics</h2>
+    <div class="statgrid">
+      <div class="stat"><div class="k">Mean</div><div class="v" id="mean">—</div></div>
+      <div class="stat"><div class="k">Median</div><div class="v" id="median">—</div></div>
+      <div class="stat"><div class="k">Mode</div><div class="v" id="mode">—</div></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ========= Helpers ========= */
+function clampIntPos(x){const v=Math.round(Number(x));return(!Number.isFinite(v)||v<=0)?null:Math.min(v,1_000_000)}
+function parseInputToInts(t){return{nums:t.split(/[\s,;]+/).filter(Boolean).map(n=>clampIntPos(n)).filter(Boolean)}}
+function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+function median(a){if(!a.length)return null;const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2);return b.length%2?b[m]:(b[m-1]+b[m])/2}
+function modes(a){if(!a.length)return[];const f=new Map();a.forEach(v=>f.set(v,(f.get(v)||0)+1));const e=[...f.entries()].sort((A,B)=>B[1]-A[1]||A[0]-B[0]);const top=e[0][1];return e.filter(x=>x[1]===top).map(([v,c])=>({value:v,count:c}))}
+function rand(){return Math.random()}
+function randNormalBoxMuller(){let u=0,v=0;while(!u)u=rand();while(!v)v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function sampleUniformInt(n,min,max){const r=[],lo=Math.min(min,max),hi=Math.max(min,max);for(let i=0;i<n;i++)r.push(Math.floor(lo+rand()*(hi-lo+1)));return r}
+function sampleNormalInt(n,mu,sigma){const r=[],s=Math.max(1,Number(sigma));for(let i=0;i<n;i++){const z=randNormalBoxMuller();const v=clampIntPos(mu+s*z);if(v)r.push(v);else i--; }return r}
+function fmt(x){return x==null?"—":(Math.round(x*100)/100).toString()}
+
+/* ========= Elements ========= */
+const meanEl=document.getElementById("mean"),
+      medianEl=document.getElementById("median"),
+      modeEl=document.getElementById("mode");
+
+const manual=document.getElementById("manual"),
+      hist=document.getElementById("hist"),
+      histMsg=document.getElementById("histMsg");
+
+const dist=document.getElementById("dist"),
+      paramsNormal=document.getElementById("params-normal"),
+      paramsUniform=document.getElementById("params-uniform");
+
+const count=document.getElementById("count"),
+      countNum=document.getElementById("countNum");
+
+const muRange=document.getElementById("muRange"),
+      muNum=document.getElementById("muNum"),
+      sigmaRange=document.getElementById("sigmaRange"),
+      sigmaNum=document.getElementById("sigmaNum");
+
+const uminRange=document.getElementById("uminRange"),
+      umaxRange=document.getElementById("umaxRange"),
+      uminNum=document.getElementById("uminNum"),
+      umaxNum=document.getElementById("umaxNum");
+
+const showMean=document.getElementById("showMean"),
+      showMedian=document.getElementById("showMedian"),
+      showMode=document.getElementById("showMode"),
+      lineWidth=document.getElementById("lineWidth"),
+      lineWidthVal=document.getElementById("lineWidthVal");
+
+let data=[];
+
+/* ========= Bi-directional binding (generic) =========
+   Binds a range and number so that changing either updates the other immediately.
+   Optional onChange runs after every sync.
+*/
+function bindRangeNumber(rangeEl, numberEl, onChange){
+  function clampToRange(v){
+    const min = rangeEl.min !== "" ? Number(rangeEl.min) : -Infinity;
+    const max = rangeEl.max !== "" ? Number(rangeEl.max) :  Infinity;
+    const step = rangeEl.step !== "" ? Number(rangeEl.step) : 1;
+    if(!Number.isFinite(v)) v = Number(rangeEl.value);
+    // snap to step
+    v = Math.round(v/step)*step;
+    return Math.max(min, Math.min(max, v));
+  }
+  const syncFromRange = ()=>{
+    const v = clampToRange(Number(rangeEl.value));
+    numberEl.value = String(v);
+    rangeEl.value = String(v);
+    onChange && onChange(v, "range");
+  };
+  const syncFromNumber = ()=>{
+    const v = clampToRange(Number(numberEl.value));
+    rangeEl.value = String(v);
+    numberEl.value = String(v);
+    onChange && onChange(v, "number");
+  };
+  rangeEl.addEventListener("input", syncFromRange);
+  numberEl.addEventListener("input", syncFromNumber);
+  // initial alignment
+  syncFromRange();
+}
+
+/* Bind all pairs */
+bindRangeNumber(count, countNum, ()=>{/* no immediate redraw; generation uses this later */});
+bindRangeNumber(muRange, muNum, ()=>{/* parameter preview only */});
+bindRangeNumber(sigmaRange, sigmaNum, ()=>{/* parameter preview only */});
+bindRangeNumber(uminRange, uminNum, ()=>{ ensureUniformOrder(); });
+bindRangeNumber(umaxRange, umaxNum, ()=>{ ensureUniformOrder(); });
+
+/* Keep uniform min <= max */
+function ensureUniformOrder(){
+  let lo = Number(uminNum.value);
+  let hi = Number(umaxNum.value);
+  if (hi < lo){
+    hi = lo;
+    umaxNum.value = String(hi);
+    umaxRange.value = String(hi);
+  }
+}
+
+/* Dist panel toggle */
+dist.addEventListener("change", ()=>{
+  if(dist.value==="normal"){ paramsNormal.style.display=""; paramsUniform.style.display="none"; }
+  else{ paramsNormal.style.display="none"; paramsUniform.style.display=""; }
+});
+
+/* Thickness label + live update */
+lineWidth.addEventListener("input", ()=>{
+  lineWidthVal.textContent = `${lineWidth.value} px`;
+  drawHist();
+});
+
+/* Toggle lines */
+[showMean,showMedian,showMode].forEach(cb=>cb.addEventListener("change", drawHist));
+
+/* ========= Stats + Histogram ========= */
+function renderStats(d){
+  const mu = mean(d), med = median(d), ms = modes(d);
+  meanEl.textContent = fmt(mu);
+  medianEl.textContent = fmt(med);
+  modeEl.textContent = ms.length ? ms.map(m=>m.value).join(", ") : "—";
+}
+
+function drawHist(){
+  hist.innerHTML="";
+  if(!data.length){histMsg.textContent="No data.";return;}
+  histMsg.textContent="";
+
+  const W=800,H=420,mL=56,mR=24,mT=16,mB=50;
+  const innerW=W-mL-mR, innerH=H-mT-mB;
+
+  const min = Math.min(...data), max = Math.max(...data);
+  const span = Math.max(1, max-min);
+
+  // bins
+  const bins = 20;
+  const dx = Math.max(1, span / bins);
+  const counts = new Array(bins).fill(0);
+  data.forEach(v=>{
+    let i = Math.floor((v-min)/dx);
+    if(i>=bins) i=bins-1;
+    counts[i]++;
+  });
+  const maxC = Math.max(...counts,1);
+
+  // bg
+  const bg=document.createElementNS("http://www.w3.org/2000/svg","rect");
+  bg.setAttribute("x",0);bg.setAttribute("y",0);
+  bg.setAttribute("width",W);bg.setAttribute("height",H);
+  bg.setAttribute("fill","#0b1633");
+  hist.appendChild(bg);
+
+  // bars
+  const barW = innerW/bins;
+  counts.forEach((c,i)=>{
+    const h = (c/maxC)*innerH;
+    const rect=document.createElementNS("http://www.w3.org/2000/svg","rect");
+    rect.setAttribute("class","bar");
+    rect.setAttribute("x", mL + i*barW);
+    rect.setAttribute("y", mT + innerH - h);
+    rect.setAttribute("width", Math.max(1,barW-2));
+    rect.setAttribute("height", h);
+    hist.appendChild(rect);
+  });
+
+  // axis labels
+  const xl=document.createElementNS("http://www.w3.org/2000/svg","text");
+  xl.setAttribute("class","axis-label");
+  xl.setAttribute("x", W/2);
+  xl.setAttribute("y", H-12);
+  xl.setAttribute("text-anchor","middle");
+  xl.textContent="Values";
+  hist.appendChild(xl);
+
+  const yl=document.createElementNS("http://www.w3.org/2000/svg","text");
+  yl.setAttribute("class","axis-label");
+  yl.setAttribute("transform",`translate(16 ${H/2}) rotate(-90)`);
+  yl.setAttribute("text-anchor","middle");
+  yl.textContent="Frequency";
+  hist.appendChild(yl);
+
+  // value -> x
+  function xPos(val){
+    if(span===0) return mL + innerW/2;
+    return mL + ((val - min)/span) * innerW;
+  }
+
+  // line draw helper
+  const lw = Number(lineWidth.value);
+  function vline(x, color, label, dashed=false){
+    const l=document.createElementNS("http://www.w3.org/2000/svg","line");
+    l.setAttribute("x1",x); l.setAttribute("x2",x);
+    l.setAttribute("y1", mT); l.setAttribute("y2", mT + innerH);
+    l.setAttribute("stroke", color);
+    l.setAttribute("stroke-width", String(lw));
+    if(dashed) l.setAttribute("stroke-dasharray", "6 4");
+    l.addEventListener("mouseenter",()=>{histMsg.textContent=label;});
+    l.addEventListener("mouseleave",()=>{histMsg.textContent="";});
+    hist.appendChild(l);
+  }
+
+  // lines
+  const mu = mean(data);
+  const med = median(data);
+  const ms = modes(data);
+
+  if(showMean.checked && mu!=null) vline(xPos(mu), "var(--mean)", `Mean ≈ ${fmt(mu)}`, false);
+  if(showMedian.checked && med!=null) vline(xPos(med), "var(--median)", `Median ≈ ${fmt(med)}`, true);
+  if(showMode.checked && ms.length) ms.forEach(m=> vline(xPos(m.value), "var(--mode)", `Mode ${m.value} (count ${m.count})`, false));
+}
+
+/* ========= Actions ========= */
+document.getElementById("btnGenerate").addEventListener("click", ()=>{
+  const n = Number(count.value);
+  let newData=[];
+  if(dist.value==="normal"){
+    newData = sampleNormalInt(n, Number(muNum.value), Number(sigmaNum.value));
+  } else {
+    newData = sampleUniformInt(n, Number(uminNum.value), Number(umaxNum.value));
+  }
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  if(mode==="replace") data = newData; else data = data.concat(newData);
+  manual.value = data.join(", ");
+  renderStats(data);
+  drawHist();
+});
+
+document.getElementById("btnClear").addEventListener("click", ()=>{
+  data=[]; manual.value=""; hist.innerHTML=""; renderStats([]); drawHist();
+});
+
+manual.addEventListener("input", ()=>{
+  data = parseInputToInts(manual.value).nums;
+  renderStats(data);
+  drawHist();
+});
+
+/* init */
+renderStats([]);
+drawHist();
+</script>
+</body>
+</html>

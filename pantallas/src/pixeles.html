@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Grid</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f4f6fa;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: #1976d2;
+      text-align: center;
+      margin-bottom: 30px;
+      text-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+      letter-spacing: -1px;
+    }
+    .title span {
+      background: linear-gradient(45deg, #1976d2, #42a5f5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .container {
+      display: flex;
+      gap: 48px;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 40px 32px;
+      margin-bottom: 30px;
+    }
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+    .circles {
+      align-items: center;
+      justify-items: center;
+    }
+    .circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #111;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      transition: background 0.2s;
+      border: 2px solid #e0e0e0;
+    }
+    .square {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #111;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      transition: background 0.2s;
+      border: 2px solid #e0e0e0;
+    }
+    .inputs {
+      align-items: center;
+      justify-items: center;
+    }
+    .input-box {
+      width: 48px;
+      height: 48px;
+      font-size: 1.1rem;
+      text-align: center;
+      border-radius: 12px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .input-box:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .flash-green {
+      animation: flashGreenEffect 0.6s ease-out;
+    }
+    .flash-red {
+      animation: flashRedEffect 0.6s ease-out;
+    }
+    @keyframes flashGreenEffect {
+      0% {
+        background: #4caf50;
+        color: white;
+        transform: scale(1);
+      }
+      50% {
+        background: #4caf50;
+        color: white;
+        transform: scale(1.05);
+      }
+      100% {
+        background: #f9f9f9;
+        color: black;
+        transform: scale(1);
+      }
+    }
+    @keyframes flashRedEffect {
+      0% {
+        background: #f44336;
+        color: white;
+        transform: scale(1);
+      }
+      50% {
+        background: #f44336;
+        color: white;
+        transform: scale(1.05);
+      }
+      100% {
+        background: #f9f9f9;
+        color: black;
+        transform: scale(1);
+      }
+    }
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      padding: 20px 24px;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-label {
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
+    .grid-size-input {
+      width: 60px;
+      height: 36px;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .grid-size-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .refresh-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover {
+      background: #1565c0;
+    }
+    .refresh-btn:active {
+      background: #0d47a1;
+    }
+    .upload-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover {
+      background: #45a049;
+    }
+    .upload-btn:active {
+      background: #3d8b40;
+    }
+    .numbers-input {
+      width: 300px;
+      height: 36px;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+      font-family: 'Roboto', sans-serif;
+    }
+    .numbers-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .apply-btn {
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .apply-btn:hover {
+      background: #f57c00;
+    }
+    .apply-btn:active {
+      background: #ef6c00;
+    }
+    .adjust-input {
+      width: 80px;
+      height: 36px;
+      font-size: 14px;
+      text-align: center;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .adjust-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .add-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .add-btn:hover {
+      background: #45a049;
+    }
+    .add-btn:active {
+      background: #3d8b40;
+    }
+    .subtract-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .subtract-btn:hover {
+      background: #da190b;
+    }
+    .subtract-btn:active {
+      background: #c62828;
+    }
+    .shape-btn {
+      background: #9c27b0;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      min-width: 60px;
+    }
+    .shape-btn:hover {
+      background: #7b1fa2;
+    }
+    .shape-btn:active {
+      background: #6a1b9a;
+    }
+    .file-input {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+        padding: 24px 8px;
+      }
+      .controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 20px;
+      }
+      .numbers-input {
+        width: 250px;
+      }
+      .adjust-input {
+        width: 60px;
+      }
+      .title {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="title"><span>Pixel Grid</span></h1>
+  <div class="container">
+    <div class="grid circles" id="circleGrid">
+      <!-- Circles will be generated here -->
+    </div>
+    <div class="grid inputs" id="inputGrid">
+      <!-- Inputs will be generated here -->
+    </div>
+  </div>
+  
+  <div class="controls" style="margin-top: 20px;">
+    <div class="control-group" style="flex-direction: column; align-items: flex-start;">
+      <label class="control-label" for="numbersInput">Lista de Números (separados por comas):</label>
+      <input type="text" id="numbersInput" class="numbers-input" placeholder="">
+    </div>
+    <button class="apply-btn" id="applyBtn">Aplicar Números</button>
+    <button class="upload-btn" id="uploadBtn">Cargar Archivo</button>
+    <input type="file" id="fileInput" class="file-input" accept=".txt">
+  </div>
+
+  <div class="controls" style="margin-top: 20px;">
+    <div class="control-group">
+      <label class="control-label" for="adjustInput">Ajustar todos los valores:</label>
+      <input type="number" id="adjustInput" class="adjust-input" placeholder="10" min="-100" max="100" value="10">
+    </div>
+    <button class="add-btn" id="addBtn">+ Sumar</button>
+    <button class="subtract-btn" id="subtractBtn">- Restar</button>
+  </div>
+
+  <div class="controls" style="margin-top: 20px;">
+    <div class="control-group">
+      <label class="control-label" for="gridSizeInput">Tamaño de Cuadrícula:</label>
+      <input type="number" id="gridSizeInput" class="grid-size-input" min="1" max="10" value="4">
+    </div>
+    <button class="refresh-btn" id="refreshBtn">Actualizar Cuadrícula</button>
+    <button class="shape-btn" id="shapeBtn" title="Cambiar entre círculos y cuadrados" style="background: #ff9800;">⬜ ↔ ⭕</button>
+  </div>
+
+  <script>
+    const circleGrid = document.getElementById('circleGrid');
+    const inputGrid = document.getElementById('inputGrid');
+    const gridSizeInput = document.getElementById('gridSizeInput');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const numbersInput = document.getElementById('numbersInput');
+    const applyBtn = document.getElementById('applyBtn');
+    const adjustInput = document.getElementById('adjustInput');
+    const addBtn = document.getElementById('addBtn');
+    const subtractBtn = document.getElementById('subtractBtn');
+    const shapeBtn = document.getElementById('shapeBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
+    
+    let currentSize = 4;
+    let currentShape = 'square'; // 'circle' or 'square'
+    let circles = [];
+    let inputs = [];
+
+    function generateGrid(size) {
+      // Store current values before clearing
+      const currentValues = [];
+      const oldSize = Math.sqrt(inputs.length);
+      
+      if (inputs.length > 0) {
+        // Convert linear array to 2D array for cartesian coordinates
+        const values2D = [];
+        for (let row = 0; row < oldSize; row++) {
+          values2D[row] = [];
+          for (let col = 0; col < oldSize; col++) {
+            const index = row * oldSize + col;
+            values2D[row][col] = parseInt(inputs[index].value, 10) || 0;
+          }
+        }
+        
+        // Convert back to linear array preserving cartesian order
+        for (let row = 0; row < oldSize; row++) {
+          for (let col = 0; col < oldSize; col++) {
+            currentValues.push(values2D[row][col]);
+          }
+        }
+      }
+
+      // Clear existing grids
+      circleGrid.innerHTML = '';
+      inputGrid.innerHTML = '';
+      circles = [];
+      inputs = [];
+
+      // Update grid CSS
+      circleGrid.style.gridTemplateColumns = `repeat(${size}, 48px)`;
+      circleGrid.style.gridTemplateRows = `repeat(${size}, 48px)`;
+      inputGrid.style.gridTemplateColumns = `repeat(${size}, 48px)`;
+      inputGrid.style.gridTemplateRows = `repeat(${size}, 48px)`;
+
+      // Generate circles and inputs
+      for (let i = 0; i < size * size; i++) {
+        // Create pixel element
+        const pixel = document.createElement('div');
+        pixel.className = currentShape;
+        pixel.style.background = 'rgb(17,17,17)';
+        circleGrid.appendChild(pixel);
+        circles.push(pixel);
+
+        // Create input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'input-box';
+        input.min = 0;
+        input.max = 100;
+        
+        // Set value: use existing value if available, otherwise 0
+        let value = 0;
+        if (i < currentValues.length) {
+          value = currentValues[i];
+        }
+        input.value = value;
+        
+        input.addEventListener('input', (e) => {
+          let val = parseInt(e.target.value, 10);
+          if (isNaN(val)) val = 0;
+          if (val < 0) val = 0;
+          if (val > 100) val = 100;
+          e.target.value = val;
+          // Map 0-100 to 17-255 (for rgb)
+          const brightness = Math.round(17 + (val / 100) * (255 - 17));
+          pixel.style.background = `rgb(${brightness},${brightness},${brightness})`;
+        });
+        inputGrid.appendChild(input);
+        inputs.push(input);
+        
+        // Update circle brightness based on value
+        const brightness = Math.round(17 + (value / 100) * (255 - 17));
+        pixel.style.background = `rgb(${brightness},${brightness},${brightness})`;
+      }
+
+      // Update placeholder with correct number of values
+      updateNumbersPlaceholder();
+    }
+
+    function loadNumbersFromFile(numbers) {
+      const totalInputs = currentSize * currentSize;
+      
+      // Fill inputs with numbers from file
+      for (let i = 0; i < totalInputs; i++) {
+        let value = 0;
+        if (i < numbers.length) {
+          value = parseInt(numbers[i], 10);
+          if (isNaN(value)) value = 0;
+          if (value < 0) value = 0;
+          if (value > 100) value = 100;
+        }
+        
+        inputs[i].value = value;
+        
+        // Update circle brightness
+        const brightness = Math.round(17 + (value / 100) * (255 - 17));
+        circles[i].style.background = `rgb(${brightness},${brightness},${brightness})`;
+      }
+    }
+
+    function loadNumbersFromInput(inputText) {
+      const numbers = inputText.split(',').map(num => num.trim());
+      loadNumbersFromFile(numbers);
+      return numbers.length;
+    }
+
+    function adjustAllValues(amount) {
+      for (let i = 0; i < inputs.length; i++) {
+        let currentValue = parseInt(inputs[i].value, 10);
+        if (isNaN(currentValue)) currentValue = 0;
+        
+        // Calculate new value
+        let newValue = currentValue + amount;
+        
+        // Clamp to valid range (0-100)
+        if (newValue < 0) newValue = 0;
+        if (newValue > 100) newValue = 100;
+        
+        // Update input value
+        inputs[i].value = newValue;
+        
+        // Update circle brightness
+        const brightness = Math.round(17 + (newValue / 100) * (255 - 17));
+        circles[i].style.background = `rgb(${brightness},${brightness},${brightness})`;
+      }
+    }
+
+    function updateNumbersPlaceholder() {
+      const totalPixels = currentSize * currentSize;
+      const maxPixels = Math.min(totalPixels, 16);
+      
+      // Generate example values based on current grid size
+      let exampleValues = [];
+      for (let i = 0; i < maxPixels; i++) {
+        // Create a pattern that varies from 0 to 100
+        const value = Math.round((i / (maxPixels - 1)) * 100);
+        exampleValues.push(value);
+      }
+      
+      numbersInput.placeholder = exampleValues.join(', ');
+    }
+
+    function toggleShape() {
+      // Toggle between circle and square
+      currentShape = currentShape === 'circle' ? 'square' : 'circle';
+      
+      // Update all existing pixels
+      circles.forEach(pixel => {
+        pixel.className = currentShape;
+      });
+      
+      // Update button color
+      if (currentShape === 'square') {
+        shapeBtn.style.background = '#ff9800';
+        shapeBtn.style.color = 'white';
+      } else {
+        shapeBtn.style.background = '#9c27b0';
+        shapeBtn.style.color = 'white';
+      }
+    }
+
+    function flashInputs(color = 'green') {
+      const flashClass = color === 'red' ? 'flash-red' : 'flash-green';
+      
+      // Add flash class to all inputs
+      inputs.forEach(input => {
+        input.classList.add(flashClass);
+      });
+      
+      // Remove flash class after animation completes
+      setTimeout(() => {
+        inputs.forEach(input => {
+          input.classList.remove(flashClass);
+        });
+      }, 600);
+    }
+
+    // Initialize grid
+    generateGrid(currentSize);
+
+    // Event listeners
+    refreshBtn.addEventListener('click', () => {
+      const newSize = parseInt(gridSizeInput.value, 10);
+      if (newSize >= 1 && newSize <= 10) {
+        currentSize = newSize;
+        generateGrid(currentSize);
+      } else {
+        alert('Por favor ingrese un tamaño de cuadrícula entre 1 y 10');
+        gridSizeInput.value = currentSize;
+      }
+    });
+
+    gridSizeInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        refreshBtn.click();
+      }
+    });
+
+    // Update placeholder when grid size changes
+    gridSizeInput.addEventListener('input', () => {
+      const newSize = parseInt(gridSizeInput.value, 10);
+      if (newSize >= 1 && newSize <= 10) {
+        currentSize = newSize;
+        updateNumbersPlaceholder();
+      }
+    });
+
+    numbersInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        applyBtn.click();
+      }
+    });
+
+    applyBtn.addEventListener('click', () => {
+      const inputText = numbersInput.value.trim();
+      if (inputText) {
+        loadNumbersFromInput(inputText);
+        flashInputs('green');
+      } else {
+        alert('Por favor ingrese números separados por comas en el campo de texto.');
+      }
+    });
+
+    addBtn.addEventListener('click', () => {
+      const amount = parseInt(adjustInput.value, 10);
+      if (isNaN(amount)) {
+        alert('Por favor ingrese un número válido para ajustar.');
+        return;
+      }
+      adjustAllValues(amount);
+      flashInputs('green');
+    });
+
+    subtractBtn.addEventListener('click', () => {
+      const amount = parseInt(adjustInput.value, 10);
+      if (isNaN(amount)) {
+        alert('Por favor ingrese un número válido para ajustar.');
+        return;
+      }
+      adjustAllValues(-amount);
+      flashInputs('red');
+    });
+
+    shapeBtn.addEventListener('click', toggleShape);
+
+    uploadBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const content = event.target.result;
+            const numbers = content.split(',').map(num => num.trim());
+            loadNumbersFromFile(numbers);
+            alert(`¡Se cargaron exitosamente ${numbers.length} números del archivo!`);
+          } catch (error) {
+            alert('Error al leer el archivo. Por favor asegúrese de que contenga números separados por comas.');
+          }
+        };
+        reader.readAsText(file);
+      }
+      // Reset file input
+      fileInput.value = '';
+    });
+  </script>
+  <div style="width:100%; display:flex; justify-content:center; margin: 32px 0 0 0;">
+    <a href="../index.html" style="background:#1976d2; color:white; border:none; border-radius:12px; padding:16px 36px; font-size:1.1rem; font-weight:500; text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,0.10); transition:background 0.2s, transform 0.2s; display:inline-block; text-align:center; margin-top:16px;">← Volver al Menú Principal</a>
+  </div>
+</body>
+</html> 

@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1D Vector Animator (Real Line) · Toggles + Master Speed + Drag Tips</title>
+  <style>
+    :root{
+      --bg:#0b132b;
+      --panel:#1c2541;
+      --ink:#e6eefc;
+      --muted:#a8b3c7;
+      --axis:#d1d9ff;
+      --tick:#8392c9;
+      --v1:#3aa6ff;   /* Vector 1 */
+      --v2:#ff9f40;   /* Vector 2 */
+      --v3:#22c55e;   /* Vector 3 */
+      --sum:#e74a4a;  /* Sum dot */
+      --tail:#cbd5ff; /* Tip-to-tail helper arrows */
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color:var(--ink);
+      background:linear-gradient(180deg,#0b132b 0%, #111b3a 100%);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .wrap{
+      width:min(1000px, 96vw);
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+      overflow:hidden;
+    }
+    header{
+      padding:16px 18px; border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; justify-content:space-between; gap:16px;
+      flex-wrap:wrap;
+    }
+    header h1{
+      font-size:16px; margin:0; color:var(--ink); font-weight:600; letter-spacing:.2px;
+    }
+    .controls{
+      display:grid; grid-template-columns: repeat(3,minmax(240px,1fr)); gap:12px;
+      width:100%;
+    }
+    .ctrl{
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+      border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .badge{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; border-radius:6px; font-size:12px; font-weight:700; color:#0b132b;
+    }
+    .b1{ background:var(--v1); }
+    .b2{ background:var(--v2); }
+    .b3{ background:var(--v3); }
+    input[type="number"]{
+      appearance:textfield;
+      width:100%; max-width:120px;
+      background:#0f1a35; color:var(--ink);
+      border:1px solid rgba(255,255,255,.12);
+      padding:6px 8px; border-radius:8px; font-size:14px;
+    }
+    .toggle{
+      display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);
+      user-select:none;
+    }
+    .toggle input{ width:16px; height:16px; }
+
+    button{
+      background:#122048; color:var(--ink);
+      border:1px solid rgba(255,255,255,.12);
+      padding:8px 10px; border-radius:10px; font-size:13px; cursor:pointer;
+      transition:transform .08s ease, background .2s ease;
+      white-space:nowrap;
+    }
+    button:hover{ background:#15265a; }
+    button:active{ transform:translateY(1px); }
+
+    .row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+    /* Titles (above main) */
+    #titles{ padding:10px 18px 0; }
+    #titles .title-line{
+      margin:0; font-weight:900; letter-spacing:.2px; display:flex; gap:14px; flex-wrap:wrap;
+    }
+    #titles .chip{ font-weight:900; }
+
+    main{ padding:18px; display:flex; flex-direction:column; gap:14px; }
+    .stage{
+      background:#0f1833; border:1px solid rgba(255,255,255,.08);
+      border-radius:14px; padding:10px;
+      overflow:hidden;
+      touch-action:none; /* enables smooth pointer events for touch drag */
+    }
+    .legend{
+      display:flex; gap:12px; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:12px;
+      padding:0 4px 12px;
+    }
+    .key{ display:inline-flex; align-items:center; gap:6px; }
+    .swatch{ width:14px; height:14px; border-radius:4px; display:inline-block; }
+    .k1{ background:var(--v1); } .k2{ background:var(--v2); } .k3{ background:var(--v3); }
+    .ksum{ background:var(--sum); } .ktail{ background:var(--tail); }
+
+    /* Master controls row */
+    .master{
+      padding:8px 18px; border-top:1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; gap:16px; flex-wrap:wrap; color:var(--muted);
+    }
+    .master label{ font-size:13px; }
+    .master input[type="range"]{ width:min(420px, 70vw); }
+    svg text{ user-select:none; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    .tip-handle{ cursor: ew-resize; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>1D Real Vectors · Tip-to-Tail Sum Animation</h1>
+      <div class="controls">
+        <div class="ctrl">
+          <span class="badge b1">1</span>
+          <label for="v1">v₁</label>
+          <input id="v1" type="number" step="0.1" value="4" />
+          <label class="toggle" title="Show/Hide v₁">
+            <input id="show1" type="checkbox" checked />
+            Show
+          </label>
+          <button id="a1">Animate v₁</button>
+        </div>
+        <div class="ctrl">
+          <span class="badge b2">2</span>
+          <label for="v2">v₂</label>
+          <input id="v2" type="number" step="0.1" value="-2.5" />
+          <label class="toggle" title="Show/Hide v₂">
+            <input id="show2" type="checkbox" checked />
+            Show
+          </label>
+          <button id="a2">Animate v₂</button>
+        </div>
+        <div class="ctrl">
+          <span class="badge b3">3</span>
+          <label for="v3">v₃</label>
+          <input id="v3" type="number" step="0.1" value="3" />
+          <label class="toggle" title="Show/Hide v₃">
+            <input id="show3" type="checkbox" checked />
+            Show
+          </label>
+          <button id="a3">Animate v₃</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Color-coded bold titles with the vector values (only for visible vectors) -->
+    <div id="titles">
+      <p class="title-line" id="titleLine"></p>
+    </div>
+
+    <main>
+      <div class="row" style="padding:0 8px;">
+        <button id="sum">Animate Sum (Tip-to-Tail)</button>
+        <button id="stop">Stop</button>
+      </div>
+
+      <div class="stage">
+        <svg id="scene" width="100%" height="260" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMid meet" aria-label="Real line vector animator"></svg>
+      </div>
+
+      <div class="legend">
+        <span class="key"><i class="swatch k1"></i> v₁</span>
+        <span class="key"><i class="swatch k2"></i> v₂</span>
+        <span class="key"><i class="swatch k3"></i> v₃</span>
+        <span class="key"><i class="swatch ktail"></i> Tip-to-tail guides</span>
+        <span class="key"><i class="swatch ksum"></i> Animation dot</span>
+      </div>
+    </main>
+
+    <!-- Master animation time control (up to 10s) -->
+    <div class="master">
+      <label for="speed"><strong>Animation Time</strong> (all animations):</label>
+      <input id="speed" type="range" min="300" max="10000" step="100" value="1800" />
+      <span id="speedVal">1800 ms</span>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------
+    // SVG helpers & globals
+    // ----------------------------
+    const svg = document.getElementById('scene');
+    let rAF = null;
+
+    const COLORS = {
+      v1: getCssVar('--v1'),
+      v2: getCssVar('--v2'),
+      v3: getCssVar('--v3'),
+      axis: getCssVar('--axis'),
+      tick: getCssVar('--tick'),
+      tail: getCssVar('--tail'),
+      sum: getCssVar('--sum'),
+      ink: getCssVar('--ink'),
+    };
+
+    // Drag state
+    const drag = { active:false, vecIndex:null };
+
+    function getCssVar(name){
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function clearSvg(){
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+    }
+
+    function el(name, attrs = {}, children = []){
+      const n = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (const [k,v] of Object.entries(attrs)){
+        if (v != null) n.setAttribute(k, v);
+      }
+      for (const c of [].concat(children)) n.appendChild(c);
+      return n;
+    }
+
+    // ----------------------------
+    // Layout & scale
+    // ----------------------------
+    function getLayout(){
+      const bounds = svg.getBoundingClientRect();
+      const W = Math.max(600, Math.floor(bounds.width));
+      const H = 260;
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+      const originY = 120;          // main number line Y
+      const tailY   = originY + 70; // tip-to-tail helper line Y
+      const marginL = 60, marginR = 40;
+      const axisMin = -12, axisMax = 12; // world units
+      const pxPerUnit = (W - marginL - marginR) / (axisMax - axisMin);
+      const xOf = u => marginL + (u - axisMin) * pxPerUnit;
+      const uOf = x => (x - marginL) / pxPerUnit + axisMin;
+
+      return { W, H, originY, tailY, marginL, marginR, axisMin, axisMax, pxPerUnit, xOf, uOf };
+    }
+
+    // ----------------------------
+    // Drawing primitives
+    // ----------------------------
+    function drawNumberLine(layout){
+      const { originY, xOf, axisMin, axisMax } = layout;
+
+      // axis
+      svg.appendChild(el('line',{
+        x1: xOf(axisMin), y1: originY,
+        x2: xOf(axisMax), y2: originY,
+        stroke: COLORS.axis, 'stroke-width': 2
+      }));
+
+      // ticks & labels
+      const step = 1;
+      for (let t = Math.ceil(axisMin); t <= Math.floor(axisMax); t += step){
+        const x = xOf(t);
+        const len = (t % 5 === 0) ? 12 : 8;
+        svg.appendChild(el('line',{
+          x1:x, y1:originY - len/2, x2:x, y2:originY + len/2,
+          stroke: COLORS.tick, 'stroke-width': 1.5
+        }));
+        if (t !== 0){
+          svg.appendChild(el('text',{
+            x, y: originY + 22, 'text-anchor':'middle', 'font-size': 12, fill: COLORS.tick
+          }, [document.createTextNode(String(t))]));
+        }
+      }
+      // origin marker & label
+      const x0 = xOf(0);
+      svg.appendChild(el('line',{
+        x1:x0, y1:originY - 16, x2:x0, y2:originY + 16,
+        stroke: COLORS.axis, 'stroke-width': 2
+      }));
+      svg.appendChild(el('text',{
+        x:x0, y: originY - 10, 'text-anchor':'middle', 'font-size': 12, fill: COLORS.axis
+      }, [document.createTextNode('0')]));
+    }
+
+    function arrow(fromX, fromY, toX, toY, color, thickness=3){
+      const g = el('g');
+      g.appendChild(el('line',{
+        x1:fromX, y1:fromY, x2:toX, y2:toY, stroke: color, 'stroke-width': thickness
+      }));
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      const size = 10 + thickness;
+      const hx = toX, hy = toY;
+      const p1 = [hx, hy];
+      const p2 = [hx - size*Math.cos(angle) + (size*0.6)*Math.sin(angle),
+                  hy - size*Math.sin(angle) - (size*0.6)*Math.cos(angle)];
+      const p3 = [hx - size*Math.cos(angle) - (size*0.6)*Math.sin(angle),
+                  hy - size*Math.sin(angle) + (size*0.6)*Math.cos(angle)];
+      const points = [p1,p2,p3].map(p=>p.join(',')).join(' ');
+      g.appendChild(el('polygon',{ points, fill: color, stroke:'none' }));
+      return g;
+    }
+
+    function drawDot(x, y, color, r=5){
+      return el('circle', { cx:x, cy:y, r, fill: color });
+    }
+
+    // Add an invisible (but hit-testable) handle at the vector tip
+    function drawTipHandle(x, y, vecIndex){
+      return el('circle', {
+        class: 'tip-handle',
+        id: `tip${vecIndex}`,
+        cx: x, cy: y, r: 14,
+        fill: 'rgba(0,0,0,0)', stroke: 'none',
+        'pointer-events': 'all',
+        'data-vec': String(vecIndex)
+      });
+    }
+
+    // ----------------------------
+    // Titles (visible vectors only)
+    // ----------------------------
+    function renderTitles(v1, v2, v3, vis){
+      const line = document.getElementById('titleLine');
+      line.innerHTML = '';
+      const chips = [];
+      if (vis[0]) chips.push(makeChip(`v₁ = ${fmt(v1)}`, COLORS.v1));
+      if (vis[1]) chips.push(makeChip(`v₂ = ${fmt(v2)}`, COLORS.v2));
+      if (vis[2]) chips.push(makeChip(`v₃ = ${fmt(v3)}`, COLORS.v3));
+      for (const c of chips) line.appendChild(c);
+      line.className = 'title-line';
+    }
+    function makeChip(text, color){
+      const span = document.createElement('span');
+      span.className = 'chip';
+      span.textContent = text;
+      span.style.color = color;
+      return span;
+    }
+
+    // ----------------------------
+    // Render full scene (static) + tip handles
+    // ----------------------------
+    function renderStatic(v1, v2, v3, vis=[true,true,true]){
+      cancelAnim();
+      clearSvg();
+      const layout = getLayout();
+      drawNumberLine(layout);
+
+      const { originY, xOf } = layout;
+      const x0 = xOf(0);
+
+      if (vis[0]) {
+        svg.appendChild(arrow(x0, originY, xOf(v1), originY, COLORS.v1, 3));
+        svg.appendChild(drawTipHandle(xOf(v1), originY, 1));
+      }
+      if (vis[1]) {
+        svg.appendChild(arrow(x0, originY, xOf(v2), originY, COLORS.v2, 3));
+        svg.appendChild(drawTipHandle(xOf(v2), originY, 2));
+      }
+      if (vis[2]) {
+        svg.appendChild(arrow(x0, originY, xOf(v3), originY, COLORS.v3, 3));
+        svg.appendChild(drawTipHandle(xOf(v3), originY, 3));
+      }
+
+      renderTitles(v1, v2, v3, vis);
+      attachTipHandlers();
+    }
+
+    // ----------------------------
+    // Animations (MASTER duration)
+    // ----------------------------
+    function masterDuration(){
+      return parseInt(document.getElementById('speed').value, 10) || 1800;
+    }
+
+    function animSingle(v, color){
+      cancelAnim();
+      clearSvg();
+      const layout = getLayout();
+      drawNumberLine(layout);
+
+      const { originY, xOf } = layout;
+      const x0 = xOf(0);
+      const x1 = xOf(v);
+
+      svg.appendChild(arrow(x0, originY, x1, originY, color, 3));
+      const dot = drawDot(x0, originY, color, 5);
+      svg.appendChild(dot);
+
+      const dist = x1 - x0;
+      const duration = masterDuration();
+      const t0 = performance.now();
+
+      function frame(now){
+        const t = Math.min(1, (now - t0) / duration);
+        dot.setAttribute('cx', x0 + dist * easeInOut(t));
+        if (t < 1) rAF = requestAnimationFrame(frame);
+      }
+      rAF = requestAnimationFrame(frame);
+    }
+
+    // Equal thirds for v1, v2, v3 regardless of their lengths
+    function animSum(v1, v2, v3){
+      cancelAnim();
+      clearSvg();
+      const layout = getLayout();
+      drawNumberLine(layout);
+
+      const { originY, tailY, xOf } = layout;
+      const x0 = xOf(0);
+
+      // Tip-to-tail helpers on the lower line
+      svg.appendChild(el('line',{
+        x1:xOf(layout.axisMin), y1:tailY, x2:xOf(layout.axisMax), y2:tailY,
+        stroke: COLORS.tick, 'stroke-width': 1.2, 'stroke-dasharray':'4 4'
+      }));
+
+      const p1 = x0;
+      const p2 = xOf(v1);
+      const p3 = xOf(v1 + v2);
+      const p4 = xOf(v1 + v2 + v3);
+
+      svg.appendChild(arrow(p1, tailY, p2, tailY, COLORS.v1, 3));
+      svg.appendChild(arrow(p2, tailY, p3, tailY, COLORS.v2, 3));
+      svg.appendChild(arrow(p3, tailY, p4, tailY, COLORS.v3, 3));
+
+      // Also show from origin (respect visibility)
+      const vis = getVisibility();
+      if (vis[0]) svg.appendChild(arrow(x0, originY, xOf(v1), originY, COLORS.v1, 2.5));
+      if (vis[1]) svg.appendChild(arrow(x0, originY, xOf(v2), originY, COLORS.v2, 2.5));
+      if (vis[2]) svg.appendChild(arrow(x0, originY, xOf(v3), originY, COLORS.v3, 2.5));
+
+      const dot = drawDot(p1, tailY, COLORS.sum, 5.5);
+      svg.appendChild(dot);
+
+      const duration = masterDuration();
+      const third = duration / 3;
+      const t0 = performance.now();
+
+      function lerp(a,b,t){ return a + (b - a) * t; }
+
+      function frame(now){
+        const elapsed = now - t0;
+        const t = Math.min(1, elapsed / duration);
+
+        if (t <= 1/3){
+          const localT = easeInOut(t * 3);             // map [0,1/3] → [0,1]
+          dot.setAttribute('cx', lerp(p1, p2, localT));
+        } else if (t <= 2/3){
+          const localT = easeInOut((t - 1/3) * 3);     // map (1/3,2/3] → [0,1]
+          dot.setAttribute('cx', lerp(p2, p3, localT));
+        } else {
+          const localT = easeInOut((t - 2/3) * 3);     // map (2/3,1] → [0,1]
+          dot.setAttribute('cx', lerp(p3, p4, localT));
+        }
+        dot.setAttribute('cy', tailY);
+
+        if (t < 1) rAF = requestAnimationFrame(frame);
+      }
+      rAF = requestAnimationFrame(frame);
+    }
+
+    // ----------------------------
+    // Drag logic
+    // ----------------------------
+    function attachTipHandlers(){
+      ['tip1','tip2','tip3'].forEach(id => {
+        const h = document.getElementById(id);
+        if (!h) return;
+        h.addEventListener('pointerdown', startDrag);
+      });
+    }
+
+    function startDrag(ev){
+      cancelAnim();
+      ev.preventDefault();
+      const vecIndex = parseInt(ev.target.getAttribute('data-vec'), 10);
+      if (![1,2,3].includes(vecIndex)) return;
+      drag.active = true;
+      drag.vecIndex = vecIndex;
+
+      window.addEventListener('pointermove', onDrag);
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+
+      try { ev.target.setPointerCapture(ev.pointerId); } catch {}
+      onDrag(ev);
+    }
+
+    function onDrag(ev){
+      if (!drag.active) return;
+
+      const layout = getLayout();
+      const rect = svg.getBoundingClientRect();
+      const xClient = ev.clientX != null ? ev.clientX : (ev.touches && ev.touches[0]?.clientX);
+      if (xClient == null) return;
+
+      const xSvg = (xClient - rect.left) * (layout.W / rect.width);
+      let u = layout.uOf(xSvg);
+      u = clamp(u, layout.axisMin, layout.axisMax);
+
+      const fieldId = drag.vecIndex === 1 ? 'v1' : drag.vecIndex === 2 ? 'v2' : 'v3';
+      const input = document.getElementById(fieldId);
+      input.value = roundNice(u);
+
+      const { v1, v2, v3 } = getValues();
+      renderStatic(v1, v2, v3, getVisibility());
+    }
+
+    function endDrag(){
+      if (!drag.active) return;
+      drag.active = false;
+      drag.vecIndex = null;
+      window.removeEventListener('pointermove', onDrag);
+      window.removeEventListener('pointerup', endDrag);
+      window.removeEventListener('pointercancel', endDrag);
+    }
+
+    // ----------------------------
+    // Utilities
+    // ----------------------------
+    function easeInOut(t){
+      return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+    }
+    function cancelAnim(){
+      if (rAF != null){ cancelAnimationFrame(rAF); rAF = null; }
+    }
+    function getValues(){
+      const v1 = parseFloat(document.getElementById('v1').value || '0');
+      const v2 = parseFloat(document.getElementById('v2').value || '0');
+      const v3 = parseFloat(document.getElementById('v3').value || '0');
+      return { v1, v2, v3 };
+    }
+    function getVisibility(){
+      return [
+        document.getElementById('show1').checked,
+        document.getElementById('show2').checked,
+        document.getElementById('show3').checked
+      ];
+    }
+    function fmt(n){
+      const r = Math.round(n*10000)/10000;
+      return Number.isInteger(r) ? String(r) : r.toString();
+    }
+    function roundNice(n){ return Math.round(n*1000)/1000; }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // ----------------------------
+    // Events
+    // ----------------------------
+    function wire(){
+      const { v1, v2, v3 } = getValues();
+      renderStatic(v1, v2, v3, getVisibility());
+
+      ['v1','v2','v3'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+          const { v1, v2, v3 } = getValues();
+          renderStatic(v1, v2, v3, getVisibility());
+        });
+      });
+
+      ['show1','show2','show3'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+          const { v1, v2, v3 } = getValues();
+          renderStatic(v1, v2, v3, getVisibility());
+        });
+      });
+
+      // Master speed to 10s
+      const speed = document.getElementById('speed');
+      const speedVal = document.getElementById('speedVal');
+      const updateSpeedLabel = () => { speedVal.textContent = `${masterDuration()} ms`; };
+      speed.addEventListener('input', updateSpeedLabel);
+      updateSpeedLabel();
+
+      document.getElementById('a1').addEventListener('click', () => {
+        const { v1 } = getValues(); animSingle(v1, COLORS.v1);
+      });
+      document.getElementById('a2').addEventListener('click', () => {
+        const { v2 } = getValues(); animSingle(v2, COLORS.v2);
+      });
+      document.getElementById('a3').addEventListener('click', () => {
+        const { v3 } = getValues(); animSingle(v3, COLORS.v3);
+      });
+      document.getElementById('sum').addEventListener('click', () => {
+        const { v1, v2, v3 } = getValues(); animSum(v1, v2, v3);
+      });
+      document.getElementById('stop').addEventListener('click', () => {
+        const { v1, v2, v3 } = getValues(); renderStatic(v1, v2, v3, getVisibility());
+      });
+
+      window.addEventListener('resize', () => {
+        const { v1, v2, v3 } = getValues(); renderStatic(v1, v2, v3, getVisibility());
+      });
+    }
+
+    // Init
+    wire();
+  </script>
+</body>
+</html>

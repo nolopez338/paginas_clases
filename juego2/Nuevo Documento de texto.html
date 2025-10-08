@@ -2,90 +2,65 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mapa 2D Constructor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estructura de una Página Web</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #eef;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+    header, nav, main, aside, footer {
+      border: 1px solid #999; 
+      padding: 10px; 
+      margin: 10px 0;
+      border-radius: 8px;
     }
-    textarea {
-      width: 400px;
-      height: 150px;
-      font-family: monospace;
-      margin-bottom: 10px;
-    }
-    button {
-      margin-bottom: 20px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    #mapa {
-      display: grid;
-      gap: 2px;
-    }
-    .tile {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 6px;
-    }
-    /* Colores para cada tipo */
-    .pasto   { background: #7cfc00; }
-    .barrera { background: #444; color: white; }
-    .oro     { background: gold; }
-    .espinas { background: #a0522d; color: white; }
-    .fuego   { background: red; color: white; }
+    header { background: #f0f8ff; }
+    nav { background: #e6ffe6; }
+    main { background: #fff0f5; }
+    aside { background: #ffffe0; }
+    footer { background: #f5f5f5; }
+    h2 { margin-top: 0; }
   </style>
 </head>
 <body>
-  <h2>Constructor de Mapas 2D</h2>
-  <p>Introduce la matriz (cada fila separada por saltos de línea, números separados por comas):</p>
-  <textarea id="inputMatriz">0,0,0,0,0
-0,1,1,0,0
-0,2,0,3,0
-0,0,4,0,0
-0,0,0,0,0</textarea>
-  <br>
-  <button onclick="construirMapa()">Construir Mapa</button>
-  <div id="mapa"></div>
 
-  <script>
-    function construirMapa() {
-      const input = document.getElementById("inputMatriz").value.trim();
-      const filas = input.split("\n").map(row => row.split(",").map(Number));
+  <header>
+    <h1>Encabezado (header)</h1>
+    <p>Aquí se coloca el título o logotipo de la página.</p>
+  </header>
 
-      const mapa = document.getElementById("mapa");
-      mapa.innerHTML = "";
-      mapa.style.gridTemplateColumns = `repeat(${filas[0].length}, 40px)`;
+  <nav>
+    <h2>Navegación (nav)</h2>
+    <p>Contiene los enlaces principales para moverse dentro del sitio.</p>
+    <ul>
+      <li><a href="#">Inicio</a></li>
+      <li><a href="#">Acerca de</a></li>
+      <li><a href="#">Contacto</a></li>
+    </ul>
+  </nav>
 
-      for (let r = 0; r < filas.length; r++) {
-        for (let c = 0; c < filas[r].length; c++) {
-          const valor = filas[r][c];
-          const tile = document.createElement("div");
-          tile.classList.add("tile");
+  <main>
+    <h2>Contenido principal (main)</h2>
+    <p>En esta sección va el contenido más importante de la página.</p>
 
-          if (valor === 0) tile.classList.add("pasto");
-          else if (valor === 1) { tile.classList.add("barrera"); tile.textContent = "⬛"; }
-          else if (valor === 2) { tile.classList.add("oro"); tile.textContent = "💰"; }
-          else if (valor === 3) { tile.classList.add("espinas"); tile.textContent = "🌵"; }
-          else if (valor === 4) { tile.classList.add("fuego"); tile.textContent = "🔥"; }
+    <section>
+      <h3>Sección (section)</h3>
+      <p>Sirve para dividir el contenido en partes con significado propio.</p>
+    </section>
 
-          mapa.appendChild(tile);
-        }
-      }
-    }
+    <article>
+      <h3>Artículo (article)</h3>
+      <p>Se usa para un contenido independiente, como una noticia o un post.</p>
+    </article>
+  </main>
 
-    // Construir mapa inicial
-    construirMapa();
-  </script>
+  <aside>
+    <h2>Barra lateral (aside)</h2>
+    <p>Incluye información extra como enlaces, anuncios o widgets.</p>
+  </aside>
+
+  <footer>
+    <h2>Pie de página (footer)</h2>
+    <p>Aquí van los créditos, derechos de autor o información de contacto.</p>
+  </footer>
+
 </body>
 </html>

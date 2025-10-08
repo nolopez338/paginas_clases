@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Grafo de Red Neuronal — Capas totalmente conectadas</title>
+  <style>
+    :root{
+      --bg:#f6f9ff;
+      --panel:#ffffff;
+      --ink:#0b1f3b;
+      --muted:#5b7fa3;
+      --border:#d6e6ff;
+      --accent:#1e3a8a;
+      --accent2:#0f766e;
+      --edge:#93a3b8;
+      --edge-strong:#5c6b82;
+      --node:#0ea5e9;
+      --node-hover:#0284c7;
+      --node-selected:#0f766e;
+      --warn:#e11d48;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--bg);color:var(--ink);
+      font:15px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      display:grid;grid-template-columns:320px 1fr;gap:16px;
+    }
+    .sidebar{
+      background:var(--panel);border-right:1px solid var(--border);
+      padding:16px 14px 20px; position:sticky; top:0; height:100vh; overflow:auto;
+    }
+    h1{font-size:18px;margin:0 0 12px}
+    .desc{color:var(--muted);font-size:13px;margin-bottom:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+    input[type="text"], input[type="number"], input[type="range"]{
+      width:100%; padding:8px 10px; border:1px solid var(--border);
+      border-radius:8px; background:#fff; color:var(--ink);
+      outline:none; box-shadow:0 0 0 0 rgba(0,0,0,0);
+    }
+    .row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+    .controls{display:grid;gap:8px}
+    .btn{
+      appearance:none; border:1px solid var(--accent); color:#fff; background:var(--accent);
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+    }
+    .btn.secondary{background:#fff;color:var(--accent);border-color:var(--accent)}
+    .btn.ghost{background:#fff;border-color:var(--border);color:var(--ink)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .pill{display:flex;gap:8px; flex-wrap:wrap; margin-top:6px}
+    .small{font-size:12px;color:var(--muted)}
+    .toggle{display:flex; gap:8px; align-items:center; margin-top:6px}
+    .warn{color:var(--warn)}
+    .canvas-wrap{position:relative; overflow:hidden; height:100vh}
+    svg{width:100%; height:100%; background:#fff; touch-action:none; user-select:none}
+    .layer-title{font-size:12px; fill:var(--muted)}
+    .edge{stroke:var(--edge); stroke-width:1.25; opacity:.9; vector-effect:non-scaling-stroke}
+    .edges-dim .edge{opacity:.25}
+    .edges-hide .edge{display:none}
+    .edge.highlight{stroke:var(--edge-strong); stroke-width:2}
+    .node{fill:var(--node); stroke:white; stroke-width:1; cursor:pointer}
+    .node:hover{fill:var(--node-hover)}
+    .node.selected{fill:var(--node-selected)}
+    .label{font-size:11px; fill:#0b1f3b; pointer-events:none}
+    .hud{position:absolute; right:12px; top:12px; display:flex; gap:8px; flex-wrap:wrap}
+    .chip{background:rgba(14,165,233,.08); border:1px solid var(--border);
+      padding:6px 10px; border-radius:999px; font-size:12px; color:var(--muted)}
+    /* Frame just around graph */
+    .frame{
+      fill:none;
+      stroke:var(--accent2);
+      stroke-width:2;
+      vector-effect:non-scaling-stroke;
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <h1>Grafo de Red Neuronal</h1>
+    <p class="desc">Ingresa una lista de enteros positivos. Cada número es la cantidad de neuronas en una capa. El grafo conecta cada neurona de una capa con todas las de la siguiente.</p>
+
+    <label for="layers">Capas (ej. 3,5,4,2)</label>
+    <input id="layers" type="text" value="3,5,4,2" placeholder="2,3,3,1" inputmode="numeric" />
+
+    <div class="controls" style="margin-top:10px">
+      <div class="row">
+        <label for="hgap">Espacio horizontal (px)</label>
+        <input id="hgap" type="number" min="40" max="400" value="160" />
+      </div>
+      <div class="row">
+        <label for="vgap">Espacio vertical (px)</label>
+        <input id="vgap" type="number" min="20" max="200" value="50" />
+      </div>
+      <div class="row">
+        <label for="radius">Radio de nodo (px)</label>
+        <input id="radius" type="number" min="3" max="30" value="8" />
+      </div>
+      <div class="row">
+        <label for="stroke">Grosor de arista</label>
+        <input id="stroke" type="number" min="1" max="6" value="1.25" step="0.25" />
+      </div>
+
+      <div class="toggle">
+        <input id="showLabels" type="checkbox" checked />
+        <label for="showLabels">Mostrar etiquetas de nodos</label>
+      </div>
+      <div class="toggle">
+        <input id="dimEdges" type="checkbox" />
+        <label for="dimEdges">Atenuar aristas</label>
+      </div>
+      <div class="toggle">
+        <input id="hideEdges" type="checkbox" />
+        <label for="hideEdges">Ocultar aristas</label>
+      </div>
+
+      <div class="pill">
+        <button id="drawBtn" class="btn">Dibujar</button>
+        <button id="fitBtn" class="btn secondary">Centrar vista</button>
+      </div>
+
+      <label style="margin-top:8px">Exportar</label>
+      <div class="pill">
+        <button id="saveSvg" class="btn ghost">Descargar SVG</button>
+        <button id="savePng" class="btn ghost">Descargar PNG</button>
+      </div>
+
+      <p id="error" class="small warn" style="min-height:1.2em"></p>
+      <p class="small">Consejo: rueda del mouse para zoom, arrastra el fondo para desplazar.</p>
+    </div>
+  </aside>
+
+  <main class="canvas-wrap">
+    <div class="hud">
+      <div class="chip" id="hudLayers">Capas: —</div>
+      <div class="chip" id="hudNodes">Nodos: —</div>
+      <div class="chip" id="hudEdges">Aristas: —</div>
+    </div>
+    <svg id="stage" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" aria-label="Grafo de red neuronal">
+      <g id="viewport">
+        <g id="frame"></g>   <!-- frame goes behind -->
+        <g id="edges"></g>
+        <g id="nodes"></g>
+        <g id="labels"></g>
+        <g id="titles"></g>
+      </g>
+    </svg>
+  </main>
+
+<script>
+  // Helpers
+  const $ = sel => document.querySelector(sel);
+  const svgns = "http://www.w3.org/2000/svg";
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+  // Camera
+  const camera = { x:0, y:0, k:1 };
+  const stage = $('#stage');
+  const viewport = $('#viewport');
+  const gFrame = $('#frame');
+  const gEdges = $('#edges'), gNodes = $('#nodes'), gLabels = $('#labels'), gTitles = $('#titles');
+
+  // Inputs
+  const inpLayers = $('#layers'), inpHGap = $('#hgap'), inpVGap = $('#vgap');
+  const inpRadius = $('#radius'), inpStroke = $('#stroke');
+  const chkLabels = $('#showLabels'), chkDim = $('#dimEdges'), chkHide = $('#hideEdges');
+  const btnDraw = $('#drawBtn'), btnFit = $('#fitBtn'), btnSvg = $('#saveSvg'), btnPng = $('#savePng');
+  const errorBox = $('#error');
+  const hudL = $('#hudLayers'), hudN = $('#hudNodes'), hudE = $('#hudEdges');
+
+  // Current state
+  let current = { layers:[], positions:[], edgesCount:0, graphBox:null, bbox:null };
+
+  function parseLayers(str){
+    const parts = str.replace(/;/g,',').replace(/\s+/g,' ').trim().replace(/ /g,',').split(',');
+    const nums = parts.filter(s=>s.length).map(s=>Number(s));
+    if (!nums.length) throw new Error('Debe ingresar al menos 1 número.');
+    if (nums.some(n=>!Number.isInteger(n) || n<=0)) throw new Error('Solo enteros positivos, separados por coma.');
+    return nums;
+  }
+
+  function clearSVG(){
+    gEdges.innerHTML = ''; gNodes.innerHTML=''; gLabels.innerHTML=''; gTitles.innerHTML='';
+    gFrame.innerHTML = '';
+  }
+
+  function draw(){
+    errorBox.textContent='';
+    let layers;
+    try{
+      layers = parseLayers(inpLayers.value);
+    }catch(e){
+      errorBox.textContent = e.message;
+      return;
+    }
+    const hgap = +inpHGap.value, vgap = +inpVGap.value;
+    const r = +inpRadius.value, stroke = +inpStroke.value;
+
+    clearSVG();
+
+    // Node positions (centered per column)
+    const positions = [];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    layers.forEach((count, i) =>{
+      const x = i * hgap;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      const height = (count-1) * vgap;
+      const yStart = -height/2;
+      const layerPos = [];
+      for (let j=0;j<count;j++){
+        const y = yStart + j*vgap;
+        layerPos.push({ x, y, id:`L${i}N${j}`, label:`(${i+1},${j+1})` });
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+      positions.push(layerPos);
+    });
+
+    // Tight graph box around nodes (includes node radius + small padding)
+    const pad = 20;
+    const left   = minX - (r + pad);
+    const right  = maxX + (r + pad);
+    const top    = minY - (r + pad);
+    const bottom = maxY + (r + pad);
+    const graphBox = { x:left, y:top, width:right-left, height:bottom-top };
+    current.graphBox = graphBox;
+
+    // Titles (placed just above the frame)
+    const titleY = graphBox.y - 12; // outside, on top of the rectangle
+    positions.forEach((layerPos, i)=>{
+      const title = document.createElementNS(svgns,'text');
+      title.setAttribute('x', layerPos.length ? layerPos[0].x : i*hgap);
+      title.setAttribute('y', titleY);
+      title.setAttribute('text-anchor','middle');
+      title.setAttribute('class','layer-title');
+      title.textContent = `Capa ${i+1} — ${layers[i]} neuronas`;
+      title.dataset.layer = i;
+      title.style.cursor = 'pointer';
+      title.addEventListener('click', ()=> selectLayer(i));
+      gTitles.appendChild(title);
+    });
+
+    // Edges
+    let edgesCount = 0;
+    for (let i=0; i<positions.length-1; i++){
+      const A = positions[i], B = positions[i+1];
+      for (let a=0; a<A.length; a++){
+        for (let b=0; b<B.length; b++){
+          const line = document.createElementNS(svgns, 'line');
+          line.setAttribute('x1', A[a].x);
+          line.setAttribute('y1', A[a].y);
+          line.setAttribute('x2', B[b].x);
+          line.setAttribute('y2', B[b].y);
+          line.setAttribute('class','edge');
+          line.style.strokeWidth = stroke;
+          line.dataset.from = A[a].id;
+          line.dataset.to = B[b].id;
+          gEdges.appendChild(line);
+          edgesCount++;
+        }
+      }
+    }
+
+    // Nodes + labels
+    positions.forEach((layerPos, i)=>{
+      layerPos.forEach((p, j)=>{
+        const c = document.createElementNS(svgns, 'circle');
+        c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+        c.setAttribute('r', r);
+        c.setAttribute('class','node');
+        c.setAttribute('data-id', p.id);
+        c.setAttribute('data-layer', i);
+        c.setAttribute('data-index', j);
+        c.addEventListener('mouseenter', ()=> highlightIncident(p.id,true));
+        c.addEventListener('mouseleave', ()=> highlightIncident(p.id,false));
+        c.addEventListener('click', ()=> selectNode(p.id));
+        gNodes.appendChild(c);
+
+        if (chkLabels.checked){
+          const t = document.createElementNS(svgns,'text');
+          t.setAttribute('x', p.x);
+          t.setAttribute('y', p.y - r - 6);
+          t.setAttribute('text-anchor','middle');
+          t.setAttribute('class','label');
+          t.textContent = p.label;
+          gLabels.appendChild(t);
+        }
+      });
+    });
+
+    // Draw frame exactly around graphBox
+    drawFrame(graphBox);
+
+    // State + HUD
+    current.layers = layers;
+    current.positions = positions;
+    current.edgesCount = edgesCount;
+    const totalNodes = layers.reduce((a,b)=>a+b,0);
+    hudL.textContent = `Capas: ${layers.length}`;
+    hudN.textContent = `Nodos: ${totalNodes}`;
+    hudE.textContent = `Aristas: ${edgesCount.toLocaleString('es-CO')}`;
+
+    // Dim/hide toggles
+    stage.classList.toggle('edges-dim', chkDim.checked);
+    stage.classList.toggle('edges-hide', chkHide.checked);
+
+    // Fit box (graphBox expanded by a margin so titles aren’t clipped)
+    const margin = 40;
+    current.bbox = {
+      x: graphBox.x - margin,
+      y: graphBox.y - (margin + 12), // extra for titles above
+      width: graphBox.width + 2*margin,
+      height: graphBox.height + 2*margin + 12
+    };
+
+    fitToContent(); // center on first draw
+  }
+
+  function drawFrame(box){
+    gFrame.innerHTML = '';
+    const rect = document.createElementNS(svgns, 'rect');
+    rect.setAttribute('x', box.x);
+    rect.setAttribute('y', box.y);
+    rect.setAttribute('width', box.width);
+    rect.setAttribute('height', box.height);
+    rect.setAttribute('rx', 0);
+    rect.setAttribute('ry', 0);
+    rect.setAttribute('class', 'frame');
+    gFrame.appendChild(rect);
+  }
+
+  function highlightIncident(nodeId, on){
+    const lines = gEdges.querySelectorAll(`.edge[data-from="${nodeId}"], .edge[data-to="${nodeId}"]`);
+    lines.forEach(l=> l.classList.toggle('highlight', on));
+  }
+
+  let selectedNode = null;
+  function selectNode(nodeId){
+    if (selectedNode){
+      const prev = gNodes.querySelector(`.node[data-id="${selectedNode}"]`);
+      if (prev) prev.classList.remove('selected');
+      highlightIncident(selectedNode,false);
+    }
+    selectedNode = nodeId;
+    const now = gNodes.querySelector(`.node[data-id="${nodeId}"]`);
+    if (now){
+      now.classList.add('selected');
+      highlightIncident(nodeId,true);
+    }
+  }
+
+  function selectLayer(layerIdx){
+    gNodes.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+    if (selectedNode) highlightIncident(selectedNode,false);
+    selectedNode = null;
+
+    const ids = current.positions[layerIdx].map(p=>p.id);
+    ids.forEach(id=>{
+      const n = gNodes.querySelector(`.node[data-id="${id}"]`);
+      if (n) n.classList.add('selected');
+      highlightIncident(id,true);
+      setTimeout(()=>highlightIncident(id,false), 200);
+    });
+  }
+
+  // Pan/Zoom
+  function applyCamera(){
+    viewport.setAttribute('transform', `translate(${camera.x},${camera.y}) scale(${camera.k})`);
+  }
+
+  stage.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const {left, top} = stage.getBoundingClientRect();
+    const mx = e.clientX - left;
+    const my = e.clientY - top;
+
+    const ptX = (mx - camera.x) / camera.k;
+    const ptY = (my - camera.y) / camera.k;
+
+    const delta = -e.deltaY;
+    const zoom = Math.exp(delta * 0.0015);
+    const nk = clamp(camera.k * zoom, 0.1, 8);
+
+    camera.x = mx - ptX * nk;
+    camera.y = my - ptY * nk;
+    camera.k = nk;
+    applyCamera();
+  }, {passive:false});
+
+  let panning = false, panStart = {x:0,y:0}, camStart={x:0,y:0};
+  stage.addEventListener('pointerdown', (e)=>{
+    if (e.target.closest('.node')) return;
+    panning = true; stage.setPointerCapture(e.pointerId);
+    panStart = {x:e.clientX, y:e.clientY};
+    camStart = {x:camera.x, y:camera.y};
+  });
+  stage.addEventListener('pointermove', (e)=>{
+    if (!panning) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    camera.x = camStart.x + dx;
+    camera.y = camStart.y + dy;
+    applyCamera();
+  });
+  stage.addEventListener('pointerup', (e)=>{
+    panning = false; try{stage.releasePointerCapture(e.pointerId)}catch{}
+  });
+
+  function fitToContent(){
+    if (!current.bbox) return;
+    const w = stage.clientWidth || 800;
+    const h = stage.clientHeight || 600;
+
+    const kx = w / current.bbox.width;
+    const ky = h / current.bbox.height;
+    const k = Math.min(kx, ky);
+    camera.k = clamp(k, 0.1, 8);
+
+    const cx = current.bbox.x + current.bbox.width/2;
+    const cy = current.bbox.y + current.bbox.height/2;
+
+    camera.x = (w/2) - cx * camera.k;
+    camera.y = (h/2) - cy * camera.k;
+    applyCamera();
+  }
+
+  // Export SVG
+  function download(filename, text){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type:'image/svg+xml'}));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  btnSvg.addEventListener('click', ()=>{
+    const clone = stage.cloneNode(true);
+    const style = document.createElement('style');
+    style.textContent = `
+      .edge{stroke:${getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()};stroke-width:${+inpStroke.value};opacity:0.9;vector-effect:non-scaling-stroke}
+      .edge.highlight{stroke:${getComputedStyle(document.documentElement).getPropertyValue('--edge-strong').trim()};stroke-width:2}
+      .node{fill:${getComputedStyle(document.documentElement).getPropertyValue('--node').trim()};stroke:white;stroke-width:1}
+      .label{font-size:11px;fill:#0b1f3b}
+      .layer-title{font-size:12px;fill:${getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()}
+      .frame{fill:none;stroke:${getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim()};stroke-width:2;vector-effect:non-scaling-stroke}
+    `;
+    clone.prepend(style);
+    const xml = new XMLSerializer().serializeToString(clone);
+    download('red-neuronal.svg', xml);
+  });
+
+  // Export PNG
+  btnPng.addEventListener('click', async ()=>{
+    const xml = new XMLSerializer().serializeToString(stage);
+    const svg64 = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+    const img = new Image();
+    const w = stage.clientWidth || 1200;
+    const h = stage.clientHeight || 800;
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      canvas.toBlob((blob)=>{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'red-neuronal.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png', 1);
+    };
+    img.src = svg64;
+  });
+
+  // UI events
+  btnDraw.addEventListener('click', draw);
+  btnFit.addEventListener('click', fitToContent);
+  chkLabels.addEventListener('change', ()=> draw());
+  chkDim.addEventListener('change', ()=> { stage.classList.toggle('edges-dim', chkDim.checked); });
+  chkHide.addEventListener('change', ()=> { stage.classList.toggle('edges-hide', chkHide.checked); });
+  [inpHGap, inpVGap, inpRadius, inpStroke].forEach(el=> el.addEventListener('change', draw));
+
+  // First render
+  draw();
+</script>
+</body>
+</html>

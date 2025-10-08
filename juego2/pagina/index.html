@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake — Juego en una sola página</title>
+
+  <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>Snake — Juego simple (Flechas / WASD)</h1>
+      <div class="controls">
+        <button id="startBtn" class="primary">Iniciar</button>
+        <button id="pauseBtn">Pausar</button>
+        <button id="resetBtn">Reiniciar</button>
+      </div>
+    </header>
+
+    <div class="game-area">
+      <div class="panel canvas-panel">
+        <canvas id="game" width="640" height="480"></canvas>
+      </div>
+
+      <div class="panel" style="min-width:240px">
+        <div class="info">
+          <div>Puntuación: <strong id="score">0</strong></div>
+          <div class="stats">
+            <div>Ritz: <strong id="level">1</strong></div>
+            <div>Longitud: <strong id="length">1</strong></div>
+          </div>
+
+          <hr style="margin:8px 0;border:0;border-top:1px solid rgba(255,255,255,0.03)">
+
+          <label>Velocidad (ticks por segundo)
+            <input id="speedRange" type="range" min="4" max="30" value="10">
+            <small id="speedVal">10</small>
+          </label>
+
+          <label style="margin-top:8px">Controles
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Flechas o WASD — Espacio para pausar</div>
+          </label>
+
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="saveBtn">Guardar record</button>
+            <button id="loadBtn">Cargar record</button>
+          </div>
+
+          <footer>
+            <div style="margin-top:8px">Haz crecer la serpiente comiendo la manzana roja. Evita chocar contra tus propias piezas o las paredes (modo por defecto).</div>
+          </footer>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>

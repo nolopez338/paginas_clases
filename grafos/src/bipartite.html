@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Complete Bipartite Graph Drawer (Kₘ,ₙ)</title>
+  <meta name="theme-color" content="#1f3a93" />
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0b1f3b;
+      --muted:#6b85a5;
+      --border:#d8e3f3;
+      --left:#2563eb;   /* left part nodes */
+      --right:#059669;  /* right part nodes */
+      --edge:#9bb3cf;   /* edges */
+      --edge-strong:#7a99b8;
+      --danger:#b91c1c;
+      --ok:#065f46;
+      --focus:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px}
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px 16px;
+      box-shadow:0 1px 2px rgba(10,30,60,.04);
+    }
+    h1{margin:0 0 8px;font-size:20px}
+    .controls{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;align-items:end}
+    .field{grid-column:span 3}
+    .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    .field input{
+      width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+      outline:none;background:#fbfdff;color:var(--ink);
+    }
+    .field input:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+    .actions{grid-column:span 3;display:flex;gap:8px}
+    button{
+      appearance:none;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;
+      background:var(--left);color:#fff;font-weight:600
+    }
+    button.secondary{background:#334155}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .hint{grid-column:1/-1;color:var(--muted);font-size:13px}
+    .warn{color:var(--danger)}
+    .ok{color:var(--ok)}
+    .board{height:min(72vh,760px)}
+    .board svg{
+      width:100%;height:100%;display:block;
+      background:linear-gradient(180deg,#f9fbff,#f1f5fd)
+    }
+    .legend{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--muted)}
+    .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    .dot.left{background:var(--left)}
+    .dot.right{background:var(--right)}
+    .stats{margin-left:auto}
+    /* Node styling */
+    .node{stroke:#fff;stroke-width:2}
+    .node.left{fill:var(--left)}
+    .node.right{fill:var(--right)}
+    .node:focus{outline:none}
+    .edge{stroke:var(--edge);stroke-width:1}
+    .edge:hover{stroke:var(--edge-strong)}
+    .titlebar{font-size:14px;margin-bottom:6px;color:var(--muted)}
+    @media (max-width:720px){
+      .controls{grid-template-columns:repeat(6,1fr)}
+      .field{grid-column:span 3}
+      .actions{grid-column:span 6}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Complete Bipartite Graph Drawer — Kₘ,ₙ</h1>
+      <div class="controls">
+        <div class="field">
+          <label for="m">Left part nodes (m)</label>
+          <input id="m" type="number" inputmode="numeric" min="0" max="5000" value="4" />
+        </div>
+        <div class="field">
+          <label for="n">Right part nodes (n)</label>
+          <input id="n" type="number" inputmode="numeric" min="0" max="5000" value="6" />
+        </div>
+        <div class="actions">
+          <button id="renderBtn" title="Render Kₘ,ₙ">Render</button>
+          <button id="resetBtn" class="secondary" title="Reset values">Reset</button>
+        </div>
+        <div id="hint" class="hint">Enter m and n, then click Render. Edges: m×n.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="titlebar">
+        Kₘ,ₙ visualization
+      </div>
+      <div class="legend">
+        <span class="dot left"></span> Left part
+        <span class="dot right"></span> Right part
+        <span id="stats" class="stats">—</span>
+      </div>
+      <div class="board panel" aria-label="Graph board">
+        <svg id="svg" viewBox="0 0 1100 700" role="img" aria-labelledby="title desc">
+          <title id="title">Complete bipartite graph</title>
+          <desc id="desc">Left and right columns of nodes with lines between every pair across the partition.</desc>
+          <!-- layers -->
+          <g id="edges"></g>
+          <g id="nodes-left"></g>
+          <g id="nodes-right"></g>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* eslint-disable no-use-before-define */
+    (function () {
+      'use strict';
+
+      // ---------------- Config ----------------
+      const MAX_EDGES = 5000;     // Guardrail to avoid freezing the tab
+      const PADDING = 64;         // Inner padding around the drawing area
+      const NODE_RADIUS = 10;     // Circle radius
+      const COL_GAP = 400;        // Horizontal distance between columns in viewBox units
+
+      // ---------------- DOM ----------------
+      const mInput = document.getElementById('m');
+      const nInput = document.getElementById('n');
+      const renderBtn = document.getElementById('renderBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const hintEl = document.getElementById('hint');
+      const statsEl = document.getElementById('stats');
+      const svg = document.getElementById('svg');
+      const edgesLayer = document.getElementById('edges');
+      const leftLayer = document.getElementById('nodes-left');
+      const rightLayer = document.getElementById('nodes-right');
+
+      // ---------------- Utils ----------------
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const toInt = (v) => Number.isFinite(+v) ? Math.trunc(+v) : 0;
+
+      function clearLayers() {
+        edgesLayer.innerHTML = '';
+        leftLayer.innerHTML = '';
+        rightLayer.innerHTML = '';
+      }
+
+      function setHint(msg, type = 'ok') {
+        hintEl.textContent = msg;
+        hintEl.classList.toggle('warn', type === 'warn');
+        hintEl.classList.toggle('ok', type === 'ok');
+      }
+
+      function layoutColumn(count, x, height) {
+        // Evenly distribute 'count' points along [PADDING, height-PADDING]
+        const top = PADDING;
+        const bottom = height - PADDING;
+        const span = Math.max(bottom - top, 0);
+        const coords = [];
+        if (count <= 0) return coords;
+
+        if (count === 1) {
+          coords.push({ x, y: top + span / 2 });
+          return coords;
+        }
+        for (let i = 0; i < count; i++) {
+          const t = i / (count - 1); // 0..1
+          coords.push({ x, y: top + t * span });
+        }
+        return coords;
+      }
+
+      function drawNode(layer, x, y, side, idx) {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', x);
+        c.setAttribute('cy', y);
+        c.setAttribute('r', NODE_RADIUS);
+        c.setAttribute('class', `node ${side}`);
+        c.setAttribute('tabindex', '0');
+        c.setAttribute('role', 'img');
+        c.setAttribute('aria-label', `${side} node ${idx + 1}`);
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${side} node ${idx + 1}`;
+        c.appendChild(title);
+        layer.appendChild(c);
+      }
+
+      function drawEdge(layer, a, b) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', a.x);
+        line.setAttribute('y1', a.y);
+        line.setAttribute('x2', b.x);
+        line.setAttribute('y2', b.y);
+        line.setAttribute('class', 'edge');
+        layer.appendChild(line);
+      }
+
+      function render() {
+        let m = clamp(toInt(mInput.value), 0, 5000);
+        let n = clamp(toInt(nInput.value), 0, 5000);
+        mInput.value = m;
+        nInput.value = n;
+
+        clearLayers();
+
+        const vb = svg.viewBox.baseVal; // {x,y,width,height}
+        const width = vb.width;
+        const height = vb.height;
+
+        // Compute column x positions
+        const leftX = PADDING + NODE_RADIUS;
+        const rightX = width - PADDING - NODE_RADIUS;
+
+        // Fallback if the viewBox is narrow
+        const gap = rightX - leftX;
+        if (gap < 100) {
+          // Recenter columns if viewport is extremely narrow
+          const mid = width / 2;
+          // 150 px apart minimum
+          const halfGap = 75;
+          const nx1 = mid - halfGap;
+          const nx2 = mid + halfGap;
+          renderWithColumns(m, n, nx1, nx2, height);
+        } else {
+          renderWithColumns(m, n, leftX, rightX, height);
+        }
+      }
+
+      function renderWithColumns(m, n, leftX, rightX, height) {
+        const leftPts = layoutColumn(m, leftX, height);
+        const rightPts = layoutColumn(n, rightX, height);
+
+        const edgesCount = m * n;
+        if (edgesCount > MAX_EDGES) {
+          setHint(
+            `Too many edges (${edgesCount}). Lower m or n (limit: ${MAX_EDGES}).`,
+            'warn'
+          );
+          statsEl.textContent = '—';
+          // Still show nodes without edges for context
+          leftPts.forEach((p, i) => drawNode(leftLayer, p.x, p.y, 'left', i));
+          rightPts.forEach((p, i) => drawNode(rightLayer, p.x, p.y, 'right', i));
+          return;
+        }
+
+        // Draw edges
+        for (let i = 0; i < leftPts.length; i++) {
+          for (let j = 0; j < rightPts.length; j++) {
+            drawEdge(edgesLayer, leftPts[i], rightPts[j]);
+          }
+        }
+
+        // Draw nodes on top
+        leftPts.forEach((p, i) => drawNode(leftLayer, p.x, p.y, 'left', i));
+        rightPts.forEach((p, i) => drawNode(rightLayer, p.x, p.y, 'right', i));
+
+        // Update UI
+        setHint(`Rendered K_${m},${n} with ${edgesCount} edges.`, 'ok');
+        statsEl.textContent = `m = ${m} • n = ${n} • edges = ${edgesCount}`;
+      }
+
+      // ---------------- Events ----------------
+      renderBtn.addEventListener('click', render);
+      resetBtn.addEventListener('click', () => {
+        mInput.value = 4;
+        nInput.value = 6;
+        render();
+      });
+
+      // Render on Enter in inputs
+      [mInput, nInput].forEach((el) => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') render();
+        });
+      });
+
+      // Initial draw
+      render();
+    })();
+  </script>
+</body>
+</html>

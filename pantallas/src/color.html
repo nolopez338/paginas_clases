@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor a Color</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f4f6fa;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #1976d2;
+      margin: 40px 0 20px 0;
+      text-align: center;
+    }
+    .container {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      margin-bottom: 40px;
+      max-width: 98vw;
+    }
+    .img-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .img-block img, .img-block canvas {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+      background: #e0e0e0;
+      height: auto;
+      width: auto;
+      display: block;
+    }
+    .label {
+      font-size: 1rem;
+      color: #333;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .upload-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 12px;
+    }
+    .upload-btn:hover {
+      background: #1565c0;
+    }
+    .toggle-btn {
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 12px;
+    }
+    .toggle-btn:hover {
+      background: #ef6c00;
+    }
+    .download-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 12px;
+      margin-left: 8px;
+      display: none;
+    }
+    .download-btn:hover {
+      background: #388e3c;
+    }
+    .slider-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      width: 100%;
+      max-width: 600px;
+      justify-content: center;
+    }
+    .slider-label {
+      font-size: 1rem;
+      color: #333;
+      font-weight: 500;
+      min-width: 90px;
+    }
+    .slider {
+      width: 220px;
+    }
+    .slider-value {
+      font-size: 1rem;
+      color: #1976d2;
+      font-weight: 700;
+      min-width: 32px;
+      text-align: right;
+    }
+    .slider-input {
+      width: 60px;
+      font-size: 1rem;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1.5px solid #bdbdbd;
+      background: #f9f9f9;
+      outline: none;
+      text-align: right;
+      margin-left: 4px;
+    }
+    .slider-input:focus {
+      border: 1.5px solid #1976d2;
+      background: #fff;
+    }
+    .file-input {
+      display: none;
+    }
+    @media (max-width: 900px) {
+      .img-block img, .img-block canvas {
+        max-width: 98vw;
+        max-height: 50vw;
+      }
+      .slider-block {
+        max-width: 98vw;
+      }
+    }
+    @media (max-width: 700px) {
+      .container {
+        padding: 16px 4px;
+        gap: 20px;
+      }
+      .img-block img, .img-block canvas {
+        max-width: 98vw;
+        max-height: 40vw;
+      }
+      .slider-block {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+        max-width: 98vw;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="title">Conversor a Color</div>
+  <div class="container">
+    <label class="upload-btn" for="fileInput">Subir Imagen</label>
+    <input type="file" id="fileInput" class="file-input" accept="image/*">
+    <div style="display: flex; width: 100%; max-width: 600px; justify-content: center; align-items: center;">
+      <button class="toggle-btn" id="toggleBtn" style="display:none;">Ver Pixelado</button>
+      <button class="download-btn" id="downloadBtn" style="display:none;">Descargar PNG</button>
+    </div>
+    <div class="slider-block" id="sliderBlock" style="display:none;">
+      <span class="slider-label">Bloques:</span>
+      <input type="range" min="1" max="256" value="128" class="slider" id="pixelSlider">
+      <input type="number" min="1" max="256" value="128" class="slider-input" id="pixelInput">
+      <input type="text" id="pixelCount" class="slider-input" style="width:180px; background:#e0e0e0; color:#333; font-weight:500;" readonly value="0 px">
+    </div>
+    <div class="img-block">
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 4px;">
+        <span id="originalPixelInfo" style="display:none; color:#1976d2; font-size:1rem; font-weight:500;"></span>
+      </div>
+      <img id="originalImg" src="" alt="Imagen original" style="display:none;">
+      <canvas id="colorCanvas" style="display:none;"></canvas>
+    </div>
+  </div>
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const originalImg = document.getElementById('originalImg');
+    const colorCanvas = document.getElementById('colorCanvas');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const imgLabel = document.getElementById('imgLabel');
+    const sliderBlock = document.getElementById('sliderBlock');
+    const pixelSlider = document.getElementById('pixelSlider');
+    const pixelInput = document.getElementById('pixelInput');
+    const pixelCount = document.getElementById('pixelCount');
+    const originalPixelInfo = document.getElementById('originalPixelInfo');
+
+    let showingOriginal = true;
+    let imageLoaded = false;
+    let originalImageData = null;
+    let imgWidth = 0;
+    let imgHeight = 0;
+
+    const minSlider = 1;
+    const maxSlider = 256;
+
+    function updateSliderValueDisplay(val) {
+      // Sincroniza el valor mostrado en el input numérico y el slider
+      const value = val !== undefined ? val : pixelSlider.value;
+      pixelSlider.value = value;
+      pixelInput.value = value;
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        originalImg.src = event.target.result;
+        originalImg.style.display = 'block';
+        colorCanvas.style.display = 'none';
+        showingOriginal = true;
+        toggleBtn.textContent = 'Ver Pixelado';
+        toggleBtn.style.display = 'inline-block';
+        downloadBtn.style.display = 'none';
+        sliderBlock.style.display = 'none';
+        pixelSlider.value = 128;
+        pixelInput.value = 128;
+        updateSliderValueDisplay(128);
+        imageLoaded = false;
+        originalImg.onload = function() {
+          imgWidth = originalImg.naturalWidth;
+          imgHeight = originalImg.naturalHeight;
+          colorCanvas.width = imgWidth;
+          colorCanvas.height = imgHeight;
+          const ctx = colorCanvas.getContext('2d');
+          ctx.drawImage(originalImg, 0, 0);
+          // Guardar datos originales
+          originalImageData = ctx.getImageData(0, 0, imgWidth, imgHeight);
+          imageLoaded = true;
+          // Mostrar info de pixeles de la original
+          if (imgWidth > 0 && imgHeight > 0) {
+            const total = imgWidth * imgHeight;
+            originalPixelInfo.textContent = `${imgWidth} x ${imgHeight} = ${total.toLocaleString()} pixeles`;
+            originalPixelInfo.style.display = 'block';
+          } else {
+            originalPixelInfo.textContent = '';
+            originalPixelInfo.style.display = 'none';
+          }
+          updatePixelCount();
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function updatePixelCount() {
+      if (imgWidth > 0 && imgHeight > 0) {
+        const bloquesH = Number(pixelSlider.value);
+        const bloquesV = Math.round(imgHeight / Math.floor(imgWidth / bloquesH));
+        const total = bloquesH * bloquesV;
+        pixelCount.value = `${bloquesH} x ${bloquesV} = ${total} pixeles`;
+      } else {
+        pixelCount.value = '0 x 0 = 0 pixeles';
+      }
+    }
+
+    function drawPixelatedColor(sliderVal) {
+      if (!originalImageData) return;
+      const ctx = colorCanvas.getContext('2d');
+      ctx.clearRect(0, 0, imgWidth, imgHeight);
+      const blocks = Number(sliderVal);
+      let blockSize = Math.floor(imgWidth / blocks);
+      if (blockSize < 1) blockSize = 1;
+      if (blocks <= 1) blockSize = imgWidth;
+      if (blockSize === 1) {
+        ctx.putImageData(originalImageData, 0, 0);
+        return;
+      }
+      for (let y = 0; y < imgHeight; y += blockSize) {
+        for (let x = 0; x < imgWidth; x += blockSize) {
+          let r = 0, g = 0, b = 0, a = 0, count = 0;
+          for (let dy = 0; dy < blockSize; dy++) {
+            for (let dx = 0; dx < blockSize; dx++) {
+              const px = x + dx;
+              const py = y + dy;
+              if (px < imgWidth && py < imgHeight) {
+                const idx = (py * imgWidth + px) * 4;
+                r += originalImageData.data[idx];
+                g += originalImageData.data[idx+1];
+                b += originalImageData.data[idx+2];
+                a += originalImageData.data[idx+3];
+                count++;
+              }
+            }
+          }
+          r = Math.round(r / count);
+          g = Math.round(g / count);
+          b = Math.round(b / count);
+          a = Math.round(a / count);
+          ctx.fillStyle = `rgba(${r},${g},${b},${a/255})`;
+          ctx.fillRect(x, y, blockSize, blockSize);
+        }
+      }
+    }
+
+    pixelSlider.addEventListener('input', () => {
+      updateSliderValueDisplay(pixelSlider.value);
+      updatePixelCount();
+      if (!showingOriginal && imageLoaded) {
+        drawPixelatedColor(Number(pixelSlider.value));
+      }
+    });
+
+    pixelInput.addEventListener('input', () => {
+      let val = parseInt(pixelInput.value, 10);
+      if (isNaN(val) || val < minSlider) val = minSlider;
+      if (val > maxSlider) val = maxSlider;
+      updateSliderValueDisplay(val);
+      updatePixelCount();
+      if (!showingOriginal && imageLoaded) {
+        drawPixelatedColor(val);
+      }
+    });
+
+    toggleBtn.addEventListener('click', () => {
+      if (!imageLoaded) return;
+      if (showingOriginal) {
+        originalImg.style.display = 'none';
+        colorCanvas.style.display = 'block';
+        toggleBtn.textContent = 'Ver Original';
+        sliderBlock.style.display = 'flex';
+        downloadBtn.style.display = 'inline-block';
+        drawPixelatedColor(Number(pixelSlider.value));
+        showingOriginal = false;
+        originalPixelInfo.style.display = 'none';
+      } else {
+        originalImg.style.display = 'block';
+        colorCanvas.style.display = 'none';
+        toggleBtn.textContent = 'Ver Pixelado';
+        sliderBlock.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        showingOriginal = true;
+        originalPixelInfo.style.display = 'block';
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      // Descargar el canvas como PNG
+      const link = document.createElement('a');
+      link.download = 'pixelado_color.png';
+      link.href = colorCanvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+  <div style="width:100%; display:flex; justify-content:center; margin: 32px 0 0 0;">
+    <a href="../index.html" style="background:#1976d2; color:white; border:none; border-radius:12px; padding:16px 36px; font-size:1.1rem; font-weight:500; text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,0.10); transition:background 0.2s, transform 0.2s; display:inline-block; text-align:center; margin-top:16px;">← Volver al Menú Principal</a>
+  </div>
+</body>
+</html> 
