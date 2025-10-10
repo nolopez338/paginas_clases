@@ -54,6 +54,8 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
 
+    .controls h2, .preview h2 { margin: 6px 0 10px; font-size: 16px; color: var(--muted); }
+
     textarea{
       width:100%;
       min-height:160px;
@@ -67,6 +69,14 @@
       line-height:1.4;
     }
 
+    .row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:10px;
+    }
+
     button{
       border:none;
       background:linear-gradient(180deg, #3aa6ff, #2b86d1);
@@ -77,9 +87,19 @@
       font-weight:600;
       letter-spacing:.2px;
     }
-    button:active{ transform:translateY(1px); }
+    button:active{ transform: translateY(1px); }
 
-    .row{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; }
+    .error{
+      display:none;
+      background:#3b1a1a;
+      color:#ffd6d6;
+      border:1px solid #ff6b6b33;
+      border-radius:8px;
+      padding:10px;
+      margin-top:10px;
+      white-space:pre-wrap;
+      font-size: 14px;
+    }
 
     .legend{
       display:flex;
@@ -92,9 +112,10 @@
     .legend .item{ display:flex; align-items:center; gap:6px; }
     .swatch{
       width:18px; height:18px; border-radius:4px; border:1px solid rgba(0,0,0,.35);
+      display:inline-block;
     }
     .coin-dot{
-      width:18px; height:18px; border-radius:50%; border:1px solid rgba(0,0,0,.35);
+      width:18px; height:18px; border-radius:50%; border:1px solid rgba(0,0,0,.35); display:inline-block;
     }
 
     .grid-wrap{
@@ -118,11 +139,11 @@
       font-size:18px;
       user-select:none;
     }
-    .floor{ background:var(--floor); }
-    .wall{ background:var(--wall); }
+    .floor{ background: var(--floor); }
+    .wall{ background: var(--wall); }
 
     .robot{
-      background:var(--floor);
+      background: var(--floor);
       outline: 2px solid var(--robot);
       outline-offset: -2px;
       color: var(--robot);
@@ -150,9 +171,9 @@
     .stats{ margin-top:8px; font-size:13px; color:var(--muted); }
     .footer-note{ margin-top:10px; font-size:12px; color:var(--muted); }
 
-    @media (max-width:880px){
-      main{ grid-template-columns:1fr; }
-      .grid-wrap{ max-height:50vh; }
+    @media (max-width: 880px){
+      main{ grid-template-columns: 1fr; }
+      .grid-wrap{ max-height: 50vh; }
     }
   </style>
 </head>
@@ -160,30 +181,34 @@
   <header>
     <h1>Matrix Grid Viewer</h1>
     <div class="footer-note">
-      Matrix legend — 0: Floor | 1–5: Coins | 6: Wall | 9: Robot start
+      Values — 0: Floor | 1–5: Coins | 6: Wall | 9: Robot start
     </div>
   </header>
 
   <main>
-    <section class="card">
-      <h2>Input</h2>
-      <label for="matrixInput">Matrix (rows separated by newlines; space-separated numbers)</label>
-      <textarea id="matrixInput" placeholder="Example:
+    <section class="card controls" aria-labelledby="controls-title">
+      <h2 id="controls-title">Input</h2>
+
+      <label for="matrixInput" style="display:block; margin-bottom:6px;">
+        Matrix (rows by newline; space-separated numbers — commas also work)
+      </label>
+      <textarea id="matrixInput" spellcheck="false" placeholder="Example:
 1 0 9
 2 3 3
 1 1 0"></textarea>
 
       <div class="row">
-        <button id="renderBtn">Render Grid</button>
-        <label style="display:flex;align-items:center;gap:6px;">Cell
-          <input id="cellSize" type="range" min="18" max="54" value="34">
-          <span id="cellSizeVal">34px</span>
+        <button id="renderBtn" aria-label="Render grid from matrix">Render Grid</button>
+        <label style="display:flex; align-items:center; gap:8px;">
+          Cell
+          <input id="cellSize" type="range" min="18" max="54" value="34" />
+          <span id="cellSizeVal" aria-live="polite">34px</span>
         </label>
       </div>
 
-      <div id="errorBox" style="display:none;background:#3b1a1a;color:#ffd6d6;border-radius:8px;padding:10px;margin-top:10px;font-size:14px;"></div>
+      <div id="errorBox" class="error" role="alert"></div>
 
-      <div class="legend">
+      <div class="legend" aria-label="Legend">
         <div class="item"><span class="swatch" style="background:var(--floor)"></span> 0 Floor</div>
         <div class="item"><span class="coin-dot" style="background:var(--coin1)"></span> 1 Coin</div>
         <div class="item"><span class="coin-dot" style="background:var(--coin2)"></span> 2 Coin</div>
@@ -191,141 +216,247 @@
         <div class="item"><span class="coin-dot" style="background:var(--coin4)"></span> 4 Coin</div>
         <div class="item"><span class="coin-dot" style="background:var(--coin5)"></span> 5 Coin</div>
         <div class="item"><span class="swatch" style="background:var(--wall)"></span> 6 Wall</div>
-        <div class="item"><span class="swatch" style="background:var(--floor);outline:2px solid var(--robot)"></span> 9 Robot</div>
+        <div class="item"><span class="swatch" style="background:var(--floor); outline:2px solid var(--robot)"></span> 9 Robot</div>
       </div>
 
-      <div class="stats" id="stats">Pickups: 1:0 2:0 3:0 4:0 5:0</div>
+      <div class="stats" id="stats">Pickups: 1:0  2:0  3:0  4:0  5:0</div>
       <div class="footer-note">Controls: Arrow keys to move/turn, 1–5 to pick up matching coin.</div>
     </section>
 
-    <section class="card">
-      <h2>Preview</h2>
-      <div class="grid-wrap" id="gridWrap" tabindex="0">
-        <div id="grid" class="grid"></div>
+    <section class="card preview" aria-labelledby="preview-title">
+      <h2 id="preview-title">Preview</h2>
+      <div class="grid-wrap" id="gridWrap" tabindex="0" aria-label="Grid keyboard focus area">
+        <div id="grid" class="grid" role="grid" aria-label="Matrix grid"></div>
       </div>
     </section>
   </main>
 
   <script>
-    const renderBtn=document.getElementById("renderBtn");
-    const matrixInput=document.getElementById("matrixInput");
-    const grid=document.getElementById("grid");
-    const gridWrap=document.getElementById("gridWrap");
-    const cellSize=document.getElementById("cellSize");
-    const cellSizeVal=document.getElementById("cellSizeVal");
-    const errorBox=document.getElementById("errorBox");
-    const statsEl=document.getElementById("stats");
+    "use strict";
 
-    const coinClass={1:"c1",2:"c2",3:"c3",4:"c4",5:"c5"};
-    const pickups={1:0,2:0,3:0,4:0,5:0};
-    const robot={r:-1,c:-1,dir:0};
-    let matrix=[],rows=0,cols=0;
+    const matrixInput = document.getElementById("matrixInput");
+    const renderBtn = document.getElementById("renderBtn");
+    const grid = document.getElementById("grid");
+    const gridWrap = document.getElementById("gridWrap");
+    const errorBox = document.getElementById("errorBox");
+    const cellSize = document.getElementById("cellSize");
+    const cellSizeVal = document.getElementById("cellSizeVal");
+    const statsEl = document.getElementById("stats");
 
-    function showError(m){errorBox.textContent=m;errorBox.style.display="block";}
-    function clearError(){errorBox.textContent="";errorBox.style.display="none";}
+    const coinClass = { 1:"c1", 2:"c2", 3:"c3", 4:"c4", 5:"c5" };
+
+    // robot + matrix state
+    let matrix = null;
+    let rows = 0, cols = 0;
+    const robot = { r: -1, c: -1, dir: 0 }; // 0=right, 90=down, 180=left, 270=up
+    const pickups = { 1:0, 2:0, 3:0, 4:0, 5:0 };
+
+    function showError(msg){
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+    function clearError(){
+      errorBox.textContent = "";
+      errorBox.style.display = "none";
+    }
     function updateStats(){
-      statsEl.textContent=`Pickups: 1:${pickups[1]} 2:${pickups[2]} 3:${pickups[3]} 4:${pickups[4]} 5:${pickups[5]}`;
+      statsEl.textContent = `Pickups: 1:${pickups[1]}  2:${pickups[2]}  3:${pickups[3]}  4:${pickups[4]}  5:${pickups[5]}`;
     }
 
+    // Parsing (spaces/commas/tabs)
     function parseMatrix(text){
-      const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      if(!lines.length) throw Error("Empty matrix.");
-      const rows=lines.map(line=>line.split(/[,\s]+/).filter(Boolean).map(Number));
-      const width=rows[0].length;
-      for(const r of rows) if(r.length!==width) throw Error("Matrix must be rectangular.");
-      const allowed=new Set([0,1,2,3,4,5,6,9]);
-      rows.forEach((r,i)=>r.forEach((v,j)=>{
-        if(!allowed.has(v)) throw Error(`Invalid value ${v} at (${i+1},${j+1})`);
-      }));
+      const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if(lines.length === 0) throw new Error("No rows found.");
+
+      const rows = lines.map((line, idx) => {
+        const parts = line.split(/[,\s]+/).filter(Boolean);
+        if(parts.length === 0) throw new Error(`Row ${idx+1} is empty.`);
+        const nums = parts.map((p, j) => {
+          if(!/^-?\d+$/.test(p)) throw new Error(`Invalid token "${p}" at row ${idx+1}, col ${j+1}.`);
+          return Number(p);
+        });
+        return nums;
+      });
+
+      const width = rows[0].length;
+      for(let r=1; r<rows.length; r++){
+        if(rows[r].length !== width){
+          throw new Error(`Matrix is not rectangular. Row 1 has length ${width}, row ${r+1} has ${rows[r].length}.`);
+        }
+      }
+
+      const allowed = new Set([0,1,2,3,4,5,6,9]);
+      for(let i=0; i<rows.length; i++){
+        for(let j=0; j<rows[i].length; j++){
+          const v = rows[i][j];
+          if(!allowed.has(v)){
+            throw new Error(`Disallowed value ${v} at row ${i+1}, col ${j+1}. Allowed: 0,1,2,3,4,5,6,9`);
+          }
+        }
+      }
       return rows;
     }
 
-    function idx(r,c){return r*cols+c;}
+    function idx(r,c){ return r*cols + c; }
 
     function drawCell(r,c){
-      const cell=grid.children[idx(r,c)];
-      cell.className="cell";cell.textContent="";
-      const v=matrix[r][c];
-      if(v===6)cell.classList.add("wall");
-      else if(v>=1&&v<=5)cell.classList.add("coin",coinClass[v]);
-      else cell.classList.add("floor");
+      const cell = grid.children[idx(r,c)];
+      cell.className = "cell";
+      cell.textContent = "";
+
+      const v = matrix[r][c];
+      if(v === 6){
+        cell.classList.add("wall");
+      } else if(v >= 1 && v <= 5){
+        cell.classList.add("coin", coinClass[v]);
+      } else {
+        cell.classList.add("floor");
+      }
     }
 
     function drawRobot(){
-      const cell=grid.children[idx(robot.r,robot.c)];
-      cell.className="cell robot";
-      cell.textContent="🤖";
-      cell.style.transform=`rotate(${robot.dir%360}deg)`;
+      const cell = grid.children[idx(robot.r, robot.c)];
+      cell.className = "cell robot";
+      cell.textContent = arrowForDir(robot.dir);
+      cell.style.transform = "none";   // no rotation needed anymore
     }
 
-    function renderGrid(m){
-      matrix=m;rows=m.length;cols=m[0].length;
-      let found=false;
-      for(let i=0;i<rows;i++)for(let j=0;j<cols;j++)
-        if(matrix[i][j]===9&&!found){robot.r=i;robot.c=j;matrix[i][j]=0;found=true;}
-      if(!found)throw Error("Robot start (9) not found.");
+    function arrowForDir(deg){
+      const d = ((deg % 360) + 360) % 360;
+      if (d === 0)   return "▶"; // right
+      if (d === 90)  return "▼"; // down
+      if (d === 180) return "◀"; // left
+      return "▲";                // up (270)
+    }
 
-      grid.innerHTML="";
-      grid.style.gridTemplateColumns=`repeat(${cols},var(--cell-size))`;
-      for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){
-        const cell=document.createElement("div");
-        cell.className="cell";grid.appendChild(cell);drawCell(i,j);
+
+    function renderGrid(m){
+      matrix = m;
+      rows = matrix.length;
+      cols = matrix[0].length;
+
+      // find robot start (9), then make the underlying cell a floor (0)
+      let found = false;
+      for(let r=0; r<rows; r++){
+        for(let c=0; c<cols; c++){
+          if(matrix[r][c] === 9 && !found){
+            robot.r = r; robot.c = c; robot.dir = 0; // facing right
+            matrix[r][c] = 0;
+            found = true;
+          }
+        }
       }
-      drawRobot();updateStats();gridWrap.focus();
+      if(!found) throw new Error("Robot start (9) not found.");
+
+      grid.innerHTML = "";
+      grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+      for(let i=0; i<rows; i++){
+        for(let j=0; j<cols; j++){
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          grid.appendChild(cell);
+          drawCell(i,j);
+        }
+      }
+      drawRobot();
+      updateStats();
+      gridWrap.focus();
     }
 
     function dirToDelta(deg){
-      const d=((deg%360)+360)%360;
-      if(d===0)return{dr:0,dc:1};
-      if(d===90)return{dr:1,dc:0};
-      if(d===180)return{dr:0,dc:-1};
-      if(d===270)return{dr:-1,dc:0};
-      return{dr:0,dc:1};
+      const d = ((deg % 360) + 360) % 360;
+      if(d === 0)   return {dr: 0, dc: 1};   // right
+      if(d === 90)  return {dr: 1, dc: 0};   // down
+      if(d === 180) return {dr: 0, dc: -1};  // left
+      if(d === 270) return {dr: -1, dc: 0};  // up
+      return {dr: 0, dc: 1}; // fallback to right
     }
 
     function canEnter(r,c){
-      return !(r<0||r>=rows||c<0||c>=cols||matrix[r][c]===6);
+      return !(r < 0 || r >= rows || c < 0 || c >= cols || matrix[r][c] === 6);
     }
 
-    function move(n){
-      const s=Math.sign(n),count=Math.abs(n);
-      const {dr,dc}=dirToDelta(robot.dir);
-      for(let i=0;i<count;i++){
-        const nr=robot.r+dr*s,nc=robot.c+dc*s;
-        if(!canEnter(nr,nc))break;
-        drawCell(robot.r,robot.c);
-        robot.r=nr;robot.c=nc;
+    // Movement: positive = forward, negative = backward (relative to facing)
+    function move(steps){
+      const s = Math.sign(steps);
+      const count = Math.abs(steps);
+      if(s === 0) return;
+
+      const {dr, dc} = dirToDelta(robot.dir);
+      const step = { dr: dr * s, dc: dc * s };
+
+      for(let k=0; k<count; k++){
+        const nr = robot.r + step.dr;
+        const nc = robot.c + step.dc;
+        if(!canEnter(nr, nc)) break;
+
+        // redraw old underlying cell
+        drawCell(robot.r, robot.c);
+
+        // move
+        robot.r = nr; robot.c = nc;
+
+        // draw robot at new cell
         drawRobot();
       }
     }
 
-    function turn(d){robot.dir=((robot.dir+d)%360+360)%360;drawRobot();}
+    function turn(deltaDeg){
+      robot.dir = ((robot.dir + deltaDeg) % 360 + 360) % 360;
+      drawRobot();
+    }
 
-    function pickup(k){
-      if(matrix[robot.r][robot.c]===k){
-        matrix[robot.r][robot.c]=0;
-        pickups[k]++;drawCell(robot.r,robot.c);drawRobot();updateStats();
+    function pickupCoin(kind){
+      if(kind < 1 || kind > 5) return;
+      const v = matrix[robot.r][robot.c];
+      if(v === kind){
+        matrix[robot.r][robot.c] = 0;
+        pickups[kind] += 1;
+        drawCell(robot.r, robot.c);
+        drawRobot();
+        updateStats();
       }
     }
 
-    function keyHandler(e){
-      const tag=e.target.tagName;
-      if(tag==="TEXTAREA"||tag==="INPUT")return;
-      const arrows=["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
-      if(arrows.includes(e.key))e.preventDefault();
+    // Keyboard controls
+    function handleKey(e){
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === "TEXTAREA" || (active.tagName === "INPUT" && active.type !== "range"));
+      if(isTyping) return;
+      if(!matrix) return;
+
+      const arrows = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
+      if(arrows.includes(e.key)) e.preventDefault(); // avoid scrolling
+
       switch(e.key){
-        case"ArrowUp":move(1);break;
-        case"ArrowDown":move(-1);break;
-        case"ArrowLeft":turn(-90);break;
-        case"ArrowRight":turn(90);break;
-        case"1":case"2":case"3":case"4":case"5":pickup(Number(e.key));break;
+        case "ArrowUp":   move(1); break;
+        case "ArrowDown": move(-1); break;
+        case "ArrowLeft": turn(-90); break;
+        case "ArrowRight":turn(90); break;
+        case "1": case "2": case "3": case "4": case "5":
+          pickupCoin(Number(e.key));
+          break;
       }
     }
 
-    renderBtn.onclick=()=>{clearError();try{renderGrid(parseMatrix(matrixInput.value));}catch(e){showError(e.message);}};
-    cellSize.oninput=()=>{const px=`${cellSize.value}px`;document.documentElement.style.setProperty("--cell-size",px);cellSizeVal.textContent=px;};
-    window.addEventListener("keydown",keyHandler);
-    gridWrap.onclick=()=>gridWrap.focus();
+    renderBtn.addEventListener("click", () => {
+      clearError();
+      try{
+        const m = parseMatrix(matrixInput.value);
+        renderGrid(m);
+      }catch(err){
+        showError(err.message || String(err));
+      }
+    });
+
+    cellSize.addEventListener("input", () => {
+      const px = `${cellSize.value}px`;
+      document.documentElement.style.setProperty("--cell-size", px);
+      cellSizeVal.textContent = px;
+    });
+
+    window.addEventListener("keydown", handleKey);
+    gridWrap.addEventListener("click", () => gridWrap.focus());
   </script>
 </body>
 </html>
