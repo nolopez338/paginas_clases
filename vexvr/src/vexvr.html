@@ -46,6 +46,14 @@
       align-items:start;
     }
 
+    /* New right column that vertically stacks Preview + Commands */
+    .right-col{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      min-width: 0; /* prevent overflow with flex children */
+    }
+
     .card{
       background:var(--panel);
       border:1px solid rgba(255,255,255,0.08);
@@ -54,7 +62,7 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
 
-    .controls h2, .preview h2 { margin: 6px 0 10px; font-size: 16px; color: var(--muted); }
+    .controls h2, .preview h2, .commands h2 { margin: 6px 0 10px; font-size: 16px; color: var(--muted); }
 
     textarea{
       width:100%;
@@ -88,6 +96,7 @@
       font-weight:600;
       letter-spacing:.2px;
     }
+    button.secondary{ background:#64748b; }
     button:active{ transform: translateY(1px); }
 
     .error{
@@ -172,17 +181,33 @@
 
     .stats{ margin-top:8px; font-size:13px; color:var(--muted); }
     .footer-note{ margin-top:10px; font-size:12px; color:var(--muted); }
+    .mini-help{ margin-top:8px; font-size:12px; color:var(--muted); line-height:1.3; }
 
-    .mini-help{
-      margin-top:8px;
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.3;
-    }
+    /* Removed: .commands forced to grid column 2.
+       The right-col wrapper now occupies column 2 itself. */
 
     @media (max-width: 880px){
       main{ grid-template-columns: 1fr; }
       .grid-wrap{ max-height: 50vh; }
+      /* right-col naturally stacks on small screens */
+    }
+
+    /* Map picker block */
+    .map-picker{
+      margin-top:10px;
+      padding:10px;
+      border-radius:10px;
+      background: #0a1026;
+      border:1px solid rgba(255,255,255,0.10);
+    }
+    .map-picker .row{ margin-top:0; }
+    select{
+      background:#0a1026;
+      color:var(--ink);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px;
+      padding:8px 10px;
+      min-width: 200px;
     }
   </style>
 </head>
@@ -195,24 +220,47 @@
   </header>
 
   <main>
+    <!-- Left column: Controls -->
     <section class="card controls" aria-labelledby="controls-title">
       <h2 id="controls-title">Input</h2>
-
-      <label for="matrixInput" style="display:block; margin-bottom:6px;">
-        Matrix (rows by newline; space-separated numbers — commas also work)
-      </label>
       <textarea id="matrixInput" spellcheck="false" placeholder="Example:
 1 0 9
 2 3 3
 1 1 0"></textarea>
 
       <div class="row">
-        <button id="renderBtn" aria-label="Render grid from matrix">Render Grid</button>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="renderBtn" aria-label="Render grid from matrix">Render Grid</button>
+          <button id="restartBtn" class="secondary" aria-label="Restart app state">Restart</button>
+        </div>
         <label style="display:flex; align-items:center; gap:8px;">
           Cell
           <input id="cellSize" type="range" min="18" max="54" value="34" />
           <span id="cellSizeVal" aria-live="polite">34px</span>
         </label>
+      </div>
+
+      <div class="row" style="align-items:end;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input id="mapFile" type="file" accept=".txt,.csv" />
+        </div>
+        <div class="stats" id="stats">Pickups: 1:0  2:0  3:0  4:0  5:0</div>
+      </div>
+
+      <div class="row" style="align-items:flex-start;">
+        <button id="openMapPickerBtn">Load map</button>
+      </div>
+      <div id="mapPicker" class="map-picker" style="display:none;">
+        <div class="row">
+          <select id="mapSelect" aria-label="Available maps">
+            <option value="" disabled selected>— Select a file —</option>
+          </select>
+          <div style="display:flex; gap:8px;">
+            <button id="refreshMapsBtn" class="secondary" type="button">Refresh</button>
+            <button id="loadSelectedBtn" type="button">Load</button>
+          </div>
+        </div>
+        <div id="mapPickerError" class="error" role="alert"></div>
       </div>
 
       <div id="errorBox" class="error" role="alert"></div>
@@ -228,85 +276,112 @@
         <div class="item"><span class="swatch" style="background:var(--floor); outline:2px solid var(--robot)"></span> 9 Robot</div>
       </div>
 
-      <div class="stats" id="stats">Pickups: 1:0  2:0  3:0  4:0  5:0</div>
-      <div class="footer-note">Keyboard: Arrow keys to move/turn, 1–5 to pick up matching coin.</div>
+      <div class="footer-note">Keyboard: Arrow keys to move/turn, 1–5 to pick matching coin.</div>
+    </section>
 
-      <h2 style="margin-top:14px;">Command Interface</h2>
-      <label for="cmdInput" style="display:block; margin-bottom:6px;">One command per line</label>
-      <textarea id="cmdInput" spellcheck="false" placeholder="Examples:
+    <!-- Right column: Preview + Commands stacked in a single vertical flex box -->
+    <div class="right-col">
+      <section class="card preview" aria-labelledby="preview-title">
+        <h2 id="preview-title">Preview</h2>
+        <div class="grid-wrap" id="gridWrap" tabindex="0" aria-label="Grid keyboard focus area">
+          <div id="grid" class="grid" role="grid" aria-label="Matrix grid"></div>
+        </div>
+      </section>
+
+      <section class="card commands" aria-labelledby="commands-title">
+        <h2 id="commands-title">Command Interface</h2>
+        <label for="cmdInput" style="display:block; margin-bottom:6px;">One command per line</label>
+        <textarea id="cmdInput" spellcheck="false" placeholder="Examples:
 robot.move()
 robot.turnLeft()
 robot.turnRight(2)
 robot.moveBackwards(3)
 robot.pick(4)"></textarea>
 
-      <div class="row">
-        <button id="runBtn">Run Commands</button>
-        <button id="clearCmdBtn" type="button" style="background:#64748b;">Clear</button>
-      </div>
-      <div id="cmdError" class="error" role="alert"></div>
-      <div class="mini-help">
-        Defaults: move/turn/moveBackwards = 1, pick = 0 (does nothing).<br>
-        Parsing accepts spaces and optional semicolons, e.g., robot.move(3); robot.turnLeft();
-      </div>
-    </section>
+        <div class="row">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="runBtn">Run Commands</button>
+            <button id="stepBtn" class="secondary" type="button">Step</button>
+            <button id="clearCmdBtn" class="secondary" type="button">Clear</button>
+          </div>
+        </div>
 
-    <section class="card preview" aria-labelledby="preview-title">
-      <h2 id="preview-title">Preview</h2>
-      <div class="grid-wrap" id="gridWrap" tabindex="0" aria-label="Grid keyboard focus area">
-        <div id="grid" class="grid" role="grid" aria-label="Matrix grid"></div>
-      </div>
-    </section>
+        <div id="cmdError" class="error" role="alert"></div>
+        <div class="mini-help">
+          Supported: robot.move(n), robot.turnLeft(n), robot.turnRight(n), robot.moveBackwards(n), robot.pick(n)<br>
+          Defaults: move/turn/backwards = 1; pick = 0 (no-op). Optional semicolons allowed.
+        </div>
+      </section>
+    </div>
   </main>
 
   <script>
     "use strict";
 
+    // --- Elements ---
     const matrixInput = document.getElementById("matrixInput");
-    const renderBtn = document.getElementById("renderBtn");
-    const grid = document.getElementById("grid");
-    const gridWrap = document.getElementById("gridWrap");
-    const errorBox = document.getElementById("errorBox");
-    const cellSize = document.getElementById("cellSize");
+    const renderBtn   = document.getElementById("renderBtn");
+    const restartBtn  = document.getElementById("restartBtn");
+    const mapFile     = document.getElementById("mapFile");
+    const grid        = document.getElementById("grid");
+    const gridWrap    = document.getElementById("gridWrap");
+    const errorBox    = document.getElementById("errorBox");
+    const cellSize    = document.getElementById("cellSize");
     const cellSizeVal = document.getElementById("cellSizeVal");
-    const statsEl = document.getElementById("stats");
+    const statsEl     = document.getElementById("stats");
 
-    const cmdInput = document.getElementById("cmdInput");
-    const runBtn = document.getElementById("runBtn");
+    const openMapPickerBtn = document.getElementById("openMapPickerBtn");
+    const mapPicker        = document.getElementById("mapPicker");
+    const mapSelect        = document.getElementById("mapSelect");
+    const refreshMapsBtn   = document.getElementById("refreshMapsBtn");
+    const loadSelectedBtn  = document.getElementById("loadSelectedBtn");
+    const mapPickerError   = document.getElementById("mapPickerError");
+
+    const cmdInput    = document.getElementById("cmdInput");
+    const runBtn      = document.getElementById("runBtn");
+    const stepBtn     = document.getElementById("stepBtn");
     const clearCmdBtn = document.getElementById("clearCmdBtn");
-    const cmdError = document.getElementById("cmdError");
+    const cmdError    = document.getElementById("cmdError");
 
+    // --- State ---
     const coinClass = { 1:"c1", 2:"c2", 3:"c3", 4:"c4", 5:"c5" };
+    const allowedSet = new Set([0,1,2,3,4,5,6,9]);
 
-    // robot + matrix state
     let matrix = null;
     let rows = 0, cols = 0;
     const robot = { r: -1, c: -1, dir: 0 }; // 0=right, 90=down, 180=left, 270=up
     const pickups = { 1:0, 2:0, 3:0, 4:0, 5:0 };
 
-    function showError(el, msg){
-      el.textContent = msg;
-      el.style.display = "block";
-    }
-    function clearError(el){
-      el.textContent = "";
-      el.style.display = "none";
-    }
+    // Command queue for Run/Step
+    let queuedCommands = [];
+    let queueIndex = 0;
+
+    // Preserve initial UI for Restart
+    const initialMatrixText = matrixInput.value;
+    const initialCmdText = cmdInput.value;
+    const initialCellSize = cellSize.value;
+
+    // --- Utilities ---
+    function showError(el, msg){ el.textContent = msg; el.style.display = "block"; }
+    function clearError(el){ el.textContent = ""; el.style.display = "none"; }
     function updateStats(){
       statsEl.textContent = `Pickups: 1:${pickups[1]}  2:${pickups[2]}  3:${pickups[3]}  4:${pickups[4]}  5:${pickups[5]}`;
     }
+    function idx(r,c){ return r*cols + c; }
 
-    // Parsing (spaces/commas/tabs)
+    // Parsing manual text (spaces/commas/tabs)
     function parseMatrix(text){
       const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       if(lines.length === 0) throw new Error("No rows found.");
 
-      const rows = lines.map((line, idx) => {
+      const rows = lines.map((line, i) => {
         const parts = line.split(/[,\s]+/).filter(Boolean);
-        if(parts.length === 0) throw new Error(`Row ${idx+1} is empty.`);
+        if(parts.length === 0) throw new Error(`Row ${i+1} is empty.`);
         const nums = parts.map((p, j) => {
-          if(!/^-?\d+$/.test(p)) throw new Error(`Invalid token "${p}" at row ${idx+1}, col ${j+1}.`);
-          return Number(p);
+          if(!/^-?\d+$/.test(p)) throw new Error(`Invalid token "${p}" at row ${i+1}, col ${j+1}.`);
+          const n = Number(p);
+          if(!allowedSet.has(n)) throw new Error(`Disallowed value ${n} at row ${i+1}, col ${j+1}. Allowed: 0,1,2,3,4,5,6,9`);
+          return n;
         });
         return nums;
       });
@@ -317,37 +392,78 @@ robot.pick(4)"></textarea>
           throw new Error(`Matrix is not rectangular. Row 1 has length ${width}, row ${r+1} has ${rows[r].length}.`);
         }
       }
+      return rows;
+    }
 
-      const allowed = new Set([0,1,2,3,4,5,6,9]);
-      for(let i=0; i<rows.length; i++){
-        for(let j=0; j<rows[i].length; j++){
-          const v = rows[i][j];
-          if(!allowed.has(v)){
-            throw new Error(`Disallowed value ${v} at row ${i+1}, col ${j+1}. Allowed: 0,1,2,3,4,5,6,9`);
-          }
+    // Parsing uploaded file: detect delimiter by presence of ';' anywhere
+    function parseUploadedMatrix(raw){
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(s => s.length>0);
+      if(lines.length === 0) throw new Error("The uploaded file has no rows.");
+
+      const useSemicolon = raw.includes(";");
+      const rows = lines.map((line, i) => {
+        const parts = useSemicolon
+          ? line.split(/\s*;\s*/).filter(Boolean)
+          : line.split(/\s+/).filter(Boolean);
+        if(parts.length === 0) throw new Error(`Row ${i+1} is empty.`);
+        const nums = parts.map((p, j) => {
+          if(!/^-?\d+$/.test(p)) throw new Error(`Invalid token "${p}" at row ${i+1}, col ${j+1}. Only integers allowed.`);
+          const n = Number(p);
+          if(!allowedSet.has(n)) throw new Error(`Disallowed value ${n} at row ${i+1}, col ${j+1}. Allowed: 0,1,2,3,4,5,6,9`);
+          return n;
+        });
+        return nums;
+      });
+
+      const width = rows[0].length;
+      for(let r=1; r<rows.length; r++){
+        if(rows[r].length !== width){
+          throw new Error(`Matrix is not rectangular. Row 1 has length ${width}, row ${r+1} has ${rows[r].length}.`);
         }
       }
       return rows;
     }
 
-    function idx(r,c){ return r*cols + c; }
+    // Parsing remote map by extension rule: .csv => ';' ; else spaces
+    function parseRemoteMatrix(raw, ext){
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(s => s.length>0);
+      if(lines.length === 0) throw new Error("The selected map is empty.");
+      const useSemicolon = (ext === 'csv');
 
+      const rows = lines.map((line, i) => {
+        const parts = useSemicolon
+          ? line.split(/\s*;\s*/).filter(Boolean)
+          : line.split(/\s+/).filter(Boolean);
+        if(parts.length === 0) throw new Error(`Row ${i+1} is empty.`);
+        const nums = parts.map((p, j) => {
+          if(!/^-?\d+$/.test(p)) throw new Error(`Invalid token "${p}" at row ${i+1}, col ${j+1}. Only integers allowed.`);
+          const n = Number(p);
+          if(!allowedSet.has(n)) throw new Error(`Disallowed value ${n} at row ${i+1}, col ${j+1}. Allowed: 0,1,2,3,4,5,6,9`);
+          return n;
+        });
+        return nums;
+      });
+
+      const width = rows[0].length;
+      for(let r=1; r<rows.length; r++){
+        if(rows[r].length !== width){
+          throw new Error(`Matrix is not rectangular. Row 1 has length ${width}, row ${r+1} has ${rows[r].length}.`);
+        }
+      }
+      return rows;
+    }
+
+    // --- Rendering ---
     function drawCell(r,c){
       const cell = grid.children[idx(r,c)];
       cell.className = "cell";
       cell.textContent = "";
-
       const v = matrix[r][c];
-      if(v === 6){
-        cell.classList.add("wall");
-      } else if(v >= 1 && v <= 5){
-        cell.classList.add("coin", coinClass[v]);
-      } else {
-        cell.classList.add("floor");
-      }
+      if(v === 6)      cell.classList.add("wall");
+      else if(v>=1&&v<=5) cell.classList.add("coin", coinClass[v]);
+      else             cell.classList.add("floor");
     }
 
-    // Arrow icon for robot direction
     function arrowForDir(deg){
       const d = ((deg % 360) + 360) % 360;
       if (d === 0)   return "▶"; // right
@@ -368,12 +484,12 @@ robot.pick(4)"></textarea>
       rows = matrix.length;
       cols = matrix[0].length;
 
-      // find robot start (9), then make the underlying cell a floor (0)
+      // find robot start (9)
       let found = false;
       for(let r=0; r<rows; r++){
         for(let c=0; c<cols; c++){
           if(matrix[r][c] === 9 && !found){
-            robot.r = r; robot.c = c; robot.dir = 0; // facing right
+            robot.r = r; robot.c = c; robot.dir = 0;
             matrix[r][c] = 0;
             found = true;
           }
@@ -393,54 +509,43 @@ robot.pick(4)"></textarea>
       }
       drawRobot();
       updateStats();
+      gridWrap.scrollTop = 0;
+      gridWrap.scrollLeft = 0;
       gridWrap.focus();
     }
 
+    // --- Movement / Interaction ---
     function dirToDelta(deg){
       const d = ((deg % 360) + 360) % 360;
-      if(d === 0)   return {dr: 0, dc: 1};   // right
-      if(d === 90)  return {dr: 1, dc: 0};   // down
-      if(d === 180) return {dr: 0, dc: -1};  // left
-      if(d === 270) return {dr: -1, dc: 0};  // up
-      return {dr: 0, dc: 1}; // fallback to right
+      if(d === 0)   return {dr: 0, dc: 1};
+      if(d === 90)  return {dr: 1, dc: 0};
+      if(d === 180) return {dr: 0, dc: -1};
+      if(d === 270) return {dr: -1, dc: 0};
+      return {dr: 0, dc: 1};
     }
-
     function canEnter(r,c){
       return !(r < 0 || r >= rows || c < 0 || c >= cols || matrix[r][c] === 6);
     }
-
-    // Movement: positive = forward, negative = backward (relative to facing)
     function move(steps){
       const s = Math.sign(steps);
       const count = Math.abs(steps);
       if(s === 0) return;
-
       const {dr, dc} = dirToDelta(robot.dir);
       const step = { dr: dr * s, dc: dc * s };
-
       for(let k=0; k<count; k++){
-        const nr = robot.r + step.dr;
-        const nc = robot.c + step.dc;
+        const nr = robot.r + step.dr, nc = robot.c + step.dc;
         if(!canEnter(nr, nc)) break;
-
-        // redraw old underlying cell
         drawCell(robot.r, robot.c);
-
-        // move
         robot.r = nr; robot.c = nc;
-
-        // draw robot at new cell
         drawRobot();
       }
     }
-
     function turn(deltaDeg){
       robot.dir = ((robot.dir + deltaDeg) % 360 + 360) % 360;
       drawRobot();
     }
-
     function pickupCoin(kind){
-      if(kind < 1 || kind > 5) return; // n=0 or invalid → do nothing
+      if(kind < 1 || kind > 5) return;
       const v = matrix[robot.r][robot.c];
       if(v === kind){
         matrix[robot.r][robot.c] = 0;
@@ -451,79 +556,210 @@ robot.pick(4)"></textarea>
       }
     }
 
-    // Keyboard controls
+    // --- Keyboard controls ---
     function handleKey(e){
       const active = document.activeElement;
       const isTyping = active && (active.tagName === "TEXTAREA" || (active.tagName === "INPUT" && active.type !== "range"));
       if(isTyping) return;
       if(!matrix) return;
-
       const arrows = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
-      if(arrows.includes(e.key)) e.preventDefault(); // avoid scrolling
-
+      if(arrows.includes(e.key)) e.preventDefault();
       switch(e.key){
         case "ArrowUp":   move(1); break;
         case "ArrowDown": move(-1); break;
         case "ArrowLeft": turn(-90); break;
         case "ArrowRight":turn(90); break;
         case "1": case "2": case "3": case "4": case "5":
-          pickupCoin(Number(e.key));
-          break;
+          pickupCoin(Number(e.key)); break;
       }
     }
 
-    // ---------- Command Interface ----------
-    // Supported:
-    // robot.move(n)
-    // robot.turnLeft(n)
-    // robot.turnRight(n)
-    // robot.moveBackwards(n)
-    // robot.pick(n)
-    //
-    // Defaults: n = 1 (except pick → 0)
+    // --- Command Interface ---
     const CMD_RE = /^robot\.(move|turnLeft|turnRight|moveBackwards|pick)\s*\(\s*([+-]?\d+)?\s*\)\s*;?\s*$/i;
-
     function parseCommands(text){
       const lines = text.split(/\r?\n/);
       const commands = [];
       for(let i=0; i<lines.length; i++){
         const raw = lines[i];
         const line = raw.trim();
-        if(!line) continue; // skip blank
+        if(!line) continue;
         const m = line.match(CMD_RE);
-        if(!m){
-          throw new Error(`Line ${i+1}: invalid command "${raw}"`);
-        }
+        if(!m) throw new Error(`Line ${i+1}: invalid command "${raw}"`);
         const name = m[1];
         const nStr = m[2];
         let n;
-        if(name.toLowerCase() === "pick"){
-          n = (nStr === undefined) ? 0 : Number(nStr);
-        }else{
-          n = (nStr === undefined) ? 1 : Number(nStr);
-        }
-        if(!Number.isInteger(n)){
-          throw new Error(`Line ${i+1}: n must be an integer`);
-        }
+        if(name.toLowerCase() === "pick") n = (nStr === undefined) ? 0 : Number(nStr);
+        else n = (nStr === undefined) ? 1 : Number(nStr);
+        if(!Number.isInteger(n)) throw new Error(`Line ${i+1}: n must be an integer`);
         commands.push({name, n});
       }
       return commands;
     }
-
-    function runCommands(commands){
-      // Execute sequentially (synchronously)
-      for(const {name, n} of commands){
-        switch(name){
-          case "move": move(n); break;
-          case "turnLeft": turn(-90 * n); break;
-          case "turnRight": turn(90 * n); break;
-          case "moveBackwards": move(-Math.abs(n)); break; // ensure backward
-          case "pick": pickupCoin(n); break; // n=0 → no-op
-        }
+    function execCommand({name, n}){
+      switch(name){
+        case "move": move(n); break;
+        case "turnLeft": turn(-90 * n); break;
+        case "turnRight": turn(90 * n); break;
+        case "moveBackwards": move(-Math.abs(n)); break;
+        case "pick": pickupCoin(n); break;
+      }
+    }
+    function runCommands(cmds){ for(const c of cmds) execCommand(c); }
+    function stepNext(){
+      if(queueIndex < queuedCommands.length){
+        execCommand(queuedCommands[queueIndex]);
+        queueIndex++;
       }
     }
 
-    // Wire up UI
+    // --- Restart (single function, no reload) ---
+    function resetApp(){
+      // Clear any errors, keep current inputs and cell size as-is
+      clearError(errorBox);
+      clearError(cmdError);
+      if (typeof mapPickerError !== "undefined") clearError(mapPickerError);
+
+      // Reset state that should start fresh for this map
+      pickups[1] = pickups[2] = pickups[3] = pickups[4] = pickups[5] = 0;
+      updateStats();
+
+      queuedCommands = [];
+      queueIndex = 0;
+
+      // Re-render using the CURRENT matrix text (or most recently loaded map)
+      try{
+        const m = parseMatrix(matrixInput.value);
+        renderGrid(m);             // resets robot to the start found in the current map (9)
+      }catch(err){
+        grid.innerHTML = "";
+        showError(errorBox, `Current matrix is invalid: ${err.message}`);
+      }
+    }
+
+    // --- Map file upload (manual) ---
+    mapFile.addEventListener("change", (e) => {
+      clearError(errorBox);
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const text = String(reader.result || "");
+          const m = parseUploadedMatrix(text);
+          matrixInput.value = m.map(row => row.join(" ")).join("\n");
+          renderGrid(m);
+        }catch(err){
+          showError(errorBox, err.message || "Could not parse the uploaded map.");
+        }finally{
+          mapFile.value = "";
+        }
+      };
+      reader.onerror = () => { showError(errorBox, "Failed to read the file."); mapFile.value = ""; };
+      reader.readAsText(file);
+    });
+
+    // --- Load Map from src/maps ---
+    async function fetchMapList(){
+      clearError(mapPickerError);
+
+      // Attempt 1: directory index listing
+      try{
+        const res = await fetch("src/maps/", {
+          cache: "no-store",
+          headers: { "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8" }
+        });
+        if(res.ok){
+          const contentType = (res.headers.get("content-type") || "").toLowerCase();
+          if(contentType.includes("text/html") || contentType.includes("application/xhtml+xml")){
+            const html = await res.text();
+            const names = parseDirectoryIndex(html); // returns base names
+            const files = uniq(names.filter(n => /\.txt$/i.test(n) || /\.csv$/i.test(n)));
+            if(files.length) return files;
+          }
+        }
+      }catch(_){ /* ignore and try manifest */ }
+
+      // Attempt 2: JSON manifest listing
+      const candidates = ["src/maps/index.json", "src/maps/manifest.json"];
+      for(const url of candidates){
+        try{
+          const res = await fetch(url, { cache: "no-store" });
+          if(!res.ok) continue;
+          const data = await res.json();
+          if(!Array.isArray(data)) continue;
+          const files = uniq(
+            data
+              .filter(x => typeof x === "string")
+              .map(x => x.replace(/^.*[\\/]/, "")) // base filename only
+              .filter(x => /\.txt$/i.test(x) || /\.csv$/i.test(x))
+          );
+          if(files.length) return files;
+        }catch(_){ /* try the next candidate */ }
+      }
+
+      return null;
+    }
+
+    function uniq(arr){ return Array.from(new Set(arr)); }
+
+    function parseDirectoryIndex(html){
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const anchors = Array.from(doc.querySelectorAll("a[href]"));
+      const names = [];
+
+      for(const a of anchors){
+        let href = a.getAttribute("href") || "";
+        if(href === "../" || href.endsWith("/")) continue;
+        href = href.split("#")[0].split("?")[0];
+        const base = decodeURIComponent(href.replace(/^.*[\\/]/, ""));
+        if(base) names.push(base);
+      }
+      return names;
+    }
+
+    function populateMapSelect(files){
+      mapSelect.innerHTML = `<option value="" disabled selected>— Select a file —</option>`;
+      for(const f of files){
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        mapSelect.appendChild(opt);
+      }
+    }
+
+    async function refreshMapPicker(){
+      clearError(mapPickerError);
+      const files = await fetchMapList();
+      if(!files || files.length === 0){
+        showError(mapPickerError, "Could not list maps. Add src/maps/index.json with an array of filenames (e.g., [\"level1.txt\",\"maze.csv\"]).");
+        mapSelect.innerHTML = `<option value="" disabled selected>— No files found —</option>`;
+        return;
+      }
+      populateMapSelect(files);
+    }
+
+    async function loadSelectedMap(){
+      clearError(mapPickerError);
+      const name = mapSelect.value;
+      if(!name){
+        showError(mapPickerError, "Pick a file first.");
+        return;
+      }
+      const url = `src/maps/${name}`;
+      try{
+        const res = await fetch(url, { cache: "no-store" });
+        if(!res.ok) throw new Error(`Failed to fetch ${name} (HTTP ${res.status}).`);
+        const text = await res.text();
+        const ext = name.toLowerCase().endsWith(".csv") ? "csv" : "txt";
+        const m = parseRemoteMatrix(text, ext);
+        matrixInput.value = m.map(row => row.join(" ")).join("\n");
+        renderGrid(m);
+      }catch(err){
+        showError(mapPickerError, err.message || "Could not load the selected map.");
+      }
+    }
+
+    // --- Wire up UI ---
     renderBtn.addEventListener("click", () => {
       clearError(errorBox);
       try{
@@ -533,6 +769,8 @@ robot.pick(4)"></textarea>
         showError(errorBox, err.message || String(err));
       }
     });
+
+    restartBtn.addEventListener("click", resetApp);
 
     cellSize.addEventListener("input", () => {
       const px = `${cellSize.value}px`;
@@ -550,18 +788,62 @@ robot.pick(4)"></textarea>
         return;
       }
       try{
-        const cmds = parseCommands(cmdInput.value);
-        runCommands(cmds);
+        queuedCommands = parseCommands(cmdInput.value);
+        queueIndex = 0;
+        runCommands(queuedCommands);
         gridWrap.focus();
       }catch(err){
         showError(cmdError, err.message || String(err));
       }
     });
 
+    stepBtn.addEventListener("click", () => {
+      clearError(cmdError);
+      if(!matrix){
+        showError(cmdError, "Render a matrix first.");
+        return;
+      }
+      if(queuedCommands.length === 0){
+        try{
+          queuedCommands = parseCommands(cmdInput.value);
+          queueIndex = 0;
+        }catch(err){
+          showError(cmdError, err.message || String(err));
+          return;
+        }
+      }
+      if(queueIndex >= queuedCommands.length){
+        showError(cmdError, "No more commands to step.");
+        return;
+      }
+      stepNext();
+      gridWrap.focus();
+    });
+
     clearCmdBtn.addEventListener("click", () => {
       cmdInput.value = "";
       clearError(cmdError);
+      queuedCommands = [];
+      queueIndex = 0;
     });
+
+    openMapPickerBtn.addEventListener("click", async () => {
+      mapPicker.style.display = mapPicker.style.display === "none" ? "block" : "none";
+      if(mapPicker.style.display === "block"){
+        await refreshMapPicker();
+      }
+    });
+
+    refreshMapsBtn.addEventListener("click", async () => {
+      await refreshMapPicker();
+    });
+
+    loadSelectedBtn.addEventListener("click", async () => {
+      await loadSelectedMap();
+    });
+
+    // Initial paint = reset to initial state
+    resetApp();
   </script>
 </body>
 </html>
