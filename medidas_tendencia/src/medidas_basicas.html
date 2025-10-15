@@ -81,7 +81,7 @@
 <body>
 <header>
   <h1>Interactive Statistics Tutor</h1>
-  <p>Enter positive integers or generate them from Normal/Uniform distributions. Lines show mean (green), median (blue, dashed), and mode (red).</p>
+  <p>Enter positive integers or generate them from Normal/Uniform distributions. Lines show mean (green), median (blue), and mode (red).</p>
 </header>
 
 <main>
@@ -518,28 +518,40 @@ function drawHist(){
     hist.appendChild(tt);
   });
 
-  // vertical stat lines spanning full chart height (a little extra)
+  /* === solid stat lines with different heights (extend above tallest bar) === */
   const lw = Number(lineWidth.value);
-  function vline(x, color, label, dashed=false){
+  const extras = {
+    mean:   { above: 1400, below: 1400 }, // longest
+    median: { above: 28, below: 1000 }, // medium
+    mode:   { above: 18, below: 100 }  // shorter (still > bars)
+  };
+
+  function drawStatLine(kind, x, label, color){
+    const ex = extras[kind] || { above: 20, below: 10 };
+    const yTopPlot = mT;
+    const yBotPlot = mT + innerH;
+    const y1 = Math.max(0, yTopPlot - ex.above);   // extend ABOVE
+    const y2 = Math.min(H, yBotPlot + ex.below);   // extend BELOW
     const l=document.createElementNS("http://www.w3.org/2000/svg","line");
     l.setAttribute("x1",x); l.setAttribute("x2",x);
-    l.setAttribute("y1", Math.max(0, mT - 8));              // extend above bars
-    l.setAttribute("y2", Math.min(H, mT + innerH + 8));     // extend below bars
-    l.style.stroke = color;
+    l.setAttribute("y1", y1); l.setAttribute("y2", y2);
+    l.style.stroke = color;                         // CSS vars OK here
     l.setAttribute("stroke-width", String(lw));
-    if(dashed) l.setAttribute("stroke-dasharray", "6 4");
+    l.setAttribute("stroke-linecap","round");
     l.addEventListener("mouseenter",()=>{histMsg.textContent=label;});
     l.addEventListener("mouseleave",()=>{histMsg.textContent="";});
     hist.appendChild(l);
   }
 
-  const mu = mean(data);
+  const mu  = mean(data);
   const med = median(data);
-  const ms = modes(data);
+  const ms  = modes(data);
 
-  if(showMean.checked && mu!=null) vline(xPos(mu), "var(--mean)", `Mean ≈ ${fmt(mu)}`, false);
-  if(showMedian.checked && med!=null) vline(xPos(med), "var(--median)", `Median ≈ ${fmt(med)}`, true);
-  if(showMode.checked && ms.length) ms.forEach(m=> vline(xPos(m.value), "var(--mode)", `Mode ${m.value} (count ${m.count})`, false));
+  if (showMean.checked   && mu  != null) drawStatLine("mean",   xPos(mu),         `Mean ≈ ${fmt(mu)}`,    "var(--mean)");
+  if (showMedian.checked && med != null) drawStatLine("median", xPos(med),        `Median ≈ ${fmt(med)}`, "var(--median)");
+  if (showMode.checked   && ms.length)   ms.forEach(m =>
+    drawStatLine("mode",  xPos(m.value), `Mode ${m.value} (count ${m.count})`,    "var(--mode)")
+  );
 }
 
 /* ========= Actions ========= */
