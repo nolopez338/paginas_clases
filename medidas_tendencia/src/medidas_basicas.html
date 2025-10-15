@@ -16,6 +16,7 @@
       --median:#3ab0ff; /* blue */
       --mode:#ff5a5a;   /* red  */
       --mean:#22c55e;   /* green */
+      --grid:#1a2a4e;
     }
     *{box-sizing:border-box}
     body{
@@ -44,10 +45,14 @@
     .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
     .stat{background:#0b1633;border:1px solid #22345a;border-radius:12px;padding:10px}
     .stat .k{font-size:12px;color:var(--muted)}.stat .v{font-size:18px;font-weight:800}
-    .hist-wrap{width:100%;height:420px}
+
+    .hist-wrap{width:100%;height:420px; position:relative}
     .axis-label{font-size:12px;fill:var(--axis)}
     .bar{fill:var(--bar)}.bar:hover{fill:#b7d1ff}
-    .tick text{font-size:11px;fill:var(--axis)}.grid line{stroke:#1a2a4e;stroke-width:1}
+    .tick text{font-size:11px;fill:var(--axis)}
+    .tick line{stroke:var(--axis);stroke-width:1}
+    .grid line{stroke:var(--grid);stroke-width:1}
+
     .legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
     .legend .item{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
     .legend .swatch{width:14px;height:14px;border-radius:3px}
@@ -57,6 +62,20 @@
     .pill{padding:4px 8px;border-radius:999px;background:#0b1633;border:1px solid #243865;font-size:12px}
     .toggles{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     .toggles label{display:inline-flex;gap:6px;align-items:center;color:var(--ink);font-size:13px}
+
+    .tooltip{
+      position:absolute;
+      pointer-events:none;
+      background:#0b1633;
+      border:1px solid #2a3b66;
+      color:var(--ink);
+      padding:6px 8px;
+      border-radius:8px;
+      font-size:12px;
+      box-shadow:0 6px 14px rgba(0,0,0,.35);
+      white-space:nowrap;
+      display:none;
+    }
   </style>
 </head>
 <body>
@@ -89,7 +108,6 @@
         </div>
       </div>
 
-      <!-- Count slider + number (bi-directional) -->
       <div class="row">
         <label style="flex:1">
           How many values:
@@ -98,7 +116,6 @@
         <input id="countNum" type="number" min="5" max="1000" step="5" value="100" style="width:90px">
       </div>
 
-      <!-- Normal params (bi-directional) -->
       <div id="params-normal" class="stack">
         <div class="row">
           <div style="flex:1">
@@ -116,7 +133,6 @@
         </div>
       </div>
 
-      <!-- Uniform params (bi-directional) -->
       <div id="params-uniform" class="stack" style="display:none">
         <div class="row">
           <div style="flex:1">
@@ -151,10 +167,18 @@
     <h2>Histogram</h2>
     <div class="hist-wrap">
       <svg id="hist" width="100%" height="100%" viewBox="0 0 800 420"></svg>
+      <div id="tooltip" class="tooltip"></div>
     </div>
     <div id="histMsg" class="small"></div>
 
-    <!-- Toggles + common thickness slider -->
+    <!-- Bin-size slider -->
+    <div class="row" style="margin-top:8px">
+      <label style="flex:1">Bin size (number of bins):
+        <input id="binSlider" type="range" min="1" max="60" step="1" value="20">
+      </label>
+      <span id="binInfo" class="pill">20 bins • width —</span>
+    </div>
+
     <div class="stack" style="margin-top:10px">
       <div class="toggles">
         <label><input type="checkbox" id="showMean" checked> <span style="color:var(--mean)">Mean</span></label>
@@ -163,7 +187,7 @@
       </div>
       <div class="row">
         <label style="flex:1">Line thickness:
-          <input id="lineWidth" type="range" min="1" max="8" step="1" value="2">
+          <input id="lineWidth" type="range" min="1" max="20" step="1" value="2">
         </label>
         <span id="lineWidthVal" class="pill">2 px</span>
       </div>
@@ -199,6 +223,7 @@ function randNormalBoxMuller(){let u=0,v=0;while(!u)u=rand();while(!v)v=rand();r
 function sampleUniformInt(n,min,max){const r=[],lo=Math.min(min,max),hi=Math.max(min,max);for(let i=0;i<n;i++)r.push(Math.floor(lo+rand()*(hi-lo+1)));return r}
 function sampleNormalInt(n,mu,sigma){const r=[],s=Math.max(1,Number(sigma));for(let i=0;i<n;i++){const z=randNormalBoxMuller();const v=clampIntPos(mu+s*z);if(v)r.push(v);else i--; }return r}
 function fmt(x){return x==null?"—":(Math.round(x*100)/100).toString()}
+function fmtN(x,d=0){const k=Math.pow(10,d);return Math.round(x*k)/k}
 
 /* ========= Elements ========= */
 const meanEl=document.getElementById("mean"),
@@ -207,7 +232,9 @@ const meanEl=document.getElementById("mean"),
 
 const manual=document.getElementById("manual"),
       hist=document.getElementById("hist"),
-      histMsg=document.getElementById("histMsg");
+      histMsg=document.getElementById("histMsg"),
+      tooltip=document.getElementById("tooltip"),
+      histWrap=document.querySelector(".hist-wrap");
 
 const dist=document.getElementById("dist"),
       paramsNormal=document.getElementById("params-normal"),
@@ -232,19 +259,19 @@ const showMean=document.getElementById("showMean"),
       lineWidth=document.getElementById("lineWidth"),
       lineWidthVal=document.getElementById("lineWidthVal");
 
-let data=[];
+const binSlider=document.getElementById("binSlider"),
+      binInfo=document.getElementById("binInfo");
 
-/* ========= Bi-directional binding (generic) =========
-   Binds a range and number so that changing either updates the other immediately.
-   Optional onChange runs after every sync.
-*/
+let data=[];
+let userBins = Number(binSlider.value);
+
+/* ========= Bi-directional binding ========= */
 function bindRangeNumber(rangeEl, numberEl, onChange){
   function clampToRange(v){
     const min = rangeEl.min !== "" ? Number(rangeEl.min) : -Infinity;
     const max = rangeEl.max !== "" ? Number(rangeEl.max) :  Infinity;
     const step = rangeEl.step !== "" ? Number(rangeEl.step) : 1;
     if(!Number.isFinite(v)) v = Number(rangeEl.value);
-    // snap to step
     v = Math.round(v/step)*step;
     return Math.max(min, Math.min(max, v));
   }
@@ -262,18 +289,14 @@ function bindRangeNumber(rangeEl, numberEl, onChange){
   };
   rangeEl.addEventListener("input", syncFromRange);
   numberEl.addEventListener("input", syncFromNumber);
-  // initial alignment
   syncFromRange();
 }
-
-/* Bind all pairs */
-bindRangeNumber(count, countNum, ()=>{/* no immediate redraw; generation uses this later */});
-bindRangeNumber(muRange, muNum, ()=>{/* parameter preview only */});
-bindRangeNumber(sigmaRange, sigmaNum, ()=>{/* parameter preview only */});
+bindRangeNumber(count, countNum, ()=>{});
+bindRangeNumber(muRange, muNum, ()=>{});
+bindRangeNumber(sigmaRange, sigmaNum, ()=>{});
 bindRangeNumber(uminRange, uminNum, ()=>{ ensureUniformOrder(); });
 bindRangeNumber(umaxRange, umaxNum, ()=>{ ensureUniformOrder(); });
 
-/* Keep uniform min <= max */
 function ensureUniformOrder(){
   let lo = Number(uminNum.value);
   let hi = Number(umaxNum.value);
@@ -296,8 +319,14 @@ lineWidth.addEventListener("input", ()=>{
   drawHist();
 });
 
-/* Toggle lines */
+/* Toggles */
 [showMean,showMedian,showMode].forEach(cb=>cb.addEventListener("change", drawHist));
+
+/* Bin slider live update */
+binSlider.addEventListener("input", ()=>{
+  userBins = Number(binSlider.value);
+  drawHist();
+});
 
 /* ========= Stats + Histogram ========= */
 function renderStats(d){
@@ -307,27 +336,72 @@ function renderStats(d){
   modeEl.textContent = ms.length ? ms.map(m=>m.value).join(", ") : "—";
 }
 
+/* nice ticks */
+function niceStep(span, maxTicks){
+  const raw = span / Math.max(1,maxTicks);
+  const pow10 = Math.pow(10, Math.floor(Math.log10(raw)));
+  const frac = raw / pow10;
+  let step;
+  if (frac <= 1) step = 1;
+  else if (frac <= 2) step = 2;
+  else if (frac <= 5) step = 5;
+  else step = 10;
+  return step * pow10;
+}
+function niceTicks(min, max, count=6){
+  if (min===max) return [min];
+  const span = max-min;
+  const step = niceStep(span, count-1);
+  const start = Math.ceil(min/step)*step;
+  const end = Math.floor(max/step)*step;
+  const ticks = [];
+  for (let v=start; v<=end+1e-9; v+=step) ticks.push(v);
+  if (!ticks.length){ ticks.push(min, max); }
+  if (ticks[0] > min) ticks.unshift(min);
+  if (ticks[ticks.length-1] < max) ticks.push(max);
+  return ticks;
+}
+
+function updateBinInfo(span, bins){
+  if (!data.length){ binInfo.textContent = `${bins} bins • width —`; return; }
+  const width = (span===0 ? 1 : span) / bins;
+  const dec = width < 1 ? 2 : 0;
+  binInfo.textContent = `${bins} bins • width ≈ ${fmtN(width,dec)}`;
+}
+
 function drawHist(){
   hist.innerHTML="";
-  if(!data.length){histMsg.textContent="No data.";return;}
+  tooltip.style.display="none";
+  if(!data.length){histMsg.textContent="No data."; updateBinInfo(1, userBins); return;}
   histMsg.textContent="";
 
   const W=800,H=420,mL=56,mR=24,mT=16,mB=50;
   const innerW=W-mL-mR, innerH=H-mT-mB;
 
-  const min = Math.min(...data), max = Math.max(...data);
-  const span = Math.max(1, max-min);
+  const dMin = Math.min(...data);
+  const dMax = Math.max(...data);
+  const rawSpan = dMax - dMin;
+  const span = rawSpan === 0 ? 1 : rawSpan;
 
   // bins
-  const bins = 20;
-  const dx = Math.max(1, span / bins);
+  let bins = Math.max(1, userBins);
+  if (rawSpan === 0) bins = 1;
+  const dx = span / bins;
+
+  // counts
   const counts = new Array(bins).fill(0);
-  data.forEach(v=>{
-    let i = Math.floor((v-min)/dx);
-    if(i>=bins) i=bins-1;
-    counts[i]++;
-  });
+  if (rawSpan === 0){
+    counts[0] = data.length;
+  } else {
+    data.forEach(v=>{
+      let i = Math.floor((v - dMin) / dx);
+      if (i >= bins) i = bins - 1;
+      counts[i]++;
+    });
+  }
   const maxC = Math.max(...counts,1);
+
+  updateBinInfo(span, bins);
 
   // bg
   const bg=document.createElementNS("http://www.w3.org/2000/svg","rect");
@@ -336,16 +410,70 @@ function drawHist(){
   bg.setAttribute("fill","#0b1633");
   hist.appendChild(bg);
 
-  // bars
-  const barW = innerW/bins;
+  // y scale helpers
+  function yPos(c){ return mT + innerH - (c/maxC)*innerH; }
+
+  // horizontal grid + y ticks
+  const yTicks = niceTicks(0, maxC, 6);
+  yTicks.forEach(t=>{
+    const y = yPos(t);
+    // grid
+    const gl = document.createElementNS("http://www.w3.org/2000/svg","line");
+    gl.setAttribute("x1", mL); gl.setAttribute("x2", mL + innerW);
+    gl.setAttribute("y1", y);  gl.setAttribute("y2", y);
+    gl.setAttribute("class","grid");
+    hist.appendChild(gl);
+    // tick mark
+    const tl = document.createElementNS("http://www.w3.org/2000/svg","line");
+    tl.setAttribute("x1", mL-6); tl.setAttribute("x2", mL);
+    tl.setAttribute("y1", y);    tl.setAttribute("y2", y);
+    tl.setAttribute("class","tick");
+    hist.appendChild(tl);
+    // label
+    const tt=document.createElementNS("http://www.w3.org/2000/svg","text");
+    tt.setAttribute("class","tick");
+    tt.setAttribute("x", mL-8);
+    tt.setAttribute("y", y+4);
+    tt.setAttribute("text-anchor","end");
+    tt.textContent = String(Math.round(t));
+    hist.appendChild(tt);
+  });
+
+  // bars + tooltip beside pointer (container-relative)
+  const barW = innerW / bins;
   counts.forEach((c,i)=>{
     const h = (c/maxC)*innerH;
+    const x = mL + i*barW;
+    const y = yPos(c);
+
     const rect=document.createElementNS("http://www.w3.org/2000/svg","rect");
     rect.setAttribute("class","bar");
-    rect.setAttribute("x", mL + i*barW);
-    rect.setAttribute("y", mT + innerH - h);
+    rect.setAttribute("x", x);
+    rect.setAttribute("y", y);
     rect.setAttribute("width", Math.max(1,barW-2));
     rect.setAttribute("height", h);
+
+    const binStart = dMin + i*dx;
+    const binEnd   = dMin + (i+1)*dx;
+    const decimals = dx < 1 ? 2 : 0;
+    const label = `x: [${fmtN(binStart,decimals)}, ${fmtN(binEnd,decimals)}]  y: ${c}`;
+
+    const positionTooltip = (e)=>{
+      const r = histWrap.getBoundingClientRect();
+      const left = e.clientX - r.left + 12;
+      const top  = e.clientY - r.top  - 12;
+      tooltip.style.left = left + "px";
+      tooltip.style.top  = top  + "px";
+    };
+
+    rect.addEventListener("mouseenter",(e)=>{
+      tooltip.textContent = label;
+      tooltip.style.display = "block";
+      positionTooltip(e);
+    });
+    rect.addEventListener("mousemove",(e)=> positionTooltip(e));
+    rect.addEventListener("mouseleave",()=>{ tooltip.style.display = "none"; });
+
     hist.appendChild(rect);
   });
 
@@ -365,19 +493,39 @@ function drawHist(){
   yl.textContent="Frequency";
   hist.appendChild(yl);
 
-  // value -> x
+  // value -> x mapping for stat lines and x ticks
   function xPos(val){
-    if(span===0) return mL + innerW/2;
-    return mL + ((val - min)/span) * innerW;
+    if(rawSpan===0) return mL + innerW/2;
+    return mL + ((val - dMin)/span) * innerW;
   }
 
-  // line draw helper
+  // x-axis ticks
+  const xTicks = niceTicks(dMin, dMax, 6);
+  xTicks.forEach(t=>{
+    const x = xPos(t);
+    const tl = document.createElementNS("http://www.w3.org/2000/svg","line");
+    tl.setAttribute("x1", x); tl.setAttribute("x2", x);
+    tl.setAttribute("y1", mT + innerH); tl.setAttribute("y2", mT + innerH + 6);
+    tl.setAttribute("class","tick");
+    hist.appendChild(tl);
+    const tt=document.createElementNS("http://www.w3.org/2000/svg","text");
+    tt.setAttribute("class","tick");
+    tt.setAttribute("x", x);
+    tt.setAttribute("y", mT + innerH + 18);
+    tt.setAttribute("text-anchor","middle");
+    const decimals = (xTicks.length>1 && (xTicks[1]-xTicks[0])<1) ? 2 : 0;
+    tt.textContent = fmtN(t,decimals);
+    hist.appendChild(tt);
+  });
+
+  // vertical stat lines spanning full chart height (a little extra)
   const lw = Number(lineWidth.value);
   function vline(x, color, label, dashed=false){
     const l=document.createElementNS("http://www.w3.org/2000/svg","line");
     l.setAttribute("x1",x); l.setAttribute("x2",x);
-    l.setAttribute("y1", mT); l.setAttribute("y2", mT + innerH);
-    l.setAttribute("stroke", color);
+    l.setAttribute("y1", Math.max(0, mT - 8));              // extend above bars
+    l.setAttribute("y2", Math.min(H, mT + innerH + 8));     // extend below bars
+    l.style.stroke = color;
     l.setAttribute("stroke-width", String(lw));
     if(dashed) l.setAttribute("stroke-dasharray", "6 4");
     l.addEventListener("mouseenter",()=>{histMsg.textContent=label;});
@@ -385,7 +533,6 @@ function drawHist(){
     hist.appendChild(l);
   }
 
-  // lines
   const mu = mean(data);
   const med = median(data);
   const ms = modes(data);
