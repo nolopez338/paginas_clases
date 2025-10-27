@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>Random Binary Tree (HTML elements)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Random Binary Tree</h1>
+    <form id="controls" class="controls" autocomplete="off">
+      <label>
+        Layers
+        <input type="number" id="layers" min="1" max="12" value="4" required />
+      </label>
+
+      <label>
+        Nodes
+        <input type="number" id="nodes" min="1" value="10" required />
+      </label>
+
+      <button id="generate" type="submit">Generate tree</button>
+
+      <label class="toggle">
+        <input type="checkbox" id="modeToggle" />
+        <span class="slider"></span>
+        <span class="toggle-labels">
+          <span>Circle mode</span>
+          <span>Text mode</span>
+        </span>
+      </label>
+    </form>
+    <p id="hint" class="hint">
+      Tip: max nodes for L layers is 2^L − 1. Layout remains fixed when toggling.
+    </p>
+  </header>
+
+  <main>
+    <div id="treeHost" class="tree-host">
+      <!-- Grid container for nodes; edges are absolute-positioned in this same host -->
+      <div id="grid" class="grid"></div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <small>
+      Built with plain HTML/CSS/JS. Nodes and connectors are HTML elements; no SVG/Canvas used.
+    </small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
