@@ -432,16 +432,12 @@
 
       const { rows, cols } = chooseGridDimensions(filledCount);
       const totalCells = rows * cols;
-      const filledIndexes = new Set();
-      while(filledIndexes.size < filledCount){
-        filledIndexes.add(randomInt(0, totalCells - 1));
-      }
 
       gridEl.style.setProperty("--cols", cols);
       gridEl.innerHTML = "";
       for(let i=0;i<totalCells;i++){
         const cell = document.createElement("div");
-        const isFilled = filledIndexes.has(i);
+        const isFilled = i < filledCount;
         cell.className = "cell" + (isFilled ? " filled" : "");
         if(isFilled){
           cell.appendChild(createFigure());
