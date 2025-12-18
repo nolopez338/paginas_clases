@@ -78,6 +78,57 @@
       background:#e2e8f0; border-radius:8px; padding:4px 8px;
     }
 
+    .videos{
+      margin-top:50px;
+      background:rgba(255,255,255,.1);
+      border:1px solid rgba(255,255,255,.4);
+      border-radius:20px;
+      padding:26px 20px 30px;
+      box-shadow:0 18px 36px rgba(0,0,0,.18);
+      backdrop-filter: blur(8px);
+      color:#0f172a;
+    }
+    .videos__header{ display:flex; gap:18px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .eyebrow{ text-transform:uppercase; letter-spacing:1.8px; font-weight:700; color:#0ea5e9; margin:0 0 6px; font-size:12px; }
+    .videos h2{ margin:0 0 8px; font-size:clamp(22px,3vw,30px); color:var(--accent); }
+    .lead{ margin:0; color:var(--muted); max-width:720px; }
+    .badge{
+      padding:10px 14px; border-radius:14px;
+      background:linear-gradient(135deg,#ff006e,#f97316);
+      color:#fff; font-weight:700; letter-spacing:.3px;
+      box-shadow:0 12px 26px rgba(0,0,0,.18);
+    }
+    .video-grid{
+      margin-top:22px;
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px;
+    }
+    .video-card{
+      display:grid; grid-template-columns:auto 1fr; gap:14px;
+      padding:16px; text-decoration:none; color:var(--text);
+      background:rgba(255,255,255,.9); border-radius:16px;
+      border:1px solid rgba(17,24,39,.08);
+      box-shadow:0 10px 24px rgba(0,0,0,.12);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .video-card:hover{
+      transform:translateY(-3px);
+      box-shadow:0 16px 32px rgba(0,0,0,.16);
+      border-color:rgba(34,211,238,.6);
+    }
+    .video-thumb{
+      width:64px; height:64px; border-radius:14px;
+      display:grid; place-items:center;
+      background:radial-gradient(circle at 30% 30%, #22d3ee, #111827);
+      color:#fff; font-size:26px; font-weight:800;
+      box-shadow:0 12px 24px rgba(17,24,39,.2);
+    }
+    .video-card h3{ margin:4px 0 6px; font-size:clamp(16px,2.5vw,20px); color:var(--accent); }
+    .video-card p{ margin:0 0 8px; color:var(--muted); font-size:14px; }
+    .pill{
+      display:inline-block; padding:6px 10px; border-radius:999px;
+      background:#e0f2fe; color:#0369a1; font-weight:700; font-size:12px; letter-spacing:.2px;
+    }
+
     footer{ padding:14px 18px 22px; text-align:center; opacity:.9; font-size:14px; }
   </style>
 </head>
@@ -115,6 +166,46 @@
         <p>Practica en 10 niveles adivinando el valor decimal de números romanos o egipcios aleatorios.</p>
         <div class="go">Abrir <span aria-hidden="true">→</span><span class="kbd">4</span></div>
       </a>
+    </section>
+
+    <section class="videos" aria-label="Videos recomendados">
+      <div class="videos__header">
+        <div>
+          <p class="eyebrow">Material recomendado</p>
+          <h2>Explora más sobre sistemas numéricos</h2>
+          <p class="lead">Refuerza lo aprendido con estas cápsulas audiovisuales seleccionadas. Cada video incluye una breve descripción para que elijas por dónde comenzar.</p>
+        </div>
+        <div class="badge" aria-hidden="true">YouTube</div>
+      </div>
+
+      <div class="video-grid">
+        <a class="video-card" href="https://www.youtube.com/watch?v=hpVK9wHPybU&t=128s" target="_blank" rel="noopener noreferrer">
+          <div class="video-thumb" aria-hidden="true">▶</div>
+          <div>
+            <h3>¿Qué son los números binarios?</h3>
+            <p>Introducción clara al sistema binario, por qué es fundamental en computación y cómo se construyen sus números.</p>
+            <span class="pill">8 min</span>
+          </div>
+        </a>
+
+        <a class="video-card" href="https://www.youtube.com/watch?v=vi0QypYdelw&t=28s" target="_blank" rel="noopener noreferrer">
+          <div class="video-thumb" aria-hidden="true">▶</div>
+          <div>
+            <h3>Cómo pasar de decimal a binario</h3>
+            <p>Ejemplos paso a paso para convertir números de base 10 a base 2 usando divisiones sucesivas.</p>
+            <span class="pill">6 min</span>
+          </div>
+        </a>
+
+        <a class="video-card" href="https://www.youtube.com/watch?v=Fyt2-7UytHU&t=2s" target="_blank" rel="noopener noreferrer">
+          <div class="video-thumb" aria-hidden="true">▶</div>
+          <div>
+            <h3>Representación en hexadecimal</h3>
+            <p>Aprende la lógica de base 16, su relación con el binario y ejemplos de uso en la vida real.</p>
+            <span class="pill">7 min</span>
+          </div>
+        </a>
+      </div>
     </section>
   </main>
   <script>
