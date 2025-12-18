@@ -62,6 +62,15 @@
       .feedback.ok { color: var(--success); }
       .feedback.error { color: var(--danger); }
       .range { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+      details { margin-top: 18px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 14px; background: rgba(255,255,255,0.02); }
+      details summary { cursor: pointer; font-weight: 700; }
+      .reference { display: grid; gap: 8px; margin-top: 10px; }
+      .reference-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; }
+      .reference-row .symbol { font-size: 24px; font-weight: 800; }
+      .leaderboard { margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+      .leaderboard h3 { margin: 0 0 6px; }
+      .leaderboard ol { padding-left: 18px; margin: 0; color: var(--muted); }
+      .leaderboard li strong { color: var(--text); }
     </style>
   </head>
   <body>
@@ -71,7 +80,7 @@
 
       <div class="choices" role="radiogroup" aria-label="Sistema numérico">
         <label class="chip"><input type="radio" name="system" value="romano" checked /> Números romanos (1–3999)</label>
-        <label class="chip"><input type="radio" name="system" value="egipcio" /> Números egipcios (1–1,000,000)</label>
+        <label class="chip"><input type="radio" name="system" value="egipcio" /> Números egipcios (1–9,999,999)</label>
         <button id="start" type="button">Iniciar partida</button>
       </div>
       <p class="range" id="rangeText">Actualmente jugando con números romanos (1–3999).</p>
@@ -79,7 +88,8 @@
       <div class="status">
         <div class="pill">Nivel: <strong id="level">—</strong></div>
         <div class="pill">Puntaje: <strong id="score">0</strong> / 10</div>
-        <div class="pill">Siguiente número entre: <strong id="intervalo">1 y 3999</strong></div>
+        <div class="pill">Rango nivel: <strong id="intervalo">1 y 3999</strong></div>
+        <div class="pill">Tiempo: <strong id="timer">00:00</strong></div>
       </div>
 
       <section class="display">
@@ -92,13 +102,23 @@
         <button id="submit" type="button" class="secondary">Responder</button>
       </div>
       <div id="feedback" class="feedback"></div>
+
+      <details open>
+        <summary>Referencia rápida del sistema elegido</summary>
+        <div id="reference" class="reference"></div>
+      </details>
+
+      <section class="leaderboard">
+        <h3>Tabla de récords locales</h3>
+        <ol id="leaderboard"></ol>
+      </section>
     </main>
 
     <script>
       const totalLevels = 10;
       const ranges = {
         romano: { min: 1, max: 3999 },
-        egipcio: { min: 1, max: 1_000_000 }
+        egipcio: { min: 1, max: 9_999_999 }
       };
 
       const state = {
@@ -106,7 +126,28 @@
         level: 0,
         score: 0,
         target: null,
-        finished: false
+        finished: false,
+        timerId: null,
+        startedAt: null,
+        elapsedMs: 0,
+        currentRange: ranges.romano
+      };
+
+      const references = {
+        romano: [
+          { symbol: 'I, V, X, L, C, D, M', meaning: 'Unidades del 1 al 1000 que se combinan en orden descendente para sumar valores.' },
+          { symbol: 'IV, IX, XL, XC, CD, CM', meaning: 'Combinaciones sustractivas para escribir 4, 9, 40, 90, 400 y 900.' },
+          { symbol: 'Regla', meaning: 'No se repite más de 3 veces el mismo símbolo seguido (salvo M que puede extender el valor).' }
+        ],
+        egipcio: [
+          { symbol: '𓁨', meaning: '1,000,000 (hombre con los brazos en alto)' },
+          { symbol: '𓅨', meaning: '100,000 (renacuajo)' },
+          { symbol: '𓂭', meaning: '10,000 (dedo)' },
+          { symbol: '𓆼', meaning: '1,000 (flor de loto)' },
+          { symbol: '𓍢', meaning: '100 (espiral de cuerda)' },
+          { symbol: '𓎆', meaning: '10 (muesca)' },
+          { symbol: '𓏺', meaning: '1 (trazo)' }
+        ]
       };
 
       function toRoman(n) {
@@ -151,15 +192,30 @@
       const submitBtn = document.querySelector('#submit');
       const rangeText = document.querySelector('#rangeText');
       const intervalo = document.querySelector('#intervalo');
+      const timerEl = document.querySelector('#timer');
+      const referenceEl = document.querySelector('#reference');
+      const leaderboardEl = document.querySelector('#leaderboard');
 
       function randomBetween(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
 
+      function getLevelRange(system, level) {
+        const { min, max } = ranges[system];
+        const span = max - min;
+        const startFactor = Math.max(0, (level - 1) / totalLevels);
+        const endFactor = level / totalLevels;
+        const levelMin = Math.floor(min + span * startFactor * 0.8);
+        const levelMax = Math.max(levelMin + 1, Math.floor(min + span * endFactor));
+        return { min: levelMin, max: levelMax };
+      }
+
       function updateRangeText() {
         const { min, max } = ranges[state.system];
         rangeText.textContent = `Actualmente jugando con números ${state.system === 'romano' ? 'romanos' : 'egipcios'} (${min.toLocaleString('es-ES')}–${max.toLocaleString('es-ES')}).`;
-        intervalo.textContent = `${min.toLocaleString('es-ES')} y ${max.toLocaleString('es-ES')}`;
+        const range = getLevelRange(state.system, Math.max(1, state.level || 1));
+        state.currentRange = range;
+        intervalo.textContent = `${range.min.toLocaleString('es-ES')} y ${range.max.toLocaleString('es-ES')}`;
       }
 
       function renderNumeral() {
@@ -170,12 +226,14 @@
       }
 
       function startGame() {
+        stopTimer();
         state.level = 1;
         state.score = 0;
         state.finished = false;
         feedbackEl.textContent = '';
         feedbackEl.className = 'feedback';
         startBtn.textContent = 'Reiniciar partida';
+        startTimer();
         generateTarget();
         renderStatus();
         renderNumeral();
@@ -184,8 +242,10 @@
       }
 
       function generateTarget() {
-        const { min, max } = ranges[state.system];
-        state.target = randomBetween(min, max);
+        const range = getLevelRange(state.system, state.level || 1);
+        state.currentRange = range;
+        state.target = randomBetween(range.min, range.max);
+        intervalo.textContent = `${range.min.toLocaleString('es-ES')} y ${range.max.toLocaleString('es-ES')}`;
       }
 
       function renderStatus() {
@@ -195,11 +255,86 @@
 
       function finishGame() {
         state.finished = true;
+        stopTimer();
         numeralEl.textContent = '¡Juego terminado!';
         numeralEl.classList.remove('egyptian');
         feedbackEl.textContent = `Tu puntaje final es ${state.score} de ${totalLevels}.`;
         feedbackEl.className = 'feedback';
         levelEl.textContent = '—';
+        updateLeaderboard();
+      }
+
+      function startTimer() {
+        state.startedAt = Date.now();
+        state.elapsedMs = 0;
+        timerEl.textContent = '00:00';
+        state.timerId = setInterval(() => {
+          const elapsed = Date.now() - state.startedAt;
+          state.elapsedMs = elapsed;
+          timerEl.textContent = formatTime(elapsed);
+        }, 500);
+      }
+
+      function stopTimer() {
+        if (state.timerId) {
+          clearInterval(state.timerId);
+          state.timerId = null;
+        }
+      }
+
+      function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
+        return `${minutes}:${seconds}`;
+      }
+
+      function renderReference() {
+        const rows = references[state.system]
+          .map(item => `<div class="reference-row"><div class="symbol">${item.symbol}</div><div>${item.meaning}</div></div>`) 
+          .join('');
+        referenceEl.innerHTML = rows;
+      }
+
+      function loadLeaderboard() {
+        try {
+          return JSON.parse(localStorage.getItem('numerosLeaderboard') || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function saveLeaderboard(entries) {
+        localStorage.setItem('numerosLeaderboard', JSON.stringify(entries));
+      }
+
+      function updateLeaderboard() {
+        const entries = loadLeaderboard();
+        entries.push({
+          system: state.system,
+          score: state.score,
+          duration: state.elapsedMs,
+          playedAt: new Date().toISOString()
+        });
+
+        const sorted = entries.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.duration - b.duration;
+        }).slice(0, 5);
+
+        saveLeaderboard(sorted);
+        renderLeaderboard(sorted);
+      }
+
+      function renderLeaderboard(existing = loadLeaderboard()) {
+        if (!existing.length) {
+          leaderboardEl.innerHTML = '<li>No hay partidas guardadas aún.</li>';
+          return;
+        }
+
+        leaderboardEl.innerHTML = existing
+          .map(entry => `<li><strong>${entry.score}/${totalLevels}</strong> en ${formatTime(entry.duration)} · ${entry.system}</li>`)
+          .join('');
       }
 
       function handleAnswer() {
@@ -244,6 +379,8 @@
         radio.addEventListener('change', () => {
           state.system = radio.value;
           updateRangeText();
+          renderReference();
+          renderLeaderboard();
           if (state.level === 0 || state.finished) {
             numeralEl.textContent = 'Presiona «Iniciar partida»';
             numeralEl.classList.toggle('egyptian', state.system === 'egipcio');
@@ -256,6 +393,8 @@
       answerEl.addEventListener('keydown', e => { if (e.key === 'Enter') handleAnswer(); });
 
       updateRangeText();
+      renderReference();
+      renderLeaderboard();
     </script>
   </body>
 </html>
