@@ -102,11 +102,13 @@
     .shape-circle{ background:var(--figure-color); border-radius:50%; }
     .shape-star{ background:var(--figure-color); clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
     .shape-heart{
-      width:68%;
-      height:68%;
+      width:74%;
+      height:74%;
+      position:relative;
       background:var(--figure-color);
       transform:rotate(-45deg);
-      border-radius:52% 52% 48% 48%;
+      border-radius:26% 26% 18% 18%;
+      box-shadow:0 6px 14px rgba(0,0,0,.22);
     }
     .shape-heart::before,
     .shape-heart::after{
@@ -117,8 +119,8 @@
       background:var(--figure-color);
       border-radius:50%;
     }
-    .shape-heart::before{ top:-42%; left:0; }
-    .shape-heart::after{ top:0; left:42%; }
+    .shape-heart::before{ top:-46%; left:0; }
+    .shape-heart::after{ top:0; left:46%; }
     .shape-moon{
       width:70%;
       height:70%;
@@ -250,6 +252,13 @@
           </div>
         </div>
 
+        <form id="guess-form">
+          <label for="guess">¿Cuántas figuras hay?</label>
+          <input id="guess" type="number" min="0" required />
+          <button id="action" type="submit">Enviar respuesta</button>
+          <div id="feedback" class="feedback" aria-live="polite"></div>
+        </form>
+
         <div aria-label="Controles de apariencia" class="shape-controls" id="shape-controls"></div>
         <div class="color-picker">
           <label for="figure-color">Color global de las figuras</label>
@@ -260,13 +269,6 @@
           <button type="button" id="restart">Reiniciar</button>
           <div class="feedback" id="status"></div>
         </div>
-
-        <form id="guess-form">
-          <label for="guess">¿Cuántas figuras hay?</label>
-          <input id="guess" type="number" min="0" required />
-          <button id="action" type="submit">Enviar respuesta</button>
-          <div id="feedback" class="feedback" aria-live="polite"></div>
-        </form>
 
         <div class="history" id="history"></div>
         <div class="leaderboard" aria-live="polite">
@@ -478,12 +480,7 @@
       const { rows, cols } = chooseGridDimensions(filledCount);
       const totalCells = rows * cols;
 
-      const positions = Array.from({ length: totalCells }, (_, i) => i);
-      for(let i = positions.length - 1; i > 0; i--){
-        const j = Math.floor(Math.random() * (i + 1));
-        [positions[i], positions[j]] = [positions[j], positions[i]];
-      }
-      const filledPositions = new Set(positions.slice(0, filledCount));
+      const filledPositions = new Set(Array.from({ length: filledCount }, (_, i) => i));
 
       gridEl.style.setProperty("--cols", cols);
       gridEl.innerHTML = "";
