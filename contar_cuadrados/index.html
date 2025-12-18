@@ -60,14 +60,15 @@
       --cols:4;
       display:grid;
       grid-template-columns: repeat(var(--cols), 1fr);
-      gap:8px;
       width:100%;
+      gap:0;
+      background:rgba(255,255,255,.04);
+      border-radius:12px;
+      overflow:hidden;
     }
     .cell{
       aspect-ratio:1/1;
-      border-radius:12px;
-      background:rgba(255,255,255,.05);
-      border:1px dashed rgba(255,255,255,.08);
+      background:rgba(255,255,255,.06);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -75,7 +76,7 @@
       color:var(--muted);
       transition:background .15s ease, transform .12s ease;
     }
-    .cell.filled{ background:var(--accent); color:#0a1834; border-color:rgba(0,0,0,.05); }
+    .cell.filled{ background:var(--accent); color:#0a1834; }
     .cell.filled:hover{ transform:translateY(-2px); }
 
     .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
@@ -113,6 +114,14 @@
 
     .history{ margin-top:8px; font-size:.95rem; color:var(--muted); line-height:1.5; white-space:pre-line; }
 
+    .leaderboard{ margin-top:12px; }
+    .leaderboard h2{ margin:0 0 8px; font-size:1.1rem; }
+    .leaderboard-list{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+    .leaderboard-list li{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; }
+    .leaderboard-empty{ color:var(--muted); font-style:italic; }
+
+    .timer{ font-variant-numeric: tabular-nums; }
+
     @media (max-width: 900px){
       .frame{ grid-template-columns:1fr; }
     }
@@ -137,6 +146,10 @@
             <div class="label">Cuadrados actuales</div>
             <div class="value" id="count">-</div>
           </div>
+          <div class="stat">
+            <div class="label">Tiempo</div>
+            <div class="value timer" id="timer">00:00</div>
+          </div>
         </div>
 
         <form id="guess-form">
@@ -147,6 +160,11 @@
         </form>
 
         <div class="history" id="history"></div>
+        <div class="leaderboard" aria-live="polite">
+          <h2>Ladderboard</h2>
+          <ul class="leaderboard-list" id="leaderboard"></ul>
+          <div class="leaderboard-empty" id="leaderboard-empty">Sin registros todavía.</div>
+        </div>
       </div>
     </section>
 
@@ -165,12 +183,17 @@
     const feedbackEl = document.getElementById("feedback");
     const historyEl = document.getElementById("history");
     const actionBtn = document.getElementById("action");
+    const timerEl = document.getElementById("timer");
+    const leaderboardList = document.getElementById("leaderboard");
+    const leaderboardEmpty = document.getElementById("leaderboard-empty");
     const form = document.getElementById("guess-form");
 
     let round = 0;
     let score = 0;
     let filledCount = 0;
     let phase = "guess"; // "guess", "next", "done"
+    let startTime = null;
+    let timerId = null;
 
     function randomInt(min, max){
       return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -182,6 +205,81 @@
         [arr[i], arr[j]] = [arr[j], arr[i]];
       }
       return arr;
+    }
+
+    function formatTime(ms){
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      return `${minutes}:${seconds}`;
+    }
+
+    function startTimer(){
+      if(timerId){
+        clearInterval(timerId);
+      }
+      startTime = Date.now();
+      timerEl.textContent = "00:00";
+      timerId = setInterval(() => {
+        if(!startTime) return;
+        const elapsed = Date.now() - startTime;
+        timerEl.textContent = formatTime(elapsed);
+      }, 500);
+    }
+
+    function stopTimer(){
+      if(timerId){
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function loadLeaderboard(){
+      try{
+        const stored = localStorage.getItem("squareLeaderboard");
+        return stored ? JSON.parse(stored) : [];
+      } catch(err){
+        console.error("No se pudo cargar la ladderboard", err);
+        return [];
+      }
+    }
+
+    function saveLeaderboard(entries){
+      localStorage.setItem("squareLeaderboard", JSON.stringify(entries));
+    }
+
+    function addLeaderboardEntry(score, durationMs){
+      const entries = loadLeaderboard();
+      entries.push({ score, durationMs, date: new Date().toISOString() });
+      entries.sort((a, b) => {
+        if(b.score !== a.score) return b.score - a.score;
+        return a.durationMs - b.durationMs;
+      });
+      const trimmed = entries.slice(0, 8);
+      saveLeaderboard(trimmed);
+      renderLeaderboard(trimmed);
+    }
+
+    function renderLeaderboard(entries = loadLeaderboard()){
+      leaderboardList.innerHTML = "";
+      if(!entries.length){
+        leaderboardEmpty.style.display = "block";
+        leaderboardList.style.display = "none";
+        return;
+      }
+      leaderboardEmpty.style.display = "none";
+      leaderboardList.style.display = "grid";
+      entries.forEach((entry, idx) => {
+        const li = document.createElement("li");
+        const position = document.createElement("div");
+        position.textContent = `#${idx + 1}`;
+        position.style.fontWeight = "800";
+        const detail = document.createElement("div");
+        detail.innerHTML = `<div>Puntuación: <strong>${entry.score}</strong></div><div class="timer">Tiempo: ${formatTime(entry.durationMs)}</div>`;
+        li.appendChild(position);
+        li.appendChild(detail);
+        leaderboardList.appendChild(li);
+      });
     }
 
     function generateGrid(){
@@ -216,11 +314,25 @@
       phase = "guess";
     }
 
+    function finishGame(){
+      stopTimer();
+      const duration = startTime ? Date.now() - startTime : 0;
+      const summary = ` · Fin del juego. Puntuación final ${score}/${TOTAL_ROUNDS}. Tiempo ${formatTime(duration)}.`;
+      feedbackEl.textContent += summary;
+      phase = "done";
+      actionBtn.textContent = "Jugar de nuevo";
+      timerEl.textContent = formatTime(duration);
+      addLeaderboardEntry(score, duration);
+    }
+
     function resetGame(){
+      stopTimer();
       round = 0;
       score = 0;
       historyEl.textContent = "";
       scoreEl.textContent = score;
+      timerEl.textContent = "00:00";
+      startTimer();
       generateGrid();
     }
 
@@ -248,9 +360,7 @@
         const line = `Ronda ${round}: respondiste ${guess} | correctos ${filledCount}`;
         historyEl.textContent = historyEl.textContent ? `${historyEl.textContent}\n${line}` : line;
         if(round >= TOTAL_ROUNDS){
-          phase = "done";
-          actionBtn.textContent = "Jugar de nuevo";
-          feedbackEl.textContent += ` · Fin del juego. Puntuación final ${score}/${TOTAL_ROUNDS}.`;
+          finishGame();
         } else {
           phase = "next";
           actionBtn.textContent = "Siguiente ronda";
@@ -270,6 +380,7 @@
       }
     });
 
+    renderLeaderboard();
     resetGame();
   </script>
 </body>
