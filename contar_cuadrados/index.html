@@ -62,22 +62,32 @@
       grid-template-columns: repeat(var(--cols), 1fr);
       width:100%;
       gap:0;
+      padding:8px;
       background:rgba(255,255,255,.04);
       border-radius:12px;
       overflow:hidden;
     }
     .cell{
+      position:relative;
       aspect-ratio:1/1;
-      background:rgba(255,255,255,.06);
       display:flex;
       align-items:center;
       justify-content:center;
       font-weight:700;
       color:var(--muted);
+      background:rgba(255,255,255,.04);
+    }
+    .cell::before{
+      content:"";
+      position:absolute;
+      inset:6px;
+      border-radius:10px;
+      background:rgba(255,255,255,.08);
       transition:background .15s ease, transform .12s ease;
     }
-    .cell.filled{ background:var(--accent); color:#0a1834; }
-    .cell.filled:hover{ transform:translateY(-2px); }
+    .cell.filled{ color:#0a1834; }
+    .cell.filled::before{ background:var(--accent); box-shadow:0 10px 30px rgba(58,166,255,.2); }
+    .cell.filled:hover::before{ transform:translateY(-2px); }
 
     .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
     .stat{ background:rgba(255,255,255,.04); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,.06); }
@@ -199,14 +209,6 @@
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    function shuffle(arr){
-      for(let i = arr.length - 1; i > 0; i--){
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-
     function formatTime(ms){
       const totalSeconds = Math.max(0, Math.floor(ms / 1000));
       const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
@@ -292,14 +294,12 @@
       const variability = randomInt(0, 2 + sizeBoost);
       filledCount = Math.min(totalCells, baseSquares + variability);
 
-      const cells = Array.from({length: totalCells}, (_, i) => i);
-      const filled = new Set(shuffle(cells).slice(0, filledCount));
-
       gridEl.style.setProperty("--cols", cols);
       gridEl.innerHTML = "";
       for(let i=0;i<totalCells;i++){
         const cell = document.createElement("div");
-        cell.className = "cell" + (filled.has(i) ? " filled" : "");
+        const isFilled = i < filledCount;
+        cell.className = "cell" + (isFilled ? " filled" : "");
         gridEl.appendChild(cell);
       }
 
