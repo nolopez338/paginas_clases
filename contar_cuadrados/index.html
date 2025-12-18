@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contar cuadrados</title>
+  <style>
+    :root{
+      --bg:#0b132b;
+      --panel:#11192f;
+      --card:#1c2541;
+      --ink:#e6eefc;
+      --muted:#9fb0d0;
+      --accent:#3aa6ff;
+      --good:#4ade80;
+      --bad:#f97316;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{ box-sizing:border-box }
+    body{
+      margin:0;
+      min-height:100vh;
+      background:radial-gradient(circle at 30% 20%, rgba(58,166,255,.15), transparent 22%),
+                 radial-gradient(circle at 80% 0%, rgba(58,166,255,.12), transparent 26%),
+                 var(--bg);
+      color:var(--ink);
+      font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px 18px 38px;
+    }
+    .frame{
+      width:min(980px, 100%);
+      background:rgba(17,25,47,.85);
+      border:1px solid #23345c;
+      border-radius:var(--radius);
+      padding:22px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(8px);
+      display:grid;
+      gap:18px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+    h1{
+      margin:0 0 8px;
+      letter-spacing:.3px;
+      font-weight:800;
+    }
+    p{ margin:0 0 12px; color:var(--muted); line-height:1.5; }
+    .panel{
+      background:var(--card);
+      border:1px solid #23345c;
+      border-radius:var(--radius);
+      padding:16px;
+      box-shadow:var(--shadow);
+    }
+    .grid{
+      --cols:4;
+      display:grid;
+      grid-template-columns: repeat(var(--cols), 1fr);
+      gap:8px;
+      width:100%;
+    }
+    .cell{
+      aspect-ratio:1/1;
+      border-radius:12px;
+      background:rgba(255,255,255,.05);
+      border:1px dashed rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      color:var(--muted);
+      transition:background .15s ease, transform .12s ease;
+    }
+    .cell.filled{ background:var(--accent); color:#0a1834; border-color:rgba(0,0,0,.05); }
+    .cell.filled:hover{ transform:translateY(-2px); }
+
+    .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+    .stat{ background:rgba(255,255,255,.04); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,.06); }
+    .stat .label{ color:var(--muted); font-size:.9rem; }
+    .stat .value{ font-size:1.5rem; font-weight:800; }
+
+    form{ display:grid; gap:10px; margin-top:6px; }
+    input[type="number"]{
+      background:var(--panel);
+      border:1px solid #24375f;
+      border-radius:10px;
+      color:var(--ink);
+      padding:12px;
+      font-size:1rem;
+      width:100%;
+    }
+    button{
+      background:var(--accent);
+      color:#08142c;
+      border:0;
+      border-radius:10px;
+      padding:12px 14px;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow:0 6px 20px rgba(58,166,255,.35);
+      transition:transform .1s ease, box-shadow .15s ease;
+    }
+    button:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(58,166,255,.4); }
+    button:disabled{ opacity:.55; cursor:not-allowed; box-shadow:none; transform:none; }
+
+    .feedback{ font-weight:700; }
+    .feedback.good{ color:var(--good); }
+    .feedback.bad{ color:var(--bad); }
+
+    .history{ margin-top:8px; font-size:.95rem; color:var(--muted); line-height:1.5; white-space:pre-line; }
+
+    @media (max-width: 900px){
+      .frame{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <section>
+      <h1>Juego de contar cuadrados</h1>
+      <p>Observa la cuadrícula en cada ronda, cuenta cuántos cuadros azules hay y escribe tu respuesta. La dificultad aumenta al añadir más cuadrados visibles en cada ronda. ¡Son 10 rondas, ve tu puntuación al final!</p>
+      <div class="panel">
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="label">Ronda</div>
+            <div class="value" id="round">1 / 10</div>
+          </div>
+          <div class="stat">
+            <div class="label">Puntuación</div>
+            <div class="value" id="score">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Cuadrados actuales</div>
+            <div class="value" id="count">-</div>
+          </div>
+        </div>
+
+        <form id="guess-form">
+          <label for="guess">¿Cuántos cuadrados hay?</label>
+          <input id="guess" type="number" min="0" required />
+          <button id="action" type="submit">Enviar respuesta</button>
+          <div id="feedback" class="feedback" aria-live="polite"></div>
+        </form>
+
+        <div class="history" id="history"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid" id="grid" aria-live="polite" aria-label="Cuadrícula del juego"></div>
+    </section>
+  </div>
+
+  <script>
+    const TOTAL_ROUNDS = 10;
+    const gridEl = document.getElementById("grid");
+    const roundEl = document.getElementById("round");
+    const scoreEl = document.getElementById("score");
+    const countEl = document.getElementById("count");
+    const guessEl = document.getElementById("guess");
+    const feedbackEl = document.getElementById("feedback");
+    const historyEl = document.getElementById("history");
+    const actionBtn = document.getElementById("action");
+    const form = document.getElementById("guess-form");
+
+    let round = 0;
+    let score = 0;
+    let filledCount = 0;
+    let phase = "guess"; // "guess", "next", "done"
+
+    function randomInt(min, max){
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateGrid(){
+      round += 1;
+      const sizeBoost = Math.floor((round-1) / 3);
+      const rows = randomInt(3 + sizeBoost, 6 + sizeBoost);
+      const cols = randomInt(3, 6 + sizeBoost);
+      const totalCells = rows * cols;
+      const baseSquares = 3 + round; // increases each round
+      const variability = randomInt(0, 2 + sizeBoost);
+      filledCount = Math.min(totalCells, baseSquares + variability);
+
+      const cells = Array.from({length: totalCells}, (_, i) => i);
+      const filled = new Set(shuffle(cells).slice(0, filledCount));
+
+      gridEl.style.setProperty("--cols", cols);
+      gridEl.innerHTML = "";
+      for(let i=0;i<totalCells;i++){
+        const cell = document.createElement("div");
+        cell.className = "cell" + (filled.has(i) ? " filled" : "");
+        gridEl.appendChild(cell);
+      }
+
+      roundEl.textContent = `${round} / ${TOTAL_ROUNDS}`;
+      countEl.textContent = "?";
+      feedbackEl.textContent = "";
+      feedbackEl.className = "feedback";
+      guessEl.value = "";
+      guessEl.disabled = false;
+      guessEl.focus();
+      actionBtn.textContent = "Enviar respuesta";
+      phase = "guess";
+    }
+
+    function resetGame(){
+      round = 0;
+      score = 0;
+      historyEl.textContent = "";
+      scoreEl.textContent = score;
+      generateGrid();
+    }
+
+    function handleGuess(event){
+      event.preventDefault();
+      if(phase === "guess"){
+        const guess = parseInt(guessEl.value, 10);
+        if(Number.isNaN(guess)){
+          feedbackEl.textContent = "Ingresa un número válido";
+          feedbackEl.className = "feedback bad";
+          return;
+        }
+        const correct = guess === filledCount;
+        if(correct){
+          score += 1;
+          feedbackEl.textContent = "¡Correcto!";
+          feedbackEl.className = "feedback good";
+        } else {
+          feedbackEl.textContent = `Incorrecto, había ${filledCount} cuadrados`;
+          feedbackEl.className = "feedback bad";
+        }
+        countEl.textContent = filledCount;
+        scoreEl.textContent = score;
+        guessEl.disabled = true;
+        const line = `Ronda ${round}: respondiste ${guess} | correctos ${filledCount}`;
+        historyEl.textContent = historyEl.textContent ? `${historyEl.textContent}\n${line}` : line;
+        if(round >= TOTAL_ROUNDS){
+          phase = "done";
+          actionBtn.textContent = "Jugar de nuevo";
+          feedbackEl.textContent += ` · Fin del juego. Puntuación final ${score}/${TOTAL_ROUNDS}.`;
+        } else {
+          phase = "next";
+          actionBtn.textContent = "Siguiente ronda";
+        }
+      } else if(phase === "next"){
+        generateGrid();
+      } else if(phase === "done"){
+        resetGame();
+      }
+    }
+
+    form.addEventListener("submit", handleGuess);
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Enter" && phase !== "guess"){
+        e.preventDefault();
+        actionBtn.click();
+      }
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
