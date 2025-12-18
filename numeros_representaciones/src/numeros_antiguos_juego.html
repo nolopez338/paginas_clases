@@ -103,7 +103,7 @@
       </div>
       <div id="feedback" class="feedback"></div>
 
-      <details open>
+      <details>
         <summary>Referencia rápida del sistema elegido</summary>
         <div id="reference" class="reference"></div>
       </details>
@@ -135,9 +135,13 @@
 
       const references = {
         romano: [
-          { symbol: 'I, V, X, L, C, D, M', meaning: 'Unidades del 1 al 1000 que se combinan en orden descendente para sumar valores.' },
-          { symbol: 'IV, IX, XL, XC, CD, CM', meaning: 'Combinaciones sustractivas para escribir 4, 9, 40, 90, 400 y 900.' },
-          { symbol: 'Regla', meaning: 'No se repite más de 3 veces el mismo símbolo seguido (salvo M que puede extender el valor).' }
+          { symbol: 'I', meaning: '1' },
+          { symbol: 'V', meaning: '5' },
+          { symbol: 'X', meaning: '10' },
+          { symbol: 'L', meaning: '50' },
+          { symbol: 'C', meaning: '100' },
+          { symbol: 'D', meaning: '500' },
+          { symbol: 'M', meaning: '1000' }
         ],
         egipcio: [
           { symbol: '𓁨', meaning: '1,000,000 (hombre con los brazos en alto)' },
