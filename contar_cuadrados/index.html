@@ -102,11 +102,11 @@
     .shape-circle{ background:var(--figure-color); border-radius:50%; }
     .shape-star{ background:var(--figure-color); clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
     .shape-heart{
-      width:64%;
-      height:64%;
+      width:68%;
+      height:68%;
       background:var(--figure-color);
       transform:rotate(-45deg);
-      border-radius:60% 60% 45% 45%;
+      border-radius:52% 52% 48% 48%;
     }
     .shape-heart::before,
     .shape-heart::after{
@@ -117,24 +117,43 @@
       background:var(--figure-color);
       border-radius:50%;
     }
-    .shape-heart::before{ top:-50%; left:0; }
-    .shape-heart::after{ top:0; left:50%; }
+    .shape-heart::before{ top:-42%; left:0; }
+    .shape-heart::after{ top:0; left:42%; }
     .shape-moon{
-      width:65%;
-      height:65%;
+      width:70%;
+      height:70%;
       background:var(--figure-color);
       border-radius:50%;
+      position:relative;
       overflow:hidden;
     }
     .shape-moon::after{
       content:"";
       position:absolute;
-      inset:0;
-      background: radial-gradient(circle at 60% 40%, transparent 55%, var(--card) 56%);
+      width:82%;
+      height:82%;
+      top:9%;
+      left:28%;
+      background:var(--card);
+      border-radius:50%;
     }
     .shape-blob{
       background:var(--figure-color);
-      clip-path: polygon(50% 0%, 78% 10%, 94% 34%, 100% 62%, 82% 82%, 56% 100%, 28% 92%, 10% 74%, 8% 46%, 20% 20%);
+      width:72%;
+      height:72%;
+      border-radius:55% 45% 50% 60% / 60% 50% 55% 45%;
+      position:relative;
+    }
+    .shape-blob::before{
+      content:"";
+      position:absolute;
+      width:36%;
+      height:36%;
+      background:rgba(255,255,255,.18);
+      border-radius:50%;
+      top:16%;
+      left:18%;
+      filter:blur(1px);
     }
 
     .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
@@ -237,6 +256,11 @@
           <input id="figure-color" type="color" value="#3aa6ff" />
         </div>
 
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <button type="button" id="restart">Reiniciar</button>
+          <div class="feedback" id="status"></div>
+        </div>
+
         <form id="guess-form">
           <label for="guess">¿Cuántas figuras hay?</label>
           <input id="guess" type="number" min="0" required />
@@ -269,6 +293,8 @@
     const historyEl = document.getElementById("history");
     const actionBtn = document.getElementById("action");
     const timerEl = document.getElementById("timer");
+    const restartBtn = document.getElementById("restart");
+    const statusEl = document.getElementById("status");
     const leaderboardList = document.getElementById("leaderboard");
     const leaderboardEmpty = document.getElementById("leaderboard-empty");
     const form = document.getElementById("guess-form");
@@ -288,9 +314,10 @@
     let round = 0;
     let score = 0;
     let filledCount = 0;
-    let phase = "guess"; // "guess", "next", "done"
+    let phase = "start"; // "start", "guess", "next", "done"
     let startTime = null;
     let timerId = null;
+    let elapsedMs = 0;
 
     function randomInt(min, max){
       return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -303,24 +330,41 @@
       return `${minutes}:${seconds}`;
     }
 
+    function updateTimerDisplay(){
+      const nowElapsed = startTime ? elapsedMs + (Date.now() - startTime) : elapsedMs;
+      timerEl.textContent = formatTime(nowElapsed);
+    }
+
     function startTimer(){
+      if(startTime) return;
+      startTime = Date.now();
       if(timerId){
         clearInterval(timerId);
       }
-      startTime = Date.now();
-      timerEl.textContent = "00:00";
-      timerId = setInterval(() => {
-        if(!startTime) return;
-        const elapsed = Date.now() - startTime;
-        timerEl.textContent = formatTime(elapsed);
-      }, 500);
+      updateTimerDisplay();
+      timerId = setInterval(updateTimerDisplay, 250);
     }
 
-    function stopTimer(){
+    function pauseTimer(){
+      if(startTime){
+        elapsedMs += Date.now() - startTime;
+        startTime = null;
+      }
       if(timerId){
         clearInterval(timerId);
         timerId = null;
       }
+      updateTimerDisplay();
+    }
+
+    function resetTimer(){
+      elapsedMs = 0;
+      startTime = null;
+      if(timerId){
+        clearInterval(timerId);
+        timerId = null;
+      }
+      updateTimerDisplay();
     }
 
     function loadLeaderboard(){
@@ -424,7 +468,8 @@
       return { rows: safeRows, cols: safeCols };
     }
 
-    function generateGrid(){
+    function startRound(){
+      if(round >= TOTAL_ROUNDS) return;
       round += 1;
       const minFigures = Math.max(0, round * 10 - 5);
       const maxFigures = round * 10 + 5;
@@ -433,11 +478,18 @@
       const { rows, cols } = chooseGridDimensions(filledCount);
       const totalCells = rows * cols;
 
+      const positions = Array.from({ length: totalCells }, (_, i) => i);
+      for(let i = positions.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [positions[i], positions[j]] = [positions[j], positions[i]];
+      }
+      const filledPositions = new Set(positions.slice(0, filledCount));
+
       gridEl.style.setProperty("--cols", cols);
       gridEl.innerHTML = "";
       for(let i=0;i<totalCells;i++){
         const cell = document.createElement("div");
-        const isFilled = i < filledCount;
+        const isFilled = filledPositions.has(i);
         cell.className = "cell" + (isFilled ? " filled" : "");
         if(isFilled){
           cell.appendChild(createFigure());
@@ -453,34 +505,55 @@
       guessEl.disabled = false;
       guessEl.focus();
       actionBtn.textContent = "Enviar respuesta";
+      actionBtn.disabled = false;
+      statusEl.textContent = `Ronda ${round} en progreso`;
       phase = "guess";
+      startTimer();
     }
 
     function finishGame(){
-      stopTimer();
-      const duration = startTime ? Date.now() - startTime : 0;
+      pauseTimer();
+      const duration = elapsedMs;
       const summary = ` · Fin del juego. Puntuación final ${score}/${TOTAL_ROUNDS}. Tiempo ${formatTime(duration)}.`;
       feedbackEl.textContent += summary;
       phase = "done";
-      actionBtn.textContent = "Jugar de nuevo";
-      timerEl.textContent = formatTime(duration);
+      actionBtn.textContent = "Juego finalizado";
+      actionBtn.disabled = true;
+      guessEl.disabled = true;
+      statusEl.textContent = "Presiona Reiniciar para volver a jugar";
       addLeaderboardEntry(score, duration);
     }
 
     function resetGame(){
-      stopTimer();
+      pauseTimer();
+      resetTimer();
       round = 0;
       score = 0;
+      filledCount = 0;
       historyEl.textContent = "";
       scoreEl.textContent = score;
-      timerEl.textContent = "00:00";
-      startTimer();
-      generateGrid();
+      roundEl.textContent = `1 / ${TOTAL_ROUNDS}`;
+      countEl.textContent = "-";
+      feedbackEl.textContent = "";
+      feedbackEl.className = "feedback";
+      gridEl.innerHTML = "";
+      actionBtn.textContent = "Comenzar juego";
+      actionBtn.disabled = false;
+      guessEl.value = "";
+      guessEl.disabled = true;
+      statusEl.textContent = "";
+      phase = "start";
     }
 
     function handleGuess(event){
       event.preventDefault();
+      if(phase === "start"){
+        startRound();
+        return;
+      }
+
       if(phase === "guess"){
+        pauseTimer();
         const guess = parseInt(guessEl.value, 10);
         if(Number.isNaN(guess)){
           feedbackEl.textContent = "Ingresa un número válido";
@@ -505,12 +578,11 @@
           finishGame();
         } else {
           phase = "next";
-          actionBtn.textContent = "Siguiente ronda";
+          actionBtn.textContent = `Iniciar ronda ${round + 1}`;
+          statusEl.textContent = "Ronda finalizada. Inicia la siguiente para continuar.";
         }
       } else if(phase === "next"){
-        generateGrid();
-      } else if(phase === "done"){
-        resetGame();
+        startRound();
       }
     }
 
@@ -526,6 +598,11 @@
     document.documentElement.style.setProperty("--figure-color", colorPicker.value);
     colorPicker.addEventListener("input", (e) => {
       document.documentElement.style.setProperty("--figure-color", e.target.value);
+    });
+
+    restartBtn.addEventListener("click", () => {
+      resetGame();
+      statusEl.textContent = "Juego reiniciado. Presiona \"Comenzar juego\" para iniciar la primera ronda.";
     });
 
     renderLeaderboard();
