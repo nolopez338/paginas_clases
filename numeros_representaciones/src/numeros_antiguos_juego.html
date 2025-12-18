@@ -145,7 +145,7 @@
         ],
         egipcio: [
           { symbol: '𓁨', meaning: '1,000,000 (hombre con los brazos en alto)' },
-          { symbol: '𓅨', meaning: '100,000 (renacuajo)' },
+          { symbol: '𓅨', meaning: '100,000 (pajaro)' },
           { symbol: '𓂭', meaning: '10,000 (dedo)' },
           { symbol: '𓆼', meaning: '1,000 (flor de loto)' },
           { symbol: '𓍢', meaning: '100 (espiral de cuerda)' },
@@ -204,15 +204,34 @@
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
 
-      function getLevelRange(system, level) {
-        const { min, max } = ranges[system];
-        const span = max - min;
-        const startFactor = Math.max(0, (level - 1) / totalLevels);
-        const endFactor = level / totalLevels;
-        const levelMin = Math.floor(min + span * startFactor * 0.8);
-        const levelMax = Math.max(levelMin + 1, Math.floor(min + span * endFactor));
-        return { min: levelMin, max: levelMax };
+    function getLevelRange(system, level) {
+      const { min, max } = ranges[system]; // min = 1, max ≈ 3_999_999
+      const earlyMax = 100;
+      const earlyLevels = 5;
+
+      const tStart = Math.max(0, (level - 1) / totalLevels);
+      const tEnd = level / totalLevels;
+
+      function scale(t) {
+        if (t <= earlyLevels / totalLevels) {
+          // Tramo inicial: 1 → 100
+          const u = t / (earlyLevels / totalLevels);
+          return min * Math.pow(earlyMax / min, u);
+        } else {
+          // Tramo principal: 100 → max
+          const u = (t - earlyLevels / totalLevels) / (1 - earlyLevels / totalLevels);
+          return earlyMax * Math.pow(max / earlyMax, Math.pow(u, 2.4));
+        }
       }
+
+      const levelMin = Math.floor(scale(tStart));
+      const levelMax = Math.max(levelMin + 1, Math.floor(scale(tEnd)));
+
+      return { min: levelMin, max: levelMax };
+    }
+
+
+
 
       function updateRangeText() {
         const { min, max } = ranges[state.system];
