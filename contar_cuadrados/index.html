@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contar cuadrados</title>
+  <title>Contar figuras</title>
   <style>
     :root{
       --bg:#0b132b;
@@ -12,6 +12,7 @@
       --ink:#e6eefc;
       --muted:#9fb0d0;
       --accent:#3aa6ff;
+      --figure-color: var(--accent);
       --good:#4ade80;
       --bad:#f97316;
       --shadow:0 10px 30px rgba(0,0,0,.35);
@@ -85,9 +86,56 @@
       background:rgba(255,255,255,.08);
       transition:background .15s ease, transform .12s ease;
     }
-    .cell.filled{ color:#0a1834; }
-    .cell.filled::before{ background:var(--accent); box-shadow:0 10px 30px rgba(58,166,255,.2); }
+    .cell.filled::before{ background:rgba(255,255,255,.12); box-shadow:0 10px 24px rgba(0,0,0,.16); }
     .cell.filled:hover::before{ transform:translateY(-2px); }
+
+    .figure{
+      width:70%;
+      height:70%;
+      position:relative;
+      display:block;
+      filter: drop-shadow(0 8px 18px rgba(0,0,0,.28));
+      transition:transform .12s ease;
+    }
+    .cell.filled:hover .figure{ transform:translateY(-3px); }
+    .shape-square{ background:var(--figure-color); border-radius:14px; }
+    .shape-circle{ background:var(--figure-color); border-radius:50%; }
+    .shape-star{ background:var(--figure-color); clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
+    .shape-heart{
+      width:64%;
+      height:64%;
+      background:var(--figure-color);
+      transform:rotate(-45deg);
+      border-radius:60% 60% 45% 45%;
+    }
+    .shape-heart::before,
+    .shape-heart::after{
+      content:"";
+      position:absolute;
+      width:100%;
+      height:100%;
+      background:var(--figure-color);
+      border-radius:50%;
+    }
+    .shape-heart::before{ top:-50%; left:0; }
+    .shape-heart::after{ top:0; left:50%; }
+    .shape-moon{
+      width:65%;
+      height:65%;
+      background:var(--figure-color);
+      border-radius:50%;
+      overflow:hidden;
+    }
+    .shape-moon::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: radial-gradient(circle at 60% 40%, transparent 55%, var(--card) 56%);
+    }
+    .shape-blob{
+      background:var(--figure-color);
+      clip-path: polygon(50% 0%, 78% 10%, 94% 34%, 100% 62%, 82% 82%, 56% 100%, 28% 92%, 10% 74%, 8% 46%, 20% 20%);
+    }
 
     .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
     .stat{ background:rgba(255,255,255,.04); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,.06); }
@@ -130,6 +178,27 @@
     .leaderboard-list li{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; }
     .leaderboard-empty{ color:var(--muted); font-style:italic; }
 
+    .shape-controls{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+    .shape-toggle{
+      padding:8px 10px;
+      background:rgba(255,255,255,.05);
+      color:var(--ink);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:10px;
+      cursor:pointer;
+      display:flex;
+      gap:6px;
+      align-items:center;
+      font-weight:700;
+      transition:transform .1s ease, border-color .15s ease, background .15s ease;
+      box-shadow:none;
+    }
+    .shape-toggle .preview{ width:22px; height:22px; display:inline-block; }
+    .shape-toggle.active{ background:rgba(58,166,255,.18); border-color:var(--accent); transform:translateY(-1px); }
+    .shape-toggle:not(.active):hover{ border-color:rgba(58,166,255,.35); }
+    .color-picker{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+    .color-picker input{ width:100%; height:46px; padding:0; border-radius:10px; border:1px solid #24375f; background:var(--panel); cursor:pointer; }
+
     .timer{ font-variant-numeric: tabular-nums; }
 
     @media (max-width: 900px){
@@ -140,8 +209,8 @@
 <body>
   <div class="frame">
     <section>
-      <h1>Juego de contar cuadrados</h1>
-      <p>Observa la cuadrícula en cada ronda, cuenta cuántos cuadros azules hay y escribe tu respuesta. La dificultad aumenta al añadir más cuadrados visibles en cada ronda. ¡Son 10 rondas, ve tu puntuación al final!</p>
+      <h1>Juego de contar figuras</h1>
+      <p>Observa la cuadrícula en cada ronda, cuenta cuántas figuras ves y escribe tu respuesta. La dificultad aumenta con cada nivel y ahora puedes cambiar el tipo y color de figura para variar el reto. ¡Son 10 rondas, ve tu puntuación al final!</p>
       <div class="panel">
         <div class="stat-grid">
           <div class="stat">
@@ -153,7 +222,7 @@
             <div class="value" id="score">0</div>
           </div>
           <div class="stat">
-            <div class="label">Cuadrados actuales</div>
+            <div class="label">Figuras actuales</div>
             <div class="value" id="count">-</div>
           </div>
           <div class="stat">
@@ -162,8 +231,14 @@
           </div>
         </div>
 
+        <div aria-label="Controles de apariencia" class="shape-controls" id="shape-controls"></div>
+        <div class="color-picker">
+          <label for="figure-color">Color global de las figuras</label>
+          <input id="figure-color" type="color" value="#3aa6ff" />
+        </div>
+
         <form id="guess-form">
-          <label for="guess">¿Cuántos cuadrados hay?</label>
+          <label for="guess">¿Cuántas figuras hay?</label>
           <input id="guess" type="number" min="0" required />
           <button id="action" type="submit">Enviar respuesta</button>
           <div id="feedback" class="feedback" aria-live="polite"></div>
@@ -197,6 +272,18 @@
     const leaderboardList = document.getElementById("leaderboard");
     const leaderboardEmpty = document.getElementById("leaderboard-empty");
     const form = document.getElementById("guess-form");
+    const shapeControls = document.getElementById("shape-controls");
+    const colorPicker = document.getElementById("figure-color");
+
+    const shapeOptions = [
+      { key: "square", label: "Cuadrados" },
+      { key: "circle", label: "Círculos" },
+      { key: "star", label: "Estrellas" },
+      { key: "heart", label: "Corazones" },
+      { key: "moon", label: "Lunas" },
+      { key: "blob", label: "Burbujas" }
+    ];
+    let currentShape = shapeOptions[0].key;
 
     let round = 0;
     let score = 0;
@@ -284,22 +371,81 @@
       });
     }
 
+    function renderShapeControls(){
+      shapeControls.innerHTML = "";
+      shapeOptions.forEach(option => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.shape = option.key;
+        btn.className = "shape-toggle" + (option.key === currentShape ? " active" : "");
+        const preview = document.createElement("span");
+        preview.className = `preview figure shape-${option.key}`;
+        btn.appendChild(preview);
+        btn.append(option.label);
+        btn.addEventListener("click", () => setShape(option.key));
+        shapeControls.appendChild(btn);
+      });
+    }
+
+    function setShape(shape){
+      currentShape = shape;
+      document.querySelectorAll(".shape-toggle").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.shape === shape);
+      });
+      refreshFigures();
+    }
+
+    function refreshFigures(){
+      document.querySelectorAll(".figure").forEach(fig => {
+        fig.className = `figure shape-${currentShape}`;
+      });
+    }
+
+    function createFigure(){
+      const fig = document.createElement("div");
+      fig.className = `figure shape-${currentShape}`;
+      return fig;
+    }
+
+    function chooseGridDimensions(required){
+      const base = Math.max(3, Math.ceil(Math.sqrt(required || 1)));
+      const maxSide = Math.min(12, base + 3);
+      let rows = base;
+      let cols = base;
+      for(let i=0;i<120;i++){
+        rows = randomInt(3, maxSide);
+        cols = randomInt(3, maxSide);
+        if(rows * cols >= required){
+          return { rows, cols };
+        }
+      }
+      const safeRows = Math.max(3, Math.min(maxSide, Math.ceil(required / maxSide)));
+      const safeCols = Math.max(3, Math.ceil(required / safeRows));
+      return { rows: safeRows, cols: safeCols };
+    }
+
     function generateGrid(){
       round += 1;
-      const sizeBoost = Math.floor((round-1) / 3);
-      const rows = randomInt(3 + sizeBoost, 6 + sizeBoost);
-      const cols = randomInt(3, 6 + sizeBoost);
+      const minFigures = Math.max(0, round * 10 - 5);
+      const maxFigures = round * 10 + 5;
+      filledCount = randomInt(minFigures, maxFigures);
+
+      const { rows, cols } = chooseGridDimensions(filledCount);
       const totalCells = rows * cols;
-      const baseSquares = 3 + round; // increases each round
-      const variability = randomInt(0, 2 + sizeBoost);
-      filledCount = Math.min(totalCells, baseSquares + variability);
+      const filledIndexes = new Set();
+      while(filledIndexes.size < filledCount){
+        filledIndexes.add(randomInt(0, totalCells - 1));
+      }
 
       gridEl.style.setProperty("--cols", cols);
       gridEl.innerHTML = "";
       for(let i=0;i<totalCells;i++){
         const cell = document.createElement("div");
-        const isFilled = i < filledCount;
+        const isFilled = filledIndexes.has(i);
         cell.className = "cell" + (isFilled ? " filled" : "");
+        if(isFilled){
+          cell.appendChild(createFigure());
+        }
         gridEl.appendChild(cell);
       }
 
@@ -351,7 +497,7 @@
           feedbackEl.textContent = "¡Correcto!";
           feedbackEl.className = "feedback good";
         } else {
-          feedbackEl.textContent = `Incorrecto, había ${filledCount} cuadrados`;
+          feedbackEl.textContent = `Incorrecto, había ${filledCount} figuras`;
           feedbackEl.className = "feedback bad";
         }
         countEl.textContent = filledCount;
@@ -378,6 +524,12 @@
         e.preventDefault();
         actionBtn.click();
       }
+    });
+
+    renderShapeControls();
+    document.documentElement.style.setProperty("--figure-color", colorPicker.value);
+    colorPicker.addEventListener("input", (e) => {
+      document.documentElement.style.setProperty("--figure-color", e.target.value);
     });
 
     renderLeaderboard();
