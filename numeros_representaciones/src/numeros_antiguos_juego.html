@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Juego de Números Antiguos</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --success: #22c55e;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(1200px 800px at 70% -20%, #1f2937 0%, var(--bg) 60%);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        padding: 18px;
+      }
+      .card {
+        width: min(780px, 94vw);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        padding: 26px;
+      }
+      h1 { margin: 0 0 8px; font-weight: 800; }
+      p.sub { margin: 0 0 16px; color: var(--muted); }
+      .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin: 14px 0; }
+      .choices { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+      .chip { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }
+      .chip input { margin-right: 8px; accent-color: var(--accent); }
+      button {
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: linear-gradient(180deg, #0ea5e9, #0284c7);
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); font-weight: 600; }
+      .status { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 16px 0; }
+      .pill { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--muted); }
+      .pill strong { color: var(--text); }
+      .display { margin: 18px 0 12px; padding: 18px; border-radius: 16px; background: rgba(2, 6, 23, 0.55); border: 1px solid rgba(255,255,255,0.08); }
+      .label { color: var(--muted); font-size: 14px; }
+      .numeral { font-size: clamp(28px, 6vw, 46px); font-weight: 800; letter-spacing: 1.2px; word-break: break-word; }
+      .egyptian { font-size: clamp(60px, 10vw, 100px); }
+      input[type="number"] { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(17,24,39,0.65); color: var(--text); font-size: 16px; outline: none; }
+      .feedback { margin-top: 12px; min-height: 24px; }
+      .feedback.ok { color: var(--success); }
+      .feedback.error { color: var(--danger); }
+      .range { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Juego de numeración antigua</h1>
+      <p class="sub">Elige un sistema numérico y escribe el número decimal que corresponde al símbolo mostrado. Son 10 niveles por partida.</p>
+
+      <div class="choices" role="radiogroup" aria-label="Sistema numérico">
+        <label class="chip"><input type="radio" name="system" value="romano" checked /> Números romanos (1–3999)</label>
+        <label class="chip"><input type="radio" name="system" value="egipcio" /> Números egipcios (1–1,000,000)</label>
+        <button id="start" type="button">Iniciar partida</button>
+      </div>
+      <p class="range" id="rangeText">Actualmente jugando con números romanos (1–3999).</p>
+
+      <div class="status">
+        <div class="pill">Nivel: <strong id="level">—</strong></div>
+        <div class="pill">Puntaje: <strong id="score">0</strong> / 10</div>
+        <div class="pill">Siguiente número entre: <strong id="intervalo">1 y 3999</strong></div>
+      </div>
+
+      <section class="display">
+        <div class="label">Número a convertir</div>
+        <div id="numeral" class="numeral">Presiona «Iniciar partida»</div>
+      </section>
+
+      <div class="row">
+        <input id="answer" type="number" min="1" step="1" placeholder="Escribe el número decimal" aria-label="Tu respuesta" />
+        <button id="submit" type="button" class="secondary">Responder</button>
+      </div>
+      <div id="feedback" class="feedback"></div>
+    </main>
+
+    <script>
+      const totalLevels = 10;
+      const ranges = {
+        romano: { min: 1, max: 3999 },
+        egipcio: { min: 1, max: 1_000_000 }
+      };
+
+      const state = {
+        system: 'romano',
+        level: 0,
+        score: 0,
+        target: null,
+        finished: false
+      };
+
+      function toRoman(n) {
+        if (n < 1 || n > 3999) return '—';
+        const map = [
+          [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+          [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+          [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+        ];
+        let num = n, out = '';
+        for (const [val, sym] of map) {
+          while (num >= val) { out += sym; num -= val; }
+        }
+        return out;
+      }
+
+      function toEgyptian(n) {
+        if (n < 1) return '—';
+        const symbols = {
+          1_000_000: '𓁨',
+          100_000: '𓅨',
+          10_000: '𓂭',
+          1_000: '𓆼',
+          100: '𓍢',
+          10: '𓎆',
+          1: '𓏺'
+        };
+        let out = '';
+        for (const val of [1_000_000, 100_000, 10_000, 1_000, 100, 10, 1]) {
+          out += symbols[val].repeat(Math.floor(n / val));
+          n %= val;
+        }
+        return out;
+      }
+
+      const levelEl = document.querySelector('#level');
+      const scoreEl = document.querySelector('#score');
+      const numeralEl = document.querySelector('#numeral');
+      const answerEl = document.querySelector('#answer');
+      const feedbackEl = document.querySelector('#feedback');
+      const startBtn = document.querySelector('#start');
+      const submitBtn = document.querySelector('#submit');
+      const rangeText = document.querySelector('#rangeText');
+      const intervalo = document.querySelector('#intervalo');
+
+      function randomBetween(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function updateRangeText() {
+        const { min, max } = ranges[state.system];
+        rangeText.textContent = `Actualmente jugando con números ${state.system === 'romano' ? 'romanos' : 'egipcios'} (${min.toLocaleString('es-ES')}–${max.toLocaleString('es-ES')}).`;
+        intervalo.textContent = `${min.toLocaleString('es-ES')} y ${max.toLocaleString('es-ES')}`;
+      }
+
+      function renderNumeral() {
+        const numeral = state.system === 'romano' ? toRoman(state.target) : toEgyptian(state.target);
+        numeralEl.textContent = numeral;
+        numeralEl.classList.toggle('egyptian', state.system === 'egipcio');
+        numeralEl.classList.toggle('numeral', true);
+      }
+
+      function startGame() {
+        state.level = 1;
+        state.score = 0;
+        state.finished = false;
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+        startBtn.textContent = 'Reiniciar partida';
+        generateTarget();
+        renderStatus();
+        renderNumeral();
+        answerEl.value = '';
+        answerEl.focus();
+      }
+
+      function generateTarget() {
+        const { min, max } = ranges[state.system];
+        state.target = randomBetween(min, max);
+      }
+
+      function renderStatus() {
+        levelEl.textContent = state.finished ? '—' : `${state.level} / ${totalLevels}`;
+        scoreEl.textContent = state.score;
+      }
+
+      function finishGame() {
+        state.finished = true;
+        numeralEl.textContent = '¡Juego terminado!';
+        numeralEl.classList.remove('egyptian');
+        feedbackEl.textContent = `Tu puntaje final es ${state.score} de ${totalLevels}.`;
+        feedbackEl.className = 'feedback';
+        levelEl.textContent = '—';
+      }
+
+      function handleAnswer() {
+        if (state.level === 0 || state.finished) return;
+        const value = answerEl.value.trim();
+        if (!value) {
+          feedbackEl.textContent = 'Escribe un número entero mayor que 0.';
+          feedbackEl.className = 'feedback error';
+          return;
+        }
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 1) {
+          feedbackEl.textContent = 'Solo se aceptan enteros positivos.';
+          feedbackEl.className = 'feedback error';
+          return;
+        }
+
+        if (n === state.target) {
+          state.score += 1;
+          feedbackEl.textContent = '¡Correcto!';
+          feedbackEl.className = 'feedback ok';
+        } else {
+          feedbackEl.textContent = `Respuesta incorrecta. El valor era ${state.target.toLocaleString('es-ES')}.`;
+          feedbackEl.className = 'feedback error';
+        }
+
+        if (state.level >= totalLevels) {
+          renderStatus();
+          finishGame();
+          return;
+        }
+
+        state.level += 1;
+        generateTarget();
+        renderStatus();
+        renderNumeral();
+        answerEl.value = '';
+        answerEl.focus();
+      }
+
+      document.querySelectorAll('input[name="system"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          state.system = radio.value;
+          updateRangeText();
+          if (state.level === 0 || state.finished) {
+            numeralEl.textContent = 'Presiona «Iniciar partida»';
+            numeralEl.classList.toggle('egyptian', state.system === 'egipcio');
+          }
+        });
+      });
+
+      startBtn.addEventListener('click', startGame);
+      submitBtn.addEventListener('click', handleAnswer);
+      answerEl.addEventListener('keydown', e => { if (e.key === 'Enter') handleAnswer(); });
+
+      updateRangeText();
+    </script>
+  </body>
+</html>
