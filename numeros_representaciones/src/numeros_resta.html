@@ -72,11 +72,8 @@
     button:disabled { opacity: .6; cursor: not-allowed; }
     .layout {
       display: grid;
-      grid-template-columns: 1.3fr 1fr;
+      grid-template-columns: 1fr;
       gap: 14px;
-    }
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
     }
     .panel {
       background: var(--panel);
@@ -87,12 +84,24 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(var(--cols), minmax(46px, 1fr));
+      grid-template-columns: auto repeat(var(--cols), minmax(46px, 1fr));
       gap: 6px;
-      align-items: end;
+      align-items: center;
     }
-    .place { text-align: center; color: var(--muted); font-size: 12px; }
-    .digits { display: contents; }
+    .row-label {
+      text-align: right;
+      font-weight: 800;
+      font-size: 18px;
+      padding-right: 6px;
+      color: var(--muted);
+    }
+    .separator {
+      grid-column: 1 / -1;
+      height: 2px;
+      background: rgba(255,255,255,0.14);
+      border-radius: 999px;
+      margin: 4px 0;
+    }
     .digit-cell {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.1);
@@ -196,17 +205,6 @@
         <p id="help" class="hint">Escribe un número de 0 a 9 y presiona Enter para comprobar.</p>
         <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
       </section>
-
-      <section class="panel" aria-label="Explicación y ayuda">
-        <h2 style="margin-top:0;">Cómo funciona</h2>
-        <ul style="margin: 8px 0 12px; color: var(--muted); padding-left: 18px; line-height: 1.5;">
-          <li>Resuelve la columna resaltada (de derecha a izquierda).</li>
-          <li>Si el dígito de arriba es menor que el de abajo, usa <strong>Pedir préstamo</strong>.</li>
-          <li>Observa cómo se tachan los números cuando pides un préstamo.</li>
-          <li>Presiona <strong>Nuevo problema</strong> para generar otra resta.</li>
-        </ul>
-        <p style="margin:0; color: var(--muted);">Consejo: también puedes usar el teclado para escribir el dígito y pulsar Enter para enviar.</p>
-      </section>
     </div>
   </main>
 
@@ -285,18 +283,23 @@
     function updateGrid() {
       grid.style.setProperty('--cols', state.digitCount);
       grid.innerHTML = '';
-      const cols = [];
-      for (let i = state.digitCount - 1; i >= 0; i--) {
-        const isActive = state.current === i;
-        const answered = state.answers[i] !== null;
-        const place = document.createElement('div');
-        place.className = 'place';
-        place.textContent = placeLabels[i] || `10^${i}`;
 
-        const top = document.createElement('div');
-        top.className = 'digit-cell' + (isActive ? ' active' : '');
+      const addRow = (label, makeCell) => {
+        const labelCell = document.createElement('div');
+        labelCell.className = 'row-label';
+        labelCell.textContent = label || '';
+        grid.appendChild(labelCell);
+        for (let i = state.digitCount - 1; i >= 0; i--) {
+          grid.appendChild(makeCell(i));
+        }
+      };
+
+      addRow('', (i) => {
+        const isActive = state.current === i;
         const original = state.minuend[i];
         const current = state.working[i];
+        const top = document.createElement('div');
+        top.className = 'digit-cell' + (isActive ? ' active' : '');
         if (original !== current) {
           const oldSpan = document.createElement('span');
           oldSpan.className = 'old-val';
@@ -309,20 +312,30 @@
         } else {
           top.textContent = current;
         }
+        return top;
+      });
 
+      addRow('−', (i) => {
+        const isActive = state.current === i;
         const bottom = document.createElement('div');
         bottom.className = 'digit-cell sub' + (isActive ? ' active' : '');
         bottom.textContent = state.subtrahend[i];
+        return bottom;
+      });
 
+      const separator = document.createElement('div');
+      separator.className = 'separator';
+      separator.setAttribute('aria-hidden', 'true');
+      grid.appendChild(separator);
+
+      addRow('', (i) => {
+        const isActive = state.current === i;
+        const answered = state.answers[i] !== null;
         const result = document.createElement('div');
         result.className = 'digit-cell result' + (isActive ? ' active' : '');
         result.textContent = answered ? state.answers[i] : '·';
-
-        cols.push(place, top, bottom, result);
-      }
-      const fragment = document.createDocumentFragment();
-      cols.forEach(node => fragment.appendChild(node));
-      grid.appendChild(fragment);
+        return result;
+      });
       answerInput.setAttribute('aria-label', `Resultado para ${placeLabels[state.current] || 'columna'} `);
     }
 
