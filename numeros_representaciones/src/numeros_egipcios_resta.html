@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resta en números egipcios</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --success: #22c55e;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(1200px 800px at 70% -20%, #1f2937 0%, var(--bg) 60%);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        padding: 18px;
+      }
+      .card {
+        width: min(880px, 96vw);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        padding: 26px;
+      }
+      h1 { margin: 0 0 8px; font-weight: 800; }
+      p.sub { margin: 0 0 16px; color: var(--muted); }
+      .status { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 16px 0; }
+      .pill { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--muted); }
+      .pill strong { color: var(--text); }
+      .display { margin: 18px 0 12px; padding: 18px; border-radius: 16px; background: rgba(2, 6, 23, 0.55); border: 1px solid rgba(255,255,255,0.08); }
+      .label { color: var(--muted); font-size: 14px; }
+      .numeral { font-size: clamp(28px, 6vw, 46px); font-weight: 800; letter-spacing: 1.2px; word-break: break-word; }
+      .egyptian { font-size: clamp(46px, 8vw, 96px); line-height: 1.1; }
+      .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin: 14px 0; }
+      button {
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: linear-gradient(180deg, #0ea5e9, #0284c7);
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); font-weight: 600; }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .symbols { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; margin: 12px 0 6px; }
+      .symbol-btn { display: grid; gap: 6px; text-align: center; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
+      .symbol-btn span:first-child { font-size: 40px; }
+      .symbol-btn small { color: var(--muted); }
+      .answer-display { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      .feedback { margin-top: 12px; min-height: 24px; }
+      .feedback.ok { color: var(--success); }
+      .feedback.error { color: var(--danger); }
+      .challenge { display: grid; gap: 12px; }
+      .challenge-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .challenge-row .symbol { font-size: clamp(42px, 10vw, 92px); }
+      .leaderboard { margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+      .leaderboard h3 { margin: 0 0 6px; }
+      .leaderboard ol { padding-left: 18px; margin: 0; color: var(--muted); }
+      .leaderboard li strong { color: var(--text); }
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Resta con números egipcios</h1>
+      <p class="sub">Resuelve 10 restas usando símbolos egipcios. Construye la respuesta con los botones, sin escribir números.</p>
+
+      <div class="status">
+        <div class="pill">Nivel: <strong id="level">—</strong></div>
+        <div class="pill">Puntaje: <strong id="score">0</strong> / 10</div>
+        <div class="pill">Tiempo: <strong id="timer">00:00</strong></div>
+        <div class="pill">Resultado esperado: <strong id="range">Pequeño → Grande</strong></div>
+      </div>
+
+      <section class="display challenge">
+        <div class="label">Resta en números egipcios</div>
+        <div class="challenge-row">
+          <div id="minuend" class="symbol egyptian">𓏺</div>
+          <div class="symbol">−</div>
+          <div id="subtrahend" class="symbol egyptian">𓏺</div>
+          <div class="symbol">=</div>
+          <div id="resultPlaceholder" class="symbol egyptian">?</div>
+        </div>
+      </section>
+
+      <section class="display answer-display">
+        <div class="label">Construye tu respuesta</div>
+        <div id="answerVisual" class="egyptian">—</div>
+        <div class="row" style="grid-template-columns: 1fr auto auto; align-items: center;">
+          <div class="label">Valor actual: <strong id="answerValue">0</strong></div>
+          <button id="clear" type="button" class="secondary">Borrar</button>
+          <button id="undo" type="button" class="secondary">Deshacer</button>
+        </div>
+      </section>
+
+      <div class="symbols" aria-label="Símbolos egipcios disponibles" id="symbols"></div>
+
+      <div class="actions">
+        <button id="restart" type="button" class="secondary">Reiniciar</button>
+        <button id="submit" type="button">Responder</button>
+        <button id="next" type="button" class="secondary hidden">Siguiente nivel</button>
+      </div>
+
+      <div id="feedback" class="feedback"></div>
+
+      <section class="leaderboard">
+        <h3>Tabla de récords locales</h3>
+        <ol id="leaderboard"></ol>
+      </section>
+    </main>
+
+    <script>
+      const totalLevels = 10;
+      const symbols = [
+        { value: 1_000_000, glyph: '𓁨', label: '1 000 000 (hombre)' },
+        { value: 100_000, glyph: '𓅨', label: '100 000 (pájaro)' },
+        { value: 10_000, glyph: '𓂭', label: '10 000 (dedo)' },
+        { value: 1_000, glyph: '𓆼', label: '1 000 (flor de loto)' },
+        { value: 100, glyph: '𓍢', label: '100 (espiral de cuerda)' },
+        { value: 10, glyph: '𓎆', label: '10 (muesca)' },
+        { value: 1, glyph: '𓏺', label: '1 (trazo)' }
+      ];
+
+      const state = {
+        level: 0,
+        score: 0,
+        elapsedMs: 0,
+        startedAt: null,
+        timerId: null,
+        challenge: { minuend: 1, subtrahend: 1, result: 0 },
+        answer: [],
+        levelComplete: false,
+        finished: false
+      };
+
+      const levelEl = document.querySelector('#level');
+      const scoreEl = document.querySelector('#score');
+      const timerEl = document.querySelector('#timer');
+      const rangeEl = document.querySelector('#range');
+      const minuendEl = document.querySelector('#minuend');
+      const subtrahendEl = document.querySelector('#subtrahend');
+      const resultPlaceholder = document.querySelector('#resultPlaceholder');
+      const answerVisual = document.querySelector('#answerVisual');
+      const answerValue = document.querySelector('#answerValue');
+      const feedbackEl = document.querySelector('#feedback');
+      const symbolsContainer = document.querySelector('#symbols');
+      const submitBtn = document.querySelector('#submit');
+      const nextBtn = document.querySelector('#next');
+      const restartBtn = document.querySelector('#restart');
+      const undoBtn = document.querySelector('#undo');
+      const clearBtn = document.querySelector('#clear');
+      const leaderboardEl = document.querySelector('#leaderboard');
+
+      function toEgyptian(n) {
+        if (n < 1) return '—';
+        const glyphs = {
+          1_000_000: '𓁨',
+          100_000: '𓅨',
+          10_000: '𓂭',
+          1_000: '𓆼',
+          100: '𓍢',
+          10: '𓎆',
+          1: '𓏺'
+        };
+        let result = '';
+        for (const value of [1_000_000, 100_000, 10_000, 1_000, 100, 10, 1]) {
+          result += glyphs[value].repeat(Math.floor(n / value));
+          n %= value;
+        }
+        return result;
+      }
+
+      function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
+        return `${minutes}:${seconds}`;
+      }
+
+      function startTimer(reset = true) {
+        if (reset) {
+          state.elapsedMs = 0;
+        }
+        state.startedAt = Date.now();
+        timerEl.textContent = formatTime(state.elapsedMs);
+        state.timerId = setInterval(() => {
+          const now = Date.now();
+          const total = state.elapsedMs + (now - state.startedAt);
+          timerEl.textContent = formatTime(total);
+        }, 500);
+      }
+
+      function resumeTimer() {
+        state.startedAt = Date.now();
+        if (state.timerId) return;
+        state.timerId = setInterval(() => {
+          const now = Date.now();
+          const total = state.elapsedMs + (now - state.startedAt);
+          timerEl.textContent = formatTime(total);
+        }, 500);
+      }
+
+      function pauseTimer() {
+        if (state.timerId) {
+          clearInterval(state.timerId);
+          state.timerId = null;
+        }
+        if (state.startedAt) {
+          state.elapsedMs += Date.now() - state.startedAt;
+        }
+        state.startedAt = null;
+        timerEl.textContent = formatTime(state.elapsedMs);
+      }
+
+      function renderSymbols() {
+        symbolsContainer.innerHTML = symbols
+          .map(
+            symbol => `
+              <button type="button" class="symbol-btn" data-value="${symbol.value}">
+                <span class="egyptian">${symbol.glyph}</span>
+                <small>${symbol.label}</small>
+              </button>
+            `
+          )
+          .join('');
+        symbolsContainer.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => addSymbol(Number(btn.dataset.value)));
+        });
+      }
+
+      function addSymbol(value) {
+        if (state.level === 0 || state.levelComplete) return;
+        state.answer.push(value);
+        renderAnswer();
+      }
+
+      function undoSymbol() {
+        state.answer.pop();
+        renderAnswer();
+      }
+
+      function clearSymbols() {
+        state.answer = [];
+        renderAnswer();
+      }
+
+      function answerTotal() {
+        return state.answer.reduce((sum, val) => sum + val, 0);
+      }
+
+      function renderAnswer() {
+        const total = answerTotal();
+        answerVisual.textContent = total > 0 ? toEgyptian(total) : '—';
+        answerValue.textContent = total.toLocaleString('es-ES');
+      }
+
+      function levelRange(level) {
+        const start = 10;
+        const growth = 30;
+        const max = 1_500;
+        const upper = Math.min(max, start + growth * level);
+        const lower = Math.max(6, Math.floor(upper * 0.35));
+        return { min: lower, max: upper };
+      }
+
+      function generateChallenge(level) {
+        const { min, max } = levelRange(level);
+        const minuend = randomBetween(min, max);
+        const subtrahend = randomBetween(4, Math.max(5, Math.floor(minuend * 0.85)));
+        const a = Math.max(subtrahend + 1, minuend);
+        const result = a - subtrahend;
+        return { minuend: a, subtrahend, result };
+      }
+
+      function randomBetween(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function renderChallenge() {
+        const { minuend, subtrahend, result } = state.challenge;
+        minuendEl.textContent = toEgyptian(minuend);
+        subtrahendEl.textContent = toEgyptian(subtrahend);
+        resultPlaceholder.textContent = '?';
+        resultPlaceholder.classList.add('egyptian');
+        const { min, max } = levelRange(state.level || 1);
+        rangeEl.textContent = `${min.toLocaleString('es-ES')} → ${max.toLocaleString('es-ES')}`;
+      }
+
+      function renderStatus() {
+        levelEl.textContent = state.level ? `${state.level} / ${totalLevels}` : '—';
+        scoreEl.textContent = state.score;
+      }
+
+      function startGame() {
+        pauseTimer();
+        state.level = 1;
+        state.score = 0;
+        state.elapsedMs = 0;
+        state.finished = false;
+        state.levelComplete = false;
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+        state.challenge = generateChallenge(state.level);
+        renderChallenge();
+        clearSymbols();
+        renderStatus();
+        nextBtn.classList.add('hidden');
+        submitBtn.disabled = false;
+        startTimer(true);
+      }
+
+      function startLevel(level) {
+        state.level = level;
+        state.levelComplete = false;
+        state.challenge = generateChallenge(level);
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+        clearSymbols();
+        renderChallenge();
+        renderStatus();
+        nextBtn.classList.add('hidden');
+        submitBtn.disabled = false;
+        resumeTimer();
+      }
+
+      function handleAnswer() {
+        if (state.level === 0 || state.levelComplete) return;
+        const total = answerTotal();
+        if (total === 0) {
+          feedbackEl.textContent = 'Agrega al menos un símbolo para responder.';
+          feedbackEl.className = 'feedback error';
+          return;
+        }
+
+        const { result } = state.challenge;
+        state.levelComplete = true;
+        pauseTimer();
+
+        if (total === result) {
+          state.score += 1;
+          feedbackEl.textContent = '¡Correcto! Excelente trabajo.';
+          feedbackEl.className = 'feedback ok';
+        } else {
+          feedbackEl.textContent = `Inténtalo de nuevo en el siguiente nivel. El resultado era ${result.toLocaleString('es-ES')}.`;
+          feedbackEl.className = 'feedback error';
+        }
+
+        resultPlaceholder.textContent = toEgyptian(result);
+        submitBtn.disabled = true;
+
+        if (state.level >= totalLevels) {
+          nextBtn.classList.add('hidden');
+          finishGame();
+        } else {
+          nextBtn.classList.remove('hidden');
+        }
+      }
+
+      function finishGame() {
+        state.finished = true;
+        pauseTimer();
+        feedbackEl.textContent += ' Partida finalizada.';
+        updateLeaderboard();
+      }
+
+      function nextLevel() {
+        if (state.level >= totalLevels) return;
+        startLevel(state.level + 1);
+      }
+
+      function loadLeaderboard() {
+        try {
+          return JSON.parse(localStorage.getItem('egyptianSubLeaderboard') || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function saveLeaderboard(entries) {
+        localStorage.setItem('egyptianSubLeaderboard', JSON.stringify(entries));
+      }
+
+      function updateLeaderboard() {
+        const entries = loadLeaderboard();
+        entries.push({
+          score: state.score,
+          duration: state.elapsedMs,
+          playedAt: new Date().toISOString()
+        });
+        const sorted = entries
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.duration - b.duration;
+          })
+          .slice(0, 5);
+        saveLeaderboard(sorted);
+        renderLeaderboard(sorted);
+      }
+
+      function renderLeaderboard(existing = loadLeaderboard()) {
+        if (!existing.length) {
+          leaderboardEl.innerHTML = '<li>No hay partidas guardadas aún.</li>';
+          return;
+        }
+        leaderboardEl.innerHTML = existing
+          .map(entry => `<li><strong>${entry.score}/${totalLevels}</strong> en ${formatTime(entry.duration)}</li>`)
+          .join('');
+      }
+
+      renderSymbols();
+      renderLeaderboard();
+      renderStatus();
+      renderAnswer();
+      renderChallenge();
+
+      submitBtn.addEventListener('click', handleAnswer);
+      nextBtn.addEventListener('click', nextLevel);
+      restartBtn.addEventListener('click', startGame);
+      undoBtn.addEventListener('click', undoSymbol);
+      clearBtn.addEventListener('click', clearSymbols);
+    </script>
+  </body>
+</html>
