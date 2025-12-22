@@ -159,6 +159,24 @@
     .indicator { width: 12px; height: 12px; border-radius: 4px; display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.2); }
     .indicator.active { background: var(--focus); border-color: var(--focus); }
     .indicator.result { background: rgba(56,189,248,0.4); border-color: rgba(56,189,248,0.8); }
+    .flash-orange { animation: flashOrange 0.7s ease; }
+    .flash-green { animation: flashGreen 0.7s ease; }
+    .flash-red { animation: flashRed 0.7s ease; }
+    @keyframes flashOrange {
+      0% { box-shadow: 0 0 0 0 rgba(249,115,22,0.55); background-color: rgba(249,115,22,0.15); }
+      70% { box-shadow: 0 0 0 12px rgba(249,115,22,0); background-color: rgba(249,115,22,0.08); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
+    @keyframes flashGreen {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); background-color: rgba(34,197,94,0.18); }
+      70% { box-shadow: 0 0 0 12px rgba(34,197,94,0); background-color: rgba(34,197,94,0.1); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
+    @keyframes flashRed {
+      0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.55); background-color: rgba(248,113,113,0.18); }
+      70% { box-shadow: 0 0 0 12px rgba(248,113,113,0); background-color: rgba(248,113,113,0.1); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
   </style>
 </head>
 <body>
@@ -300,6 +318,8 @@
         const current = state.working[i];
         const top = document.createElement('div');
         top.className = 'digit-cell' + (isActive ? ' active' : '');
+        top.dataset.col = i;
+        top.dataset.type = 'top';
         if (original !== current) {
           const oldSpan = document.createElement('span');
           oldSpan.className = 'old-val';
@@ -319,6 +339,8 @@
         const isActive = state.current === i;
         const bottom = document.createElement('div');
         bottom.className = 'digit-cell sub' + (isActive ? ' active' : '');
+        bottom.dataset.col = i;
+        bottom.dataset.type = 'bottom';
         bottom.textContent = state.subtrahend[i];
         return bottom;
       });
@@ -333,6 +355,8 @@
         const answered = state.answers[i] !== null;
         const result = document.createElement('div');
         result.className = 'digit-cell result' + (isActive ? ' active' : '');
+        result.dataset.col = i;
+        result.dataset.type = 'result';
         result.textContent = answered ? state.answers[i] : '·';
         return result;
       });
@@ -347,6 +371,7 @@
       }
       if (donor === -1) {
         setFeedback('No hay dígitos a la izquierda para pedir préstamo. Revisa el número.', 'error');
+        answerInput.focus();
         return;
       }
       state.working[donor] -= 1;
@@ -356,6 +381,8 @@
       state.working[i] += 10;
       setFeedback(`Se pidió préstamo desde ${placeLabels[donor] || 'la columna izquierda'}.`, '');
       updateGrid();
+      flashBorrow(donor, i);
+      answerInput.focus();
     }
 
     function checkAnswer(value) {
@@ -364,20 +391,25 @@
       const bottom = state.subtrahend[col];
       if (top < bottom) {
         setFeedback('Necesitas pedir un préstamo antes de resolver esta columna.', 'error');
+        answerInput.focus();
         return;
       }
       state.attempts += 1;
       const expected = top - bottom;
+      let className = 'flash-red';
       if (Number(value) === expected) {
         state.answers[col] = expected;
         state.correct += 1;
         setFeedback(`¡Bien! ${top} − ${bottom} = ${expected}.`, 'ok');
+        className = 'flash-green';
         moveNext();
       } else {
         setFeedback(`Casi. ${top} − ${bottom} es ${expected}. Intenta de nuevo.`, 'error');
       }
       updateStatus();
       updateGrid();
+      flashColumn(col, className);
+      answerInput.focus();
     }
 
     function moveNext() {
@@ -393,6 +425,28 @@
     function setFeedback(message, type) {
       feedbackEl.textContent = message;
       feedbackEl.className = 'feedback' + (type ? ` ${type}` : '');
+    }
+
+    function flashCells(selector, className) {
+      if (!selector) return;
+      grid.querySelectorAll(selector).forEach((cell) => {
+        cell.classList.remove(className);
+        void cell.offsetWidth;
+        cell.classList.add(className);
+        cell.addEventListener('animationend', () => cell.classList.remove(className), { once: true });
+      });
+    }
+
+    function flashBorrow(donor, borrower) {
+      const selector = [donor, borrower]
+        .filter((col) => col !== undefined && col !== null)
+        .map((col) => `.digit-cell[data-type="top"][data-col="${col}"]`)
+        .join(',');
+      flashCells(selector, 'flash-orange');
+    }
+
+    function flashColumn(col, className) {
+      flashCells(`.digit-cell[data-col="${col}"]`, className);
     }
 
     digitCountInput.addEventListener('input', () => {
