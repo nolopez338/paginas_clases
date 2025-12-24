@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Suma con llevadas paso a paso</title>
+  <style>
+    :root {
+      --bg: #0b1224;
+      --card: #0f172a;
+      --panel: #111827;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-strong: #0ea5e9;
+      --success: #22c55e;
+      --danger: #f87171;
+      --focus: #fde68a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(1200px 900px at 70% -10%, #1f2937 0%, var(--bg) 60%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 20px;
+    }
+    main {
+      width: min(1200px, 98vw);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: clamp(18px, 3vw, 28px);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+      display: grid;
+      gap: 16px;
+    }
+    header h1 { margin: 0; font-weight: 800; letter-spacing: .2px; }
+    header p { margin: 6px 0 0; color: var(--muted); max-width: 880px; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+    .control-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 6px;
+    }
+    label { font-weight: 700; font-size: 14px; }
+    input[type="range"] { width: 100%; }
+    button {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      color: white;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease;
+      box-shadow: 0 12px 20px rgba(56,189,248,0.25);
+    }
+    button.secondary { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); box-shadow: none; }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: auto repeat(var(--cols), minmax(46px, 1fr));
+      gap: 6px;
+      align-items: center;
+    }
+    .row-label {
+      text-align: right;
+      font-weight: 800;
+      font-size: 18px;
+      padding-right: 6px;
+      color: var(--muted);
+    }
+    .separator {
+      grid-column: 1 / -1;
+      height: 2px;
+      background: rgba(255,255,255,0.14);
+      border-radius: 999px;
+      margin: 4px 0;
+    }
+    .digit-cell {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      position: relative;
+      min-height: 64px;
+    }
+    .digit-cell.sub { color: #cbd5e1; font-weight: 700; }
+    .digit-cell.result { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.3); }
+    .digit-cell.active { outline: 2px solid var(--focus); box-shadow: 0 0 0 4px rgba(253,230,138,0.15); }
+    .carry-val {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .hint { margin: 0; color: var(--muted); font-size: 14px; }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+      gap: 10px;
+    }
+    .pill { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
+    .pill strong { color: white; }
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    @media (max-width: 640px) { form { grid-template-columns: 1fr; } }
+    input[type="number"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.03);
+      color: white;
+      font-size: 18px;
+    }
+    .feedback { min-height: 26px; font-weight: 700; }
+    .feedback.ok { color: var(--success); }
+    .feedback.error { color: var(--danger); }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .indicator { width: 12px; height: 12px; border-radius: 4px; display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.2); }
+    .indicator.active { background: var(--focus); border-color: var(--focus); }
+    .indicator.result { background: rgba(56,189,248,0.4); border-color: rgba(56,189,248,0.8); }
+    .flash-orange { animation: flashOrange 0.7s ease; }
+    .flash-green { animation: flashGreen 0.7s ease; }
+    .flash-red { animation: flashRed 0.7s ease; }
+    @keyframes flashOrange {
+      0% { box-shadow: 0 0 0 0 rgba(249,115,22,0.55); background-color: rgba(249,115,22,0.15); }
+      70% { box-shadow: 0 0 0 12px rgba(249,115,22,0); background-color: rgba(249,115,22,0.08); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
+    @keyframes flashGreen {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); background-color: rgba(34,197,94,0.18); }
+      70% { box-shadow: 0 0 0 12px rgba(34,197,94,0); background-color: rgba(34,197,94,0.1); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
+    @keyframes flashRed {
+      0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.55); background-color: rgba(248,113,113,0.18); }
+      70% { box-shadow: 0 0 0 12px rgba(248,113,113,0); background-color: rgba(248,113,113,0.1); }
+      100% { box-shadow: none; background-color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Suma columna por columna</h1>
+      <p>Practica la suma con varios dígitos usando el método vertical. Trabaja una columna a la vez, registra las llevadas cuando sea necesario y recibe retroalimentación inmediata.</p>
+    </header>
+
+    <div class="controls">
+      <div class="control-card">
+        <label for="digitCount">Número de dígitos: <span id="digitCountLabel">4</span></label>
+        <input type="range" id="digitCount" min="2" max="10" value="4" />
+        <small style="color:var(--muted)">Ajusta la dificultad entre 2 y 10 dígitos.</small>
+      </div>
+      <div class="control-card" style="align-items:center; grid-auto-flow:column; grid-auto-columns:1fr;">
+        <button id="newProblem" type="button">Nuevo problema</button>
+        <button id="resetProblem" type="button" class="secondary">Reiniciar</button>
+        <button id="hint" type="button" class="secondary">Pista</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="panel" aria-label="Tablero de suma">
+        <div class="status" style="margin-bottom:10px;">
+          <div class="pill">Paso: <strong id="step">1</strong> / <span id="totalSteps">4</span></div>
+          <div class="pill">Aciertos: <strong id="correct">0</strong> / <span id="attempts">0</span></div>
+          <div class="pill">Problema: <strong id="problemLabel">----</strong></div>
+        </div>
+        <div class="grid" id="placeGrid" style="--cols:4" aria-live="polite"></div>
+        <div class="legend">
+          <span><span class="indicator active"></span> Columna activa</span>
+          <span><span class="indicator"></span> Sin responder</span>
+          <span><span class="indicator result"></span> Respuesta guardada</span>
+        </div>
+        <form id="answerForm">
+          <div>
+            <label for="answerInput">Resultado en la columna activa</label>
+            <input id="answerInput" name="answer" type="number" inputmode="numeric" min="0" max="9" autocomplete="off" aria-describedby="help" />
+          </div>
+          <button type="submit">Comprobar</button>
+          <button type="button" id="carry" class="secondary">Ver llevada</button>
+        </form>
+        <p id="help" class="hint">Escribe un número de 0 a 9 y presiona Enter para comprobar.</p>
+        <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const placeLabels = [
+      'Unidades', 'Decenas', 'Centenas', 'Unidades de mil', 'Decenas de mil',
+      'Centenas de mil', 'Millones', 'Decenas de millón', 'Centenas de millón', 'Miles de millón'
+    ];
+
+    const state = {
+      digitCount: 4,
+      addendA: [],
+      addendB: [],
+      carries: [],
+      answers: [],
+      current: 0,
+      attempts: 0,
+      correct: 0,
+    };
+
+    const grid = document.querySelector('#placeGrid');
+    const digitCountInput = document.querySelector('#digitCount');
+    const digitCountLabel = document.querySelector('#digitCountLabel');
+    const totalSteps = document.querySelector('#totalSteps');
+    const stepEl = document.querySelector('#step');
+    const correctEl = document.querySelector('#correct');
+    const attemptsEl = document.querySelector('#attempts');
+    const problemLabel = document.querySelector('#problemLabel');
+    const answerForm = document.querySelector('#answerForm');
+    const answerInput = document.querySelector('#answerInput');
+    const feedbackEl = document.querySelector('#feedback');
+    const helpEl = document.querySelector('#help');
+    const carryBtn = document.querySelector('#carry');
+    const hintBtn = document.querySelector('#hint');
+    const newProblemBtn = document.querySelector('#newProblem');
+    const resetBtn = document.querySelector('#resetProblem');
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function numberToDigits(n, size) {
+      return String(n).padStart(size, '0').split('').map(Number).reverse();
+    }
+
+    function generateProblem() {
+      const digits = Number(digitCountInput.value);
+      state.digitCount = digits;
+      const min = 10 ** (digits - 1);
+      const max = 10 ** digits - 1;
+      let addendA = randomInt(min, max);
+      let addendB = randomInt(min, max);
+      while (addendA + addendB > max) {
+        addendA = randomInt(min, max);
+        addendB = randomInt(min, max);
+      }
+      state.addendA = numberToDigits(addendA, digits);
+      state.addendB = numberToDigits(addendB, digits);
+      state.carries = Array(digits + 1).fill(0);
+      state.answers = Array(digits).fill(null);
+      state.current = 0;
+      state.attempts = 0;
+      state.correct = 0;
+      totalSteps.textContent = digits;
+      digitCountLabel.textContent = digits;
+      problemLabel.textContent = `${addendA.toLocaleString('es-MX')} + ${addendB.toLocaleString('es-MX')}`;
+      updateGrid();
+      updateStatus();
+      setFeedback('Nuevo problema generado. Empieza por la columna de las unidades.', '');
+      answerInput.value = '';
+      answerInput.focus();
+    }
+
+    function updateStatus() {
+      stepEl.textContent = state.current + 1;
+      correctEl.textContent = state.correct;
+      attemptsEl.textContent = state.attempts;
+    }
+
+    function updateGrid() {
+      grid.style.setProperty('--cols', state.digitCount);
+      grid.innerHTML = '';
+
+      const addRow = (label, makeCell) => {
+        const labelCell = document.createElement('div');
+        labelCell.className = 'row-label';
+        labelCell.textContent = label || '';
+        grid.appendChild(labelCell);
+        for (let i = state.digitCount - 1; i >= 0; i--) {
+          grid.appendChild(makeCell(i));
+        }
+      };
+
+      addRow('', (i) => {
+        const isActive = state.current === i;
+        const top = document.createElement('div');
+        top.className = 'digit-cell' + (isActive ? ' active' : '');
+        top.dataset.col = i;
+        top.dataset.type = 'top';
+        const carryIn = state.carries[i];
+        if (carryIn) {
+          const carrySpan = document.createElement('span');
+          carrySpan.className = 'carry-val';
+          carrySpan.textContent = carryIn;
+          top.appendChild(carrySpan);
+        }
+        top.appendChild(document.createTextNode(state.addendA[i]));
+        return top;
+      });
+
+      addRow('+', (i) => {
+        const isActive = state.current === i;
+        const bottom = document.createElement('div');
+        bottom.className = 'digit-cell sub' + (isActive ? ' active' : '');
+        bottom.dataset.col = i;
+        bottom.dataset.type = 'bottom';
+        bottom.textContent = state.addendB[i];
+        return bottom;
+      });
+
+      const separator = document.createElement('div');
+      separator.className = 'separator';
+      separator.setAttribute('aria-hidden', 'true');
+      grid.appendChild(separator);
+
+      addRow('', (i) => {
+        const isActive = state.current === i;
+        const answered = state.answers[i] !== null;
+        const result = document.createElement('div');
+        result.className = 'digit-cell result' + (isActive ? ' active' : '');
+        result.dataset.col = i;
+        result.dataset.type = 'result';
+        result.textContent = answered ? state.answers[i] : '·';
+        return result;
+      });
+      answerInput.setAttribute('aria-label', `Resultado para ${placeLabels[state.current] || 'columna'} `);
+    }
+
+    function checkAnswer(value) {
+      const col = state.current;
+      const top = state.addendA[col];
+      const bottom = state.addendB[col];
+      const carryIn = state.carries[col];
+      state.attempts += 1;
+      const sum = top + bottom + carryIn;
+      const expected = sum % 10;
+      const carryOut = Math.floor(sum / 10);
+      let className = 'flash-red';
+      if (Number(value) === expected) {
+        state.answers[col] = expected;
+        state.correct += 1;
+        state.carries[col + 1] = carryOut;
+        if (carryOut > 0) {
+          setFeedback(`¡Bien! ${top} + ${bottom} + ${carryIn} = ${sum}. Llevas ${carryOut} a la siguiente columna.`, 'ok');
+          flashCarry(col + 1);
+        } else {
+          setFeedback(`¡Bien! ${top} + ${bottom} + ${carryIn} = ${sum}.`, 'ok');
+        }
+        className = 'flash-green';
+        moveNext();
+      } else {
+        setFeedback(`Casi. ${top} + ${bottom} + ${carryIn} da ${sum}, así que escribes ${expected}.`, 'error');
+      }
+      updateStatus();
+      updateGrid();
+      flashColumn(col, className);
+      answerInput.focus();
+    }
+
+    function moveNext() {
+      if (state.current < state.digitCount - 1) {
+        state.current += 1;
+        answerInput.value = '';
+        answerInput.focus();
+      } else {
+        setFeedback('¡Felicidades! Resolviste todas las columnas.', 'ok');
+      }
+    }
+
+    function setFeedback(message, type) {
+      feedbackEl.textContent = message;
+      feedbackEl.className = 'feedback' + (type ? ` ${type}` : '');
+    }
+
+    function flashCells(selector, className) {
+      if (!selector) return;
+      grid.querySelectorAll(selector).forEach((cell) => {
+        cell.classList.remove(className);
+        void cell.offsetWidth;
+        cell.classList.add(className);
+        cell.addEventListener('animationend', () => cell.classList.remove(className), { once: true });
+      });
+    }
+
+    function flashCarry(col) {
+      flashCells(`.digit-cell[data-type="top"][data-col="${col}"]`, 'flash-orange');
+    }
+
+    function flashColumn(col, className) {
+      flashCells(`.digit-cell[data-col="${col}"]`, className);
+    }
+
+    digitCountInput.addEventListener('input', () => {
+      digitCountLabel.textContent = digitCountInput.value;
+    });
+
+    digitCountInput.addEventListener('change', generateProblem);
+
+    answerForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = answerInput.value.trim();
+      if (value === '') {
+        setFeedback('Escribe un dígito entre 0 y 9.', 'error');
+        answerInput.focus();
+        return;
+      }
+      checkAnswer(value);
+    });
+
+    carryBtn.addEventListener('click', () => {
+      const col = state.current;
+      const top = state.addendA[col];
+      const bottom = state.addendB[col];
+      const carryIn = state.carries[col];
+      const sum = top + bottom + carryIn;
+      const carryOut = Math.floor(sum / 10);
+      if (carryOut > 0) {
+        setFeedback(`Al sumar ${top} + ${bottom} + ${carryIn} tendrás una llevada de ${carryOut} a la siguiente columna.`, '');
+        flashCarry(col + 1);
+      } else {
+        setFeedback(`Al sumar ${top} + ${bottom} + ${carryIn} no hay llevada.`, '');
+      }
+      answerInput.focus();
+    });
+
+    hintBtn.addEventListener('click', () => {
+      const col = state.current;
+      const top = state.addendA[col];
+      const bottom = state.addendB[col];
+      const carryIn = state.carries[col];
+      const sum = top + bottom + carryIn;
+      const expected = sum % 10;
+      const carryOut = Math.floor(sum / 10);
+      const carryText = carryIn ? `+ ${carryIn}` : '';
+      const message = carryOut > 0
+        ? `En esta columna calcula ${top} + ${bottom} ${carryText}. Escribes ${expected} y llevas ${carryOut}.`
+        : `En esta columna calcula ${top} + ${bottom} ${carryText}. El resultado en la columna es ${expected}.`;
+      setFeedback(message, '');
+    });
+
+    newProblemBtn.addEventListener('click', generateProblem);
+
+    resetBtn.addEventListener('click', () => {
+      state.carries = Array(state.digitCount + 1).fill(0);
+      state.answers = Array(state.digitCount).fill(null);
+      state.current = 0;
+      state.attempts = 0;
+      state.correct = 0;
+      updateGrid();
+      updateStatus();
+      setFeedback('Se reinició el problema actual. Vuelve a empezar desde unidades.', '');
+      answerInput.value = '';
+      answerInput.focus();
+    });
+
+    // Navegar columnas con teclado
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowRight','ArrowLeft'].includes(e.key)) {
+        e.preventDefault();
+        if (e.key === 'ArrowRight' && state.current < state.digitCount - 1) state.current += 1;
+        if (e.key === 'ArrowLeft' && state.current > 0) state.current -= 1;
+        updateGrid();
+        updateStatus();
+        answerInput.focus();
+      }
+    });
+
+    generateProblem();
+  </script>
+</body>
+</html>
