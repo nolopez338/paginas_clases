@@ -1,0 +1,9 @@
+# LaTeX auxiliary files
+*.aux
+*.log
+*.synctex.gz
+*.toc
+*.out
+*.lof
+*.lot
+*.pdf

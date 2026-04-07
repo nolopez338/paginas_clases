@@ -1,0 +1,208 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{fontawesome5}
+\usepackage{tgheros}
+
+\renewcommand*\familydefault{\sfdefault}
+
+\definecolor{light-grey}{gray}{0.83}
+\definecolor{dark-grey}{gray}{0.3}
+\definecolor{text-grey}{gray}{0.08}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{0in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+\setlength{\parindent}{0pt}
+\color{text-grey}
+
+\titleformat{\section}
+{\bfseries \vspace{2pt} \raggedright \large}
+{}{0em}{}[\color{light-grey}{\titlerule[2pt]} \vspace{-4pt}]
+
+\newcommand{\resumeItem}[1]{
+	\item\small{#1 \vspace{-1pt}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+	\vspace{-1pt}\item
+	\begin{tabular*}{\textwidth}[t]{l@{\extracolsep{\fill}}r}
+		\textbf{#1} & {\color{dark-grey}\small #2}\vspace{1pt}\\
+		\textit{#3} & {\color{dark-grey}\small #4}\\
+	\end{tabular*}\vspace{-4pt}
+}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in,label={}]}
+	\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=1.2em]}
+	\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{0pt}}
+
+\begin{document}
+	
+	\begin{center}
+		\textbf{\Huge Nicolás Orlando López Cuéllar} \\ \vspace{5pt}
+		\small
+		\faPhone* \hspace{2pt} \href{tel:+573014702400}{+57 3014702400} \hspace{3pt} $|$
+		\hspace{3pt} \faEnvelope \hspace{2pt} \href{mailto:nicolas.lopez.lc.994@gmail.com}{nicolas.lopez.lc.994@gmail.com} \hspace{3pt} $|$
+		\hspace{3pt} \faLinkedin \hspace{2pt} \href{https://linkedin.com/in/nicolas-lopez-845b12189}{linkedin.com/in/nicolas-lopez-845b12189}
+		\\ \vspace{-3pt}
+	\end{center}
+	
+	\section{PERFIL PROFESIONAL}
+	\begin{itemize}[leftmargin=0in,label={}]
+		\item \small{Matemático e Ingeniero Electrónico de la Universidad de los Andes, con maestría en Ingeniería Electrónica y de Computadores. Especializado en ciencia de datos, con experiencia en pedagogía, en empresas de tecnología y en teatro. Interés profesional, por un lado, en la investigación y la pedagogía y por el otro, en el desarrollo de herramientas de software que permitan optimizar procesos de tecnología y de logística. Buena disposición para trabajar en equipo y para aprender cualquier tipo de actividad.}
+	\end{itemize}
+	
+	\section{EDUCACIÓN}
+	\resumeSubHeadingListStart
+	
+	\resumeSubheading
+	{Maestría en Educación Matemática}{2025}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Maestría enfocada en educación escolar.}
+	\resumeItem{Tesis: Unidad didactica sobre polinomios para grado 10mo.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Maestría en Ingeniería Electrónica y de Computadores}{2023}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Asistente Académico: Beca de asistencia académica por 3 periodos en los cursos de Optimización y de Procesos Estocásticos.}
+	\resumeItem{Asistente Académico: Beca de asistencia académica por 1 periodo para el apoyo en la creación de la maestria virtual de IA de la Universidad de los Andes.}
+	\resumeItem{Cursos relevantes: Control Óptimo, Machine Learning, Sistemas no Lineales.}
+	\resumeItem{Tesis: Creación de una métrica aplicada a difractogramas para su análisis mediante inteligencia artificial.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Pregrado en Matemáticas}{2019}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Monitor: Variable Compleja, Topología, Ecuaciones diferenciales y Teoría de Juegos.}
+	\resumeItem{Profesor: Calculo diferencial, Algebra Lineal.}
+	\resumeItem{Cursos relevantes: Teoría de Grafos, Simulación Estocástica, Actuaría.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Pregrado en Ingeniería Electrónica}{2019}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Intercambio Académico de 1 semestre en el 2015 con la Universidad de Essex en Essex, Inglaterra.}
+	\resumeItem{Cursos relevantes: Automatización Industrial, Energias Renovables.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Opción Académica en Estudios Teatrales}{2019}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Integrante del grupo de Teatro de la Universidad de los Andes durante 5 años.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Bachillerato}{2011}
+	{Colegio Jose Máx León}{Cota - Cundinamarca}
+	\resumeItemListStart
+	\resumeItem{Intercambio Académico de un semestre en grado 4to con el Cholee Lake Elementary School en Palm Beach, Florida, EU y otro en grado 10mo con el Palm Beach Central High School en Palm Beach, Florida, EU.}
+	\resumeItem{Distinciones: Puesto \#25 a nivel nacional en examen ICFES, PUesto \#9 en las finales de las olimpiadas matemáticas en 2009.}
+	\resumeItemListEnd
+	
+	\resumeSubHeadingListEnd
+	
+	\section{EXPERIENCIA LABORAL}
+	\resumeSubHeadingListStart
+	
+	\resumeSubheading
+	{Profesor de Global Economics}{2025 - presente}
+	{Colegio San Bartolome de la Merced}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Profesor de Estadística con énfasis en economía global para los grados décimo y undécimo.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Edutuber Tecnología}{2024 -- 2025}
+	{Colegio Monterrosales Homeschool}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Profesor virtual de la electiva de Sistemas e Inteligencia Artificial, ofrecida desde primero hasta undécimo grado, y de la electiva de Diseño Web. Desempeño del cargo durante 22 meses.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Asistente de desarrollo}{2022}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Asistente en el desarrollo del curso Matemáticas Para Machine Learning de la Maestria Virtual de Inteligencia Artificial de la Universidad. En el cargo por 8 meses.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Profesor Asistente}{2020 -- 2021}
+	{Universidad de los Andes}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Profesor de la clase complementaria de Calculo diferencial por 1 semestre y de la clase complementaria de Algebra lineal por 1 semestre.}
+	\resumeItem{Profesor del laboratorio de Optimización y monitor del curso de Procesos Estocásticos durante tres semestres.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Ingeniero de Software}{2018}
+	{Grupo Mercedez Benz}{Stuttgart, Alemania}
+	\resumeItemListStart
+	\resumeItem{Practica de 6 meses en el departamento de \textit{Advanced Analytics} de la compañia. Desarrollo de herramientas de preprocesamiento de datos en R y Python.}
+	\resumeItemListEnd
+	
+	\resumeSubheading
+	{Actor - Director - Tallerista}{2018, 2019, 2023}
+	{Teatro}{Bogotá}
+	\resumeItemListStart
+	\resumeItem{Actor en la obra \textit{Florencia en el Amazonas} producida por la \textit{Compañia estable} en 2018.}
+	\resumeItem{Codirector-Productor de la obra \textit{Rosa} creada por el colectivo \textit{Agatha Teatro} en 2019.}
+	\resumeItem{Tallerista del grupo de teatro \textit{Teatro al alba} en 2023.}
+	\resumeItemListEnd
+	
+	\resumeSubHeadingListEnd
+	
+	\section{HABILIDADES}
+	\begin{itemize}[leftmargin=0in,label={}]
+		\item \small{
+			\textbf{Programación}: Python, R, JavaScript, SQL. \\
+			\textbf{Miscelaneos}: Linux, Shell, \LaTeX{} (Overleaf/R Markdown), Tableau, Microsoft Office, Git.
+		}
+	\end{itemize}
+	
+	\section{INTERESES PERSONALES}
+	\begin{itemize}[leftmargin=0in,label={}]
+		\item \small{
+			\textbf{Teatro}: Gran variedad de cursos y talleres relacionados con teatro desde la actuación hasta perspectivas como la de dirección y escenografía. \\
+			\textbf{Danza}: Un año en el grupo de danza contemporanea de la universidad, y asistente de varios cursos y talleres de danza durante años. \\
+			\textbf{Escalada}: Escalador desde hace mas de 10 años. Adicional he hecho las cumbres del Ritacuba blanco y del Nevado del Tolima.
+		}
+	\end{itemize}
+	
+	\section{LENGUAJES}
+	\begin{itemize}[leftmargin=0in,label={}]
+		\item \small{
+			\textbf{Español}: Idioma Nativo. \\
+			\textbf{Ingles}: Nivel C1 Certificación IELTS. \\
+			\textbf{Alemán}: Nivel B2 Certificación Goethe Institut.
+		}
+	\end{itemize}
+	
+\end{document}
