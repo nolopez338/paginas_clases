@@ -141,8 +141,7 @@
     }
 
     .news-grid,
-    .contact-grid,
-    .calendar-grid {
+    .contact-grid {
       grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
     }
 
@@ -217,6 +216,188 @@
       background: #fafcfd;
     }
 
+
+
+    .collapse-wrap {
+      margin-top: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fcfeff;
+    }
+
+    .collapse-toggle {
+      width: 100%;
+      border: 0;
+      padding: 0.8rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #eef5fa;
+      color: #1f3f52;
+      font-size: 0.98rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .collapse-toggle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .collapse-icon {
+      transition: transform 0.2s ease;
+    }
+
+    .collapse-toggle[aria-expanded="false"] .collapse-icon {
+      transform: rotate(-90deg);
+    }
+
+    .collapse-content {
+      padding: 1rem;
+    }
+
+    .collapse-content[hidden] {
+      display: none;
+    }
+
+    .calendar-months {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    }
+
+    .month-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.75rem;
+      background: white;
+    }
+
+    .month-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.7rem;
+      text-transform: capitalize;
+    }
+
+    .weekdays,
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+
+    .weekdays div {
+      text-align: center;
+      font-size: 0.76rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .day-cell {
+      position: relative;
+      min-height: 44px;
+      border: 1px solid #e8edf1;
+      border-radius: 10px;
+      background: #fbfdff;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 0.35rem;
+      font-size: 0.82rem;
+      color: #2f3f49;
+    }
+
+    .day-cell.empty {
+      background: transparent;
+      border-style: dashed;
+      color: transparent;
+    }
+
+    .day-cell.today {
+      border-color: var(--success);
+      box-shadow: inset 0 0 0 1px var(--success);
+      background: #edf9f2;
+      font-weight: 700;
+    }
+
+    .day-cell.has-event {
+      background: #fff2db;
+      border-color: #eebf69;
+    }
+
+    .day-cell.today.has-event {
+      background: linear-gradient(135deg, #edf9f2 0%, #edf9f2 45%, #fff2db 45%, #fff2db 100%);
+    }
+
+    .day-cell button {
+      all: unset;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+
+    .event-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #d68600;
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+    }
+
+    .event-tooltip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      background: #213744;
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.55rem 0.65rem;
+      font-size: 0.75rem;
+      width: 220px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 20;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+    }
+
+    .day-cell.has-event:hover .event-tooltip,
+    .day-cell.has-event:focus-within .event-tooltip {
+      opacity: 1;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .events-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .events-table th,
+    .events-table td {
+      border: 1px solid var(--border);
+      padding: 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .events-table th {
+      background: #eef5fa;
+      color: #1f3f52;
+    }
+
     footer {
       text-align: center;
       color: var(--muted);
@@ -276,14 +457,39 @@
 
     <section id="calendario" aria-labelledby="titulo-calendario">
       <h2 id="titulo-calendario">Calendario de fechas importantes</h2>
-      <div class="toolbar">
-        <label for="filtro-calendario">Mostrar:</label>
-        <select id="filtro-calendario" aria-label="Filtrar eventos del calendario">
-          <option value="todos">Todos los eventos</option>
-          <option value="proximos">Solo próximos eventos</option>
-        </select>
+
+      <div class="collapse-wrap">
+        <button class="collapse-toggle" id="toggle-calendario-visual" aria-expanded="true" aria-controls="contenido-calendario-visual">
+          <span>Calendario visual</span>
+          <span class="collapse-icon" aria-hidden="true">▾</span>
+        </button>
+        <div id="contenido-calendario-visual" class="collapse-content">
+          <div id="calendario-visual" class="calendar-months" aria-live="polite"></div>
+        </div>
       </div>
-      <div id="lista-calendario" class="grid calendar-grid" aria-live="polite"></div>
+
+      <div class="collapse-wrap">
+        <button class="collapse-toggle" id="toggle-listado-fechas" aria-expanded="true" aria-controls="contenido-listado-fechas">
+          <span>Listado de fechas importantes</span>
+          <span class="collapse-icon" aria-hidden="true">▾</span>
+        </button>
+        <div id="contenido-listado-fechas" class="collapse-content">
+          <div class="table-wrap">
+            <table class="events-table" aria-label="Listado de fechas importantes">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Evento</th>
+                  <th>Hora</th>
+                  <th>Lugar</th>
+                  <th>Descripción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-fechas-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -402,10 +608,10 @@
     ];
 
     const categoryFilter = document.getElementById("filtro-categoria");
-    const calendarFilter = document.getElementById("filtro-calendario");
     const newsList = document.getElementById("lista-noticias");
     const contactsList = document.getElementById("lista-contactos");
-    const calendarList = document.getElementById("lista-calendario");
+    const visualCalendar = document.getElementById("calendario-visual");
+    const eventsTableBody = document.getElementById("tabla-fechas-body");
 
     const formatDate = (isoDate) => {
       const [year, month, day] = isoDate.split("-").map(Number);
@@ -471,46 +677,111 @@
         .join("");
     }
 
-    function renderCalendar() {
-      const mode = calendarFilter.value;
+    function setupCollapsible(toggleId, contentId) {
+      const toggle = document.getElementById(toggleId);
+      const content = document.getElementById(contentId);
+      toggle.addEventListener("click", () => {
+        const expanded = toggle.getAttribute("aria-expanded") === "true";
+        toggle.setAttribute("aria-expanded", String(!expanded));
+        content.hidden = expanded;
+      });
+    }
+
+    const eventMap = calendarEvents.reduce((acc, event) => {
+      (acc[event.date] = acc[event.date] || []).push(event);
+      return acc;
+    }, {});
+
+    const monthName = (date) => date.toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+
+    function buildMonthCalendar(baseDate) {
+      const year = baseDate.getFullYear();
+      const month = baseDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startOffset = (firstDay.getDay() + 6) % 7;
+      const totalDays = lastDay.getDate();
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const filteredEvents = calendarEvents.filter((event) => {
-        if (mode === "todos") return true;
-        const [year, month, day] = event.date.split("-").map(Number);
-        const eventDate = new Date(year, month - 1, day);
-        return eventDate >= today;
-      });
+      const monthCard = document.createElement("article");
+      monthCard.className = "month-card";
+      monthCard.innerHTML = `
+        <h3 class="month-title">${monthName(firstDay)}</h3>
+        <div class="weekdays"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
+        <div class="days-grid"></div>
+      `;
 
-      if (!filteredEvents.length) {
-        calendarList.innerHTML = '<div class="empty-state">No hay eventos próximos en este momento.</div>';
-        return;
+      const grid = monthCard.querySelector(".days-grid");
+      for (let i = 0; i < startOffset; i += 1) {
+        const empty = document.createElement("div");
+        empty.className = "day-cell empty";
+        grid.appendChild(empty);
       }
 
-      calendarList.innerHTML = filteredEvents
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map((event) => `
-          <article class="card">
-            <div class="meta-row">
-              <span class="date">${formatDate(event.date)}</span>
-              <span class="chip">${event.time}</span>
-            </div>
-            <h3>${event.title}</h3>
-            <p><strong>Lugar:</strong> ${event.location}</p>
-            <p>${event.description}</p>
-          </article>
-        `)
-        .join("");
+      for (let day = 1; day <= totalDays; day += 1) {
+        const dateObj = new Date(year, month, day);
+        const isoDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const events = eventMap[isoDate] || [];
+        const isToday = dateObj.getTime() === today.getTime();
+
+        const cell = document.createElement("div");
+        cell.className = `day-cell${isToday ? " today" : ""}${events.length ? " has-event" : ""}`;
+
+        if (events.length) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("aria-label", `Eventos del ${formatDate(isoDate)}`);
+          button.textContent = day;
+
+          const tooltip = document.createElement("div");
+          tooltip.className = "event-tooltip";
+          tooltip.innerHTML = events.map((event) => `<strong>${event.title}</strong><br>${event.time}<br>${event.location}<br>${event.description}`).join("<hr style='border:0;border-top:1px solid rgba(255,255,255,.2);margin:.35rem 0;'>");
+          button.appendChild(tooltip);
+
+          const dot = document.createElement("span");
+          dot.className = "event-dot";
+          cell.appendChild(button);
+          cell.appendChild(dot);
+        } else {
+          cell.textContent = day;
+        }
+        grid.appendChild(cell);
+      }
+
+      return monthCard;
+    }
+
+    function renderVisualCalendar() {
+      visualCalendar.innerHTML = "";
+      const now = new Date();
+      const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      visualCalendar.appendChild(buildMonthCalendar(currentMonth));
+      visualCalendar.appendChild(buildMonthCalendar(nextMonth));
+    }
+
+    function renderEventsTable() {
+      const sortedEvents = [...calendarEvents].sort((a, b) => a.date.localeCompare(b.date));
+      eventsTableBody.innerHTML = sortedEvents.map((event) => `
+        <tr>
+          <td>${formatDate(event.date)}</td>
+          <td>${event.title}</td>
+          <td>${event.time}</td>
+          <td>${event.location}</td>
+          <td>${event.description}</td>
+        </tr>
+      `).join("");
     }
 
     categoryFilter.addEventListener("change", renderNews);
-    calendarFilter.addEventListener("change", renderCalendar);
-
     setupCategoryFilter();
+    setupCollapsible("toggle-calendario-visual", "contenido-calendario-visual");
+    setupCollapsible("toggle-listado-fechas", "contenido-listado-fechas");
     renderNews();
     renderContacts();
-    renderCalendar();
+    renderVisualCalendar();
+    renderEventsTable();
   </script>
 </body>
 </html>
