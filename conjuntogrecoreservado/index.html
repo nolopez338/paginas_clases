@@ -97,6 +97,77 @@
       display: grid;
       gap: 1.4rem;
     }
+    .access-wrapper {
+      min-height: calc(100vh - 180px);
+      display: grid;
+      place-items: center;
+      padding: 1rem 0 2rem;
+    }
+    .access-card {
+      width: min(420px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.2rem;
+    }
+    .access-card h2 {
+      margin: 0 0 0.8rem;
+      color: #1f3f52;
+      font-size: 1.25rem;
+    }
+    .access-card p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .form-group {
+      display: grid;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .form-group label {
+      font-size: 0.9rem;
+      color: #24495d;
+      font-weight: 600;
+    }
+    .form-group input {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .form-group input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .access-button {
+      width: 100%;
+      border: 1px solid #245a75;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.62rem 0.8rem;
+      font-weight: 600;
+      font-size: 0.96rem;
+      cursor: pointer;
+    }
+    .access-button:hover,
+    .access-button:focus-visible {
+      background: #255d79;
+      outline: none;
+    }
+    .access-error {
+      min-height: 1.25rem;
+      margin-top: 0.65rem;
+      color: #b01f1f;
+      font-size: 0.88rem;
+    }
+    .protected-content[hidden],
+    #login-screen[hidden] {
+      display: none;
+    }
 
     section {
       background: var(--surface);
@@ -439,6 +510,24 @@
   </header>
 
   <main class="container">
+    <section id="login-screen" class="access-wrapper" aria-labelledby="titulo-acceso">
+      <div class="access-card">
+        <h2 id="titulo-acceso">Acceso de residentes</h2>
+        <p>Ingrese sus credenciales para ver la información del conjunto.</p>
+        <div class="form-group">
+          <label for="username">Usuario</label>
+          <input id="username" name="username" type="text" autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="validate-access" class="access-button" type="button">Validar acceso</button>
+        <div id="access-error" class="access-error" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div id="protected-content" class="protected-content" hidden>
     <section id="noticias" aria-labelledby="titulo-noticias">
       <h2 id="titulo-noticias">Cartelera de noticias</h2>
       <div class="toolbar">
@@ -491,6 +580,7 @@
         </div>
       </div>
     </section>
+    </div>
   </main>
 
   <footer>
@@ -612,6 +702,17 @@
     const contactsList = document.getElementById("lista-contactos");
     const visualCalendar = document.getElementById("calendario-visual");
     const eventsTableBody = document.getElementById("tabla-fechas-body");
+    const loginScreen = document.getElementById("login-screen");
+    const protectedContent = document.getElementById("protected-content");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const validateAccessButton = document.getElementById("validate-access");
+    const accessError = document.getElementById("access-error");
+
+    // Prototipo de seguridad solo del lado del cliente; no usar como control real en producción.
+    const users = [
+      { username: "4-303", password: "123456" }
+    ];
 
     const formatDate = (isoDate) => {
       const [year, month, day] = isoDate.split("-").map(Number);
@@ -774,7 +875,29 @@
       `).join("");
     }
 
+    function validateAccess() {
+      const enteredUsername = usernameInput.value.trim();
+      const enteredPassword = passwordInput.value;
+      const isValidUser = users.some((user) => user.username === enteredUsername && user.password === enteredPassword);
+
+      if (isValidUser) {
+        accessError.textContent = "";
+        loginScreen.hidden = true;
+        protectedContent.hidden = false;
+        return;
+      }
+      protectedContent.hidden = true;
+      accessError.textContent = "Usuario o contraseña incorrectos.";
+    }
+
     categoryFilter.addEventListener("change", renderNews);
+    validateAccessButton.addEventListener("click", validateAccess);
+    passwordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        validateAccess();
+      }
+    });
     setupCategoryFilter();
     setupCollapsible("toggle-calendario-visual", "contenido-calendario-visual");
     setupCollapsible("toggle-listado-fechas", "contenido-listado-fechas");
