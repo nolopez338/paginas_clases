@@ -345,6 +345,24 @@
       outline: none;
     }
 
+    .contact-entry {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.9rem;
+      background: #fff;
+    }
+
+    .contact-entry h3 {
+      margin: 0.2rem 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .contact-entry p {
+      margin: 0;
+      color: #3f4d57;
+      font-size: 0.92rem;
+    }
+
 
 
     .collapse-wrap {
@@ -589,34 +607,50 @@
     <div id="protected-content" class="protected-content" hidden>
     <section id="noticias" aria-labelledby="titulo-noticias">
       <h2 id="titulo-noticias">Cartelera de noticias</h2>
-      <div class="toolbar">
-        <label for="filtro-categoria">Filtrar por categoría:</label>
-        <select id="filtro-categoria" aria-label="Filtrar noticias por categoría">
-          <option value="Todas">Todas</option>
-        </select>
+      <div class="collapse-wrap">
+        <button class="collapse-toggle" id="toggle-cartelera-noticias" aria-expanded="true" aria-controls="contenido-cartelera-noticias">
+          <span>Cartelera de noticias</span>
+          <span class="collapse-icon" aria-hidden="true">▾</span>
+        </button>
+        <div id="contenido-cartelera-noticias" class="collapse-content">
+          <div class="toolbar">
+            <label for="filtro-categoria">Filtrar por categoría:</label>
+            <select id="filtro-categoria" aria-label="Filtrar noticias por categoría">
+              <option value="Todas">Todas</option>
+            </select>
+          </div>
+          <div id="lista-noticias" class="grid news-grid" aria-live="polite"></div>
+        </div>
       </div>
-      <div id="lista-noticias" class="grid news-grid" aria-live="polite"></div>
     </section>
 
     <section id="contactos" aria-labelledby="titulo-contactos">
       <h2 id="titulo-contactos">Personas de contacto</h2>
-      <div id="lista-contactos" class="grid contact-grid"></div>
-      <div class="contacts-table-block" aria-labelledby="titulo-directorio-contactos">
-        <h3 id="titulo-directorio-contactos">Directorio de contactos</h3>
-        <div class="table-wrapper">
-          <table class="contacts-table">
-            <caption>Directorio de contactos del Conjunto Greco Reservado</caption>
-            <thead>
-              <tr>
-                <th scope="col">Rol</th>
-                <th scope="col">Nombre o dependencia</th>
-                <th scope="col">Teléfono</th>
-                <th scope="col">Correo</th>
-                <th scope="col">Descripción</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-contactos-body"></tbody>
-          </table>
+      <div class="collapse-wrap">
+        <button class="collapse-toggle" id="toggle-personas-contacto" aria-expanded="true" aria-controls="contenido-personas-contacto">
+          <span>Personas de contacto</span>
+          <span class="collapse-icon" aria-hidden="true">▾</span>
+        </button>
+        <div id="contenido-personas-contacto" class="collapse-content">
+          <div id="lista-contactos" class="grid contact-grid"></div>
+          <div class="contacts-table-block" aria-labelledby="titulo-directorio-contactos">
+            <h3 id="titulo-directorio-contactos">Directorio de contactos</h3>
+            <div class="table-wrapper">
+              <table class="contacts-table">
+                <caption>Directorio de contactos del Conjunto Greco Reservado</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Rol</th>
+                    <th scope="col">Nombre o dependencia</th>
+                    <th scope="col">Teléfono</th>
+                    <th scope="col">Correo</th>
+                    <th scope="col">Descripción</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-contactos-body"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -920,7 +954,7 @@
     function renderContacts() {
       const contactCards = contactPeople
         .map((person) => `
-          <article class="card">
+          <article class="contact-entry">
             <div class="meta-row">
               <span class="chip">${person.role}</span>
             </div>
@@ -1085,6 +1119,8 @@
     });
     setupCategoryFilter();
     setupCollapsible("toggle-documentos-relevantes", "contenido-documentos-relevantes");
+    setupCollapsible("toggle-cartelera-noticias", "contenido-cartelera-noticias");
+    setupCollapsible("toggle-personas-contacto", "contenido-personas-contacto");
     setupCollapsible("toggle-calendario-visual", "contenido-calendario-visual");
     setupCollapsible("toggle-listado-fechas", "contenido-listado-fechas");
     renderNews();
