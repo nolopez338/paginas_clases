@@ -287,6 +287,60 @@
       background: #fafcfd;
     }
 
+    .contacts-table-block {
+      margin-top: 1rem;
+    }
+
+    .contacts-table-block h3 {
+      margin: 0 0 0.6rem;
+      font-size: 1rem;
+      color: #1f3f52;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .contacts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      min-width: 760px;
+    }
+
+    .contacts-table caption {
+      text-align: left;
+      font-weight: 600;
+      color: #3a4f5b;
+      margin-bottom: 0.45rem;
+    }
+
+    .contacts-table th,
+    .contacts-table td {
+      border: 1px solid var(--border);
+      padding: 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .contacts-table th {
+      background: #eef5fa;
+      color: #1f3f52;
+      font-weight: 700;
+    }
+
+    .contacts-table td a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .contacts-table td a:hover,
+    .contacts-table td a:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
 
 
     .collapse-wrap {
@@ -542,6 +596,24 @@
     <section id="contactos" aria-labelledby="titulo-contactos">
       <h2 id="titulo-contactos">Personas de contacto</h2>
       <div id="lista-contactos" class="grid contact-grid"></div>
+      <div class="contacts-table-block" aria-labelledby="titulo-directorio-contactos">
+        <h3 id="titulo-directorio-contactos">Directorio de contactos</h3>
+        <div class="table-wrapper">
+          <table class="contacts-table">
+            <caption>Directorio de contactos del Conjunto Greco Reservado</caption>
+            <thead>
+              <tr>
+                <th scope="col">Rol</th>
+                <th scope="col">Nombre o dependencia</th>
+                <th scope="col">Teléfono</th>
+                <th scope="col">Correo</th>
+                <th scope="col">Descripción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-contactos-body"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section id="calendario" aria-labelledby="titulo-calendario">
@@ -700,6 +772,7 @@
     const categoryFilter = document.getElementById("filtro-categoria");
     const newsList = document.getElementById("lista-noticias");
     const contactsList = document.getElementById("lista-contactos");
+    const contactsTableBody = document.getElementById("tabla-contactos-body");
     const visualCalendar = document.getElementById("calendario-visual");
     const eventsTableBody = document.getElementById("tabla-fechas-body");
     const loginScreen = document.getElementById("login-screen");
@@ -761,7 +834,7 @@
     }
 
     function renderContacts() {
-      contactsList.innerHTML = contactPeople
+      const contactCards = contactPeople
         .map((person) => `
           <article class="card">
             <div class="meta-row">
@@ -776,6 +849,21 @@
           </article>
         `)
         .join("");
+
+      const contactRows = contactPeople
+        .map((person) => `
+          <tr>
+            <td>${person.role}</td>
+            <td>${person.name}</td>
+            <td><a href="tel:${person.phone.replace(/\s+/g, "")}">${person.phone}</a></td>
+            <td>${person.email ? `<a href="mailto:${person.email}">${person.email}</a>` : "No disponible"}</td>
+            <td>${person.description}</td>
+          </tr>
+        `)
+        .join("");
+
+      contactsList.innerHTML = contactCards;
+      contactsTableBody.innerHTML = contactRows;
     }
 
     function setupCollapsible(toggleId, contentId) {
