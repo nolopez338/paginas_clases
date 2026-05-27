@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conjunto Greco Reservado</title>
+  <style>
+    :root {
+      --bg: #f6f7f8;
+      --surface: #ffffff;
+      --text: #25313a;
+      --muted: #60707d;
+      --border: #d9e0e6;
+      --accent: #2f6f8f;
+      --accent-soft: #e7f1f6;
+      --success: #2f7d50;
+      --shadow: 0 8px 20px rgba(21, 40, 54, 0.08);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      width: min(1100px, 92vw);
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(145deg, #ffffff, #f2f5f7);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(6px);
+    }
+
+    .header-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+
+    .titles h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2vw, 2rem);
+      color: var(--accent);
+    }
+
+    .titles p {
+      margin: 0.15rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    nav a {
+      display: inline-block;
+      padding: 0.5rem 0.85rem;
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--text);
+      background: #eef3f6;
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    nav a:hover,
+    nav a:focus-visible {
+      background: var(--accent-soft);
+      color: var(--accent);
+      outline: none;
+    }
+
+    main {
+      padding: 1.25rem 0 2.5rem;
+      display: grid;
+      gap: 1.4rem;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.1rem;
+    }
+
+    section h2 {
+      margin-top: 0;
+      margin-bottom: 0.8rem;
+      font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+      color: #1f3f52;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .toolbar label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.65rem;
+      background: white;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .news-grid,
+    .contact-grid,
+    .calendar-grid {
+      grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.9rem;
+      background: #fff;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .date {
+      font-size: 0.83rem;
+      color: var(--muted);
+    }
+
+    .card h3 {
+      margin: 0.2rem 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: #3f4d57;
+      font-size: 0.92rem;
+    }
+
+    .contact-list {
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.2rem;
+      font-size: 0.88rem;
+      color: #3a4f5b;
+    }
+
+    .contact-list a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .contact-list a:hover,
+    .contact-list a:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      color: var(--muted);
+      text-align: center;
+      background: #fafcfd;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 1rem 0 2rem;
+    }
+
+    @media (max-width: 680px) {
+      .header-inner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      nav ul {
+        gap: 0.35rem;
+      }
+
+      nav a {
+        font-size: 0.84rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container header-inner">
+      <div class="titles">
+        <h1>Conjunto Greco Reservado</h1>
+        <p>Información para residentes</p>
+      </div>
+      <nav aria-label="Navegación principal">
+        <ul>
+          <li><a href="#noticias">Noticias</a></li>
+          <li><a href="#contactos">Contactos</a></li>
+          <li><a href="#calendario">Calendario</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="noticias" aria-labelledby="titulo-noticias">
+      <h2 id="titulo-noticias">Cartelera de noticias</h2>
+      <div class="toolbar">
+        <label for="filtro-categoria">Filtrar por categoría:</label>
+        <select id="filtro-categoria" aria-label="Filtrar noticias por categoría">
+          <option value="Todas">Todas</option>
+        </select>
+      </div>
+      <div id="lista-noticias" class="grid news-grid" aria-live="polite"></div>
+    </section>
+
+    <section id="contactos" aria-labelledby="titulo-contactos">
+      <h2 id="titulo-contactos">Personas de contacto</h2>
+      <div id="lista-contactos" class="grid contact-grid"></div>
+    </section>
+
+    <section id="calendario" aria-labelledby="titulo-calendario">
+      <h2 id="titulo-calendario">Calendario de fechas importantes</h2>
+      <div class="toolbar">
+        <label for="filtro-calendario">Mostrar:</label>
+        <select id="filtro-calendario" aria-label="Filtrar eventos del calendario">
+          <option value="todos">Todos los eventos</option>
+          <option value="proximos">Solo próximos eventos</option>
+        </select>
+      </div>
+      <div id="lista-calendario" class="grid calendar-grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer>
+    Portal interno - Conjunto Greco Reservado
+  </footer>
+
+  <script>
+    const newsItems = [
+      {
+        title: "Mantenimiento de bombas de agua",
+        date: "2026-06-04",
+        description: "Se realizará revisión preventiva de bombas entre 8:00 a. m. y 12:00 m. Puede haber baja presión temporal.",
+        category: "Mantenimiento"
+      },
+      {
+        title: "Recordatorio asamblea ordinaria",
+        date: "2026-06-09",
+        description: "La asamblea ordinaria será en el salón comunal. Llevar documento de identidad para registro.",
+        category: "Asamblea"
+      },
+      {
+        title: "Fecha límite de cuota de administración",
+        date: "2026-06-10",
+        description: "Evite recargos realizando el pago antes de la fecha límite por PSE o en la oficina administrativa.",
+        category: "Pagos"
+      },
+      {
+        title: "Actualización de protocolo de ingreso",
+        date: "2026-06-02",
+        description: "Desde esta semana, las visitas deben ser preautorizadas por la app o por llamada a portería.",
+        category: "Seguridad"
+      },
+      {
+        title: "Jornada de embellecimiento del jardín",
+        date: "2026-06-15",
+        description: "Invitación abierta a residentes para apoyar actividades de siembra y limpieza de zonas verdes.",
+        category: "Comunidad"
+      }
+    ];
+
+    const contactPeople = [
+      {
+        role: "Administración",
+        name: "Oficina Administrativa",
+        phone: "+57 601 555 1020",
+        email: "administracion@grecoreservado.org",
+        description: "Pagos, paz y salvos, correspondencia, reservas y solicitudes generales del conjunto."
+      },
+      {
+        role: "Seguridad",
+        name: "Jefe de Portería",
+        phone: "+57 320 555 8891",
+        email: "seguridad@grecoreservado.org",
+        description: "Control de ingreso, reporte de novedades, autorizaciones de visitantes y paquetes."
+      },
+      {
+        role: "Consejo de administración",
+        name: "Representante del Consejo",
+        phone: "+57 311 555 7712",
+        email: "consejo@grecoreservado.org",
+        description: "Temas de convivencia, propuestas comunitarias y seguimiento a decisiones internas."
+      },
+      {
+        role: "Mantenimiento",
+        name: "Coordinador Técnico",
+        phone: "+57 310 555 3344",
+        email: "mantenimiento@grecoreservado.org",
+        description: "Daños en áreas comunes, luminarias, puertas eléctricas y reportes de infraestructura."
+      },
+      {
+        role: "Emergencias",
+        name: "Línea de Atención 24/7",
+        phone: "+57 300 911 0000",
+        email: "",
+        description: "Situaciones urgentes que requieran atención inmediata dentro del conjunto."
+      }
+    ];
+
+    const calendarEvents = [
+      {
+        date: "2026-06-09",
+        title: "Asamblea ordinaria",
+        time: "7:00 p. m.",
+        location: "Salón comunal",
+        description: "Revisión de presupuesto, informes de gestión y votación de propuestas vecinales."
+      },
+      {
+        date: "2026-06-04",
+        title: "Día de mantenimiento hidráulico",
+        time: "8:00 a. m. - 12:00 m.",
+        location: "Cuarto técnico y torres A-B",
+        description: "Mantenimiento preventivo del sistema de presión de agua."
+      },
+      {
+        date: "2026-06-10",
+        title: "Vencimiento cuota de administración",
+        time: "Hasta 11:59 p. m.",
+        location: "Canales de pago autorizados",
+        description: "Último día para pagar sin recargo la cuota mensual."
+      },
+      {
+        date: "2026-06-12",
+        title: "Recolección de reciclaje",
+        time: "6:30 a. m.",
+        location: "Cuarto de residuos",
+        description: "Separar papel, cartón, plástico y vidrio en bolsas limpias y marcadas."
+      },
+      {
+        date: "2026-06-21",
+        title: "Actividad comunitaria familiar",
+        time: "10:00 a. m. - 1:00 p. m.",
+        location: "Zona BBQ",
+        description: "Integración de residentes con actividades para niños y adultos."
+      }
+    ];
+
+    const categoryFilter = document.getElementById("filtro-categoria");
+    const calendarFilter = document.getElementById("filtro-calendario");
+    const newsList = document.getElementById("lista-noticias");
+    const contactsList = document.getElementById("lista-contactos");
+    const calendarList = document.getElementById("lista-calendario");
+
+    const formatDate = (isoDate) => {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString("es-CO", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+    };
+
+    function setupCategoryFilter() {
+      const categories = [...new Set(newsItems.map((item) => item.category))].sort();
+      categories.forEach((category) => {
+        const option = document.createElement("option");
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+      });
+    }
+
+    function renderNews() {
+      const selectedCategory = categoryFilter.value;
+      const filteredNews = selectedCategory === "Todas"
+        ? newsItems
+        : newsItems.filter((item) => item.category === selectedCategory);
+
+      if (!filteredNews.length) {
+        newsList.innerHTML = '<div class="empty-state">No hay noticias para la categoría seleccionada.</div>';
+        return;
+      }
+
+      newsList.innerHTML = filteredNews
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((item) => `
+          <article class="card">
+            <div class="meta-row">
+              <span class="chip">${item.category}</span>
+              <span class="date">${formatDate(item.date)}</span>
+            </div>
+            <h3>${item.title}</h3>
+            <p>${item.description}</p>
+          </article>
+        `)
+        .join("");
+    }
+
+    function renderContacts() {
+      contactsList.innerHTML = contactPeople
+        .map((person) => `
+          <article class="card">
+            <div class="meta-row">
+              <span class="chip">${person.role}</span>
+            </div>
+            <h3>${person.name}</h3>
+            <ul class="contact-list">
+              <li><strong>Tel:</strong> <a href="tel:${person.phone.replace(/\s+/g, "")}">${person.phone}</a></li>
+              ${person.email ? `<li><strong>Email:</strong> <a href="mailto:${person.email}">${person.email}</a></li>` : ""}
+            </ul>
+            <p>${person.description}</p>
+          </article>
+        `)
+        .join("");
+    }
+
+    function renderCalendar() {
+      const mode = calendarFilter.value;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const filteredEvents = calendarEvents.filter((event) => {
+        if (mode === "todos") return true;
+        const [year, month, day] = event.date.split("-").map(Number);
+        const eventDate = new Date(year, month - 1, day);
+        return eventDate >= today;
+      });
+
+      if (!filteredEvents.length) {
+        calendarList.innerHTML = '<div class="empty-state">No hay eventos próximos en este momento.</div>';
+        return;
+      }
+
+      calendarList.innerHTML = filteredEvents
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((event) => `
+          <article class="card">
+            <div class="meta-row">
+              <span class="date">${formatDate(event.date)}</span>
+              <span class="chip">${event.time}</span>
+            </div>
+            <h3>${event.title}</h3>
+            <p><strong>Lugar:</strong> ${event.location}</p>
+            <p>${event.description}</p>
+          </article>
+        `)
+        .join("");
+    }
+
+    categoryFilter.addEventListener("change", renderNews);
+    calendarFilter.addEventListener("change", renderCalendar);
+
+    setupCategoryFilter();
+    renderNews();
+    renderContacts();
+    renderCalendar();
+  </script>
+</body>
+</html>
