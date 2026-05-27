@@ -561,6 +561,7 @@
         <ul>
           <li><a href="#noticias">Noticias</a></li>
           <li><a href="#contactos">Contactos</a></li>
+          <li><a href="#documentos">Documentos</a></li>
           <li><a href="#calendario">Calendario</a></li>
         </ul>
       </nav>
@@ -616,6 +617,32 @@
             </thead>
             <tbody id="tabla-contactos-body"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="documentos" aria-labelledby="titulo-documentos">
+      <h2 id="titulo-documentos">Documentos relevantes</h2>
+      <div class="collapse-wrap">
+        <button class="collapse-toggle" id="toggle-documentos-relevantes" aria-expanded="true" aria-controls="contenido-documentos-relevantes">
+          <span>Tabla de documentos relevantes</span>
+          <span class="collapse-icon" aria-hidden="true">▾</span>
+        </button>
+        <div id="contenido-documentos-relevantes" class="collapse-content">
+          <div class="table-wrapper">
+            <table class="contacts-table" aria-label="Tabla de documentos relevantes">
+              <thead>
+                <tr>
+                  <th scope="col">Documento</th>
+                  <th scope="col">Categoría</th>
+                  <th scope="col">Descripción</th>
+                  <th scope="col">Fecha de actualización</th>
+                  <th scope="col">Enlace</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-documentos-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -773,10 +800,63 @@
       }
     ];
 
+    const relevantDocuments = [
+      {
+        title: "Reglamento de propiedad horizontal",
+        category: "Normativa",
+        description: "Documento base con las normas internas, deberes y derechos de los copropietarios y residentes.",
+        updatedDate: "2026-04-20",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Manual de convivencia",
+        category: "Convivencia",
+        description: "Lineamientos para la convivencia y el uso adecuado de zonas comunes.",
+        updatedDate: "2026-03-15",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Actas de asamblea",
+        category: "Asamblea",
+        description: "Registro de decisiones y compromisos aprobados en las asambleas de copropietarios.",
+        updatedDate: "2026-05-10",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Estados financieros",
+        category: "Finanzas",
+        description: "Informes financieros periódicos del conjunto y ejecución presupuestal.",
+        updatedDate: "2026-05-18",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Cronograma de mantenimiento",
+        category: "Mantenimiento",
+        description: "Programación de actividades preventivas y correctivas en áreas comunes.",
+        updatedDate: "2026-05-05",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Protocolo de seguridad",
+        category: "Seguridad",
+        description: "Procedimientos de ingreso, atención de incidentes y respuesta ante emergencias.",
+        updatedDate: "2026-04-28",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      },
+      {
+        title: "Formato de solicitud a administración",
+        category: "Administración",
+        description: "Formato para radicar solicitudes, peticiones y trámites ante la administración.",
+        updatedDate: "2026-05-12",
+        url: "https://drive.google.com/file/d/1SYN3YCe_nYCVHax2HrOFZQVqSaO_xYM1/view?usp=sharing"
+      }
+    ];
+
     const categoryFilter = document.getElementById("filtro-categoria");
     const newsList = document.getElementById("lista-noticias");
     const contactsList = document.getElementById("lista-contactos");
     const contactsTableBody = document.getElementById("tabla-contactos-body");
+    const documentsTableBody = document.getElementById("tabla-documentos-body");
     const visualCalendar = document.getElementById("calendario-visual");
     const eventsTableBody = document.getElementById("tabla-fechas-body");
     const loginScreen = document.getElementById("login-screen");
@@ -878,6 +958,19 @@
         toggle.setAttribute("aria-expanded", String(!expanded));
         content.hidden = expanded;
       });
+    }
+
+    function renderDocumentsTable() {
+      const sortedDocuments = [...relevantDocuments].sort((a, b) => a.title.localeCompare(b.title, "es"));
+      documentsTableBody.innerHTML = sortedDocuments.map((documentItem) => `
+        <tr>
+          <td>${documentItem.title}</td>
+          <td>${documentItem.category}</td>
+          <td>${documentItem.description}</td>
+          <td>${formatDate(documentItem.updatedDate)}</td>
+          <td><a href="${documentItem.url}" target="_blank" rel="noopener noreferrer">Ver documento</a></td>
+        </tr>
+      `).join("");
     }
 
     const eventMap = calendarEvents.reduce((acc, event) => {
@@ -991,10 +1084,12 @@
       }
     });
     setupCategoryFilter();
+    setupCollapsible("toggle-documentos-relevantes", "contenido-documentos-relevantes");
     setupCollapsible("toggle-calendario-visual", "contenido-calendario-visual");
     setupCollapsible("toggle-listado-fechas", "contenido-listado-fechas");
     renderNews();
     renderContacts();
+    renderDocumentsTable();
     renderVisualCalendar();
     renderEventsTable();
   </script>
