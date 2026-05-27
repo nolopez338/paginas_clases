@@ -233,6 +233,15 @@
       <h1>Juego de contar figuras</h1>
       <p>Observa la cuadrícula en cada ronda, cuenta cuántas figuras ves y escribe tu respuesta. La dificultad aumenta con cada nivel y ahora puedes cambiar el tipo y color de figura para variar el reto. ¡Son 10 rondas, ve tu puntuación al final!</p>
       <div class="panel">
+
+        <form id="guess-form">
+          <label for="guess">¿Cuántas figuras hay?</label>
+          <input id="guess" type="number" min="0" required />
+          <button id="action" type="submit">Enviar respuesta</button>
+          <div id="feedback" class="feedback" aria-live="polite"></div>
+        </form>
+
+
         <div class="stat-grid">
           <div class="stat">
             <div class="label">Ronda</div>
@@ -252,12 +261,6 @@
           </div>
         </div>
 
-        <form id="guess-form">
-          <label for="guess">¿Cuántas figuras hay?</label>
-          <input id="guess" type="number" min="0" required />
-          <button id="action" type="submit">Enviar respuesta</button>
-          <div id="feedback" class="feedback" aria-live="polite"></div>
-        </form>
 
         <div aria-label="Controles de apariencia" class="shape-controls" id="shape-controls"></div>
         <div class="color-picker">
